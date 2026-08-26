@@ -156,6 +156,26 @@ public readonly struct TraitValue : IEquatable<TraitValue>
     public static implicit operator TraitValue(TraitValue[]? values) =>
         values is null ? Null : FromArray(values);
 
+    /// <summary>Wraps an array of text, or <see cref="Null"/> when it is <see langword="null"/>.</summary>
+    /// <param name="values">The values to wrap.</param>
+    public static implicit operator TraitValue(string?[]? values) => FromValues(values);
+
+    /// <summary>Wraps an array of whole numbers, or <see cref="Null"/> when it is <see langword="null"/>.</summary>
+    /// <param name="values">The values to wrap.</param>
+    public static implicit operator TraitValue(int[]? values) => FromValues(values);
+
+    /// <summary>Wraps an array of whole numbers, or <see cref="Null"/> when it is <see langword="null"/>.</summary>
+    /// <param name="values">The values to wrap.</param>
+    public static implicit operator TraitValue(long[]? values) => FromValues(values);
+
+    /// <summary>Wraps an array of numbers, or <see cref="Null"/> when it is <see langword="null"/>.</summary>
+    /// <param name="values">The values to wrap.</param>
+    public static implicit operator TraitValue(double[]? values) => FromValues(values);
+
+    /// <summary>Wraps an array of booleans, or <see cref="Null"/> when it is <see langword="null"/>.</summary>
+    /// <param name="values">The values to wrap.</param>
+    public static implicit operator TraitValue(bool[]? values) => FromValues(values);
+
     /// <inheritdoc/>
     public bool Equals(TraitValue other)
     {
@@ -224,7 +244,39 @@ public readonly struct TraitValue : IEquatable<TraitValue>
     /// <returns><see langword="true"/> when they differ.</returns>
     public static bool operator !=(TraitValue left, TraitValue right) => !left.Equals(right);
 
+    // The traits a context carries are read straight through rather than copied: the collection is
+    // already the context's own, and an evaluation should not allocate a second copy of it.
+    internal static TraitValue WrapObject(IReadOnlyDictionary<string, TraitValue> members) =>
+        new(TraitValueKind.Object, members);
+
     internal double AsDouble() => _isIntegral ? _integer : _double;
+
+    private static TraitValue FromValues<T>(T[]? values)
+    {
+        if (values is null)
+        {
+            return Null;
+        }
+
+        var elements = new TraitValue[values.Length];
+        for (var index = 0; index < values.Length; index++)
+        {
+            elements[index] = Convert(values[index]);
+        }
+
+        return new TraitValue(TraitValueKind.Array, elements);
+    }
+
+    private static TraitValue Convert<T>(T value) =>
+        value switch
+        {
+            string text => text,
+            int number => number,
+            long number => number,
+            double number => number,
+            bool flag => flag,
+            _ => Null,
+        };
 
     private static bool NumbersEqual(in TraitValue left, in TraitValue right) =>
         left._isIntegral && right._isIntegral
