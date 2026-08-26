@@ -1,0 +1,80 @@
+#!/usr/bin/env sh
+#
+# Runs the same build, test, and format checks CI runs, before allowing a push.
+#
+#   dotnet build -> dotnet test -> dotnet format --verify-no-changes
+#
+# Install it with:  git config core.hooksPath .githooks
+# Bypass it for a single push with:  git push --no-verify
+#
+# Note: this checks the working tree, not the commits being pushed. Uncommitted changes are
+# included, which is usually what you want and occasionally surprising.
+
+set -eu
+
+CONFIGURATION=Release
+
+# --- skip when the push only deletes remote refs -----------------------------------------
+# git feeds "<local ref> <local sha> <remote ref> <remote sha>" per ref on stdin. A deletion
+# has an all-zero local sha and nothing to check. Skip the read entirely when run from a
+# terminal, so the hook stays runnable by hand.
+if [ ! -t 0 ]; then
+    saw_ref=0
+    only_deletes=1
+    while read -r _local_ref local_sha _remote_ref _remote_sha; do
+        saw_ref=1
+        case "$local_sha" in
+            *[!0]*) only_deletes=0 ;;
+        esac
+    done
+    if [ "$saw_ref" -eq 1 ] && [ "$only_deletes" -eq 1 ]; then
+        echo "pre-push: deleting refs only, nothing to check."
+        exit 0
+    fi
+fi
+
+cd "$(git rev-parse --show-toplevel)"
+
+# GUI git clients (VS Code, Fork, JetBrains) often start without the shell profile, so a
+# package-manager dotnet may not be on PATH. Look where the installers put it.
+if ! command -v dotnet >/dev/null 2>&1; then
+    for candidate in /opt/homebrew/bin /usr/local/share/dotnet /usr/share/dotnet "$HOME/.dotnet"; do
+        if [ -x "$candidate/dotnet" ]; then
+            PATH="$candidate:$PATH"
+            export PATH
+            break
+        fi
+    done
+fi
+
+if ! command -v dotnet >/dev/null 2>&1; then
+    echo "pre-push: 'dotnet' was not found on PATH." >&2
+    echo "  Push from a terminal, or bypass with: git push --no-verify" >&2
+    exit 1
+fi
+
+if [ -t 1 ]; then
+    bold=$(printf '\033[1m')
+    red=$(printf '\033[31m')
+    green=$(printf '\033[32m')
+    reset=$(printf '\033[0m')
+else
+    bold='' red='' green='' reset=''
+fi
+
+run() {
+    label=$1
+    shift
+    printf '\n%s> %s%s\n' "$bold" "$label" "$reset"
+    if ! "$@"; then
+        printf '\n%spre-push failed at: %s%s\n' "$red" "$label" "$reset" >&2
+        printf '  Fix the failure, or bypass with: git push --no-verify\n' >&2
+        exit 1
+    fi
+}
+
+run "dotnet build" dotnet build -c "$CONFIGURATION"
+run "dotnet test" dotnet test -c "$CONFIGURATION" --no-build
+run "dotnet format" dotnet format --verify-no-changes
+
+printf '\n%spre-push checks passed%s\n' "$green" "$reset"
