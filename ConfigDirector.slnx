@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ConfigDirector.ServerSdk/ConfigDirector.ServerSdk.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ConfigDirector.ServerSdk.Tests/ConfigDirector.ServerSdk.Tests.csproj" />
+  </Folder>
+</Solution>

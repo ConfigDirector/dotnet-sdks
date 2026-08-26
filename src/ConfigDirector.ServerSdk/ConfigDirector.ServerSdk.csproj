@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>ConfigDirector</RootNamespace>
+    <Description>Server SDK for ConfigDirector, a remote configuration and feature flag service.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ConfigDirector.ServerSdk.Tests" />
+  </ItemGroup>
+
+</Project>

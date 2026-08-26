@@ -1,0 +1,30 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{cs,csproj,props,targets,slnx}]
+indent_size = 4
+
+[*.{json,yml,yaml,md}]
+indent_size = 2
+
+[*.cs]
+csharp_style_namespace_declarations = file_scoped:warning
+csharp_using_directive_placement = outside_namespace:warning
+dotnet_sort_system_directives_first = true
+dotnet_style_namespace_match_folder = true:warning
+csharp_prefer_braces = true:warning
+dotnet_style_prefer_conditional_expression_over_return = false:none
+
+# ArgumentNullException.ThrowIfNull does not exist on netstandard2.0, which the SDK still targets.
+dotnet_diagnostic.CA1510.severity = none
+
+[tests/**.cs]
+# Test names use the vocabulary of what they test, "pointer" and "object" included.
+dotnet_diagnostic.CA1720.severity = none
