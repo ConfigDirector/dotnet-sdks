@@ -1,0 +1,80 @@
+name: dotnet-sdks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# Keeps the same commands working on the Windows runner as on the others.
+defaults:
+  run:
+    shell: bash
+
+env:
+  # Release is what gets packed and published, so it is what CI builds and tests.
+  CONFIGURATION: Release
+
+jobs:
+  build:
+    name: Build + Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/setup-dotnet
+
+      # TreatWarningsAsErrors is on, so an analyzer or code-style violation fails here.
+      - run: dotnet build -c "$CONFIGURATION"
+
+      - run: dotnet test -c "$CONFIGURATION" --no-build
+
+  format:
+    name: Format
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/setup-dotnet
+
+      # Whitespace and ordering, which building does not check.
+      - run: dotnet format --verify-no-changes
+
+  os-compatibility:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/setup-dotnet
+
+      - run: dotnet test -c "$CONFIGURATION"
+
+  pack:
+    name: Pack
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/setup-dotnet
+
+      - run: dotnet pack -c "$CONFIGURATION" -o artifacts
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: nupkg
+          path: artifacts/*.nupkg

@@ -1,0 +1,18 @@
+name: Set up .NET
+description: Installs the pinned SDK plus the oldest runtime the SDK supports, and caches packages.
+
+runs:
+  using: composite
+  steps:
+    # global.json pins the SDK; 8.0.x is there for the net8.0 leg of the test suite.
+    - uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: 8.0.x
+        global-json-file: global.json
+
+    # Central package management means one file carries every version, so it is the cache key.
+    - uses: actions/cache@v6
+      with:
+        path: ~/.nuget/packages
+        key: nuget-${{ runner.os }}-${{ hashFiles('Directory.Packages.props') }}
+        restore-keys: nuget-${{ runner.os }}-
