@@ -17,6 +17,25 @@ namespace ConfigDirector;
 /// </remarks>
 public interface IConfigDirectorClient : IDisposable, IAsyncDisposable
 {
+    /// <summary>
+    /// Raised once, when the first config state arrives. It reports the transition, so a handler
+    /// added to an already-ready client is never called — check <see cref="IsReady"/> for that.
+    /// </summary>
+    event EventHandler<ClientReadyEventArgs>? ClientReady;
+
+    /// <summary>
+    /// Raised every time new config state arrives. Handlers run on the thread the update arrived
+    /// on, so one that blocks delays later updates.
+    /// </summary>
+    event EventHandler<ConfigsUpdatedEventArgs>? ConfigsUpdated;
+
+    /// <summary>
+    /// Raised every time a config is evaluated, including evaluations that returned the caller's
+    /// default. Handlers run on the thread that asked, so one that blocks delays the call that
+    /// triggered it.
+    /// </summary>
+    event EventHandler<ConfigEvaluatedEventArgs>? ConfigEvaluated;
+
     /// <summary>Whether config state has arrived. Until it has, every getter returns its default.</summary>
     bool IsReady { get; }
 
@@ -72,4 +91,31 @@ public interface IConfigDirectorClient : IDisposable, IAsyncDisposable
     IReadOnlyDictionary<string, ConfigState> GetAllConfigs(
         Context? context = null,
         IEnumerable<string>? configKeys = null);
+
+    /// <summary>
+    /// Calls <paramref name="onChange"/> with the newly evaluated value whenever an update carries
+    /// <paramref name="configKey"/>.
+    /// </summary>
+    /// <remarks>
+    /// Handlers run on the thread the update arrived on, so one that blocks delays later updates.
+    /// Register the watch before <see cref="InitializeAsync"/> to be called for the first config
+    /// state as well.
+    /// </remarks>
+    /// <typeparam name="T">The type of the default, and of the value passed to <paramref name="onChange"/>.</typeparam>
+    /// <param name="configKey">The config to watch.</param>
+    /// <param name="defaultValue">Used when the updated config will not coerce to <typeparamref name="T"/>.</param>
+    /// <param name="onChange">Receives the newly evaluated value.</param>
+    /// <param name="context">Evaluated against targeting rules; may be null.</param>
+    /// <returns>A handle that cancels this watch. Disposing it twice is harmless.</returns>
+    /// <exception cref="ArgumentException"><paramref name="configKey"/> is empty or whitespace.</exception>
+    /// <exception cref="ArgumentNullException">An argument other than <paramref name="context"/> is null.</exception>
+    IDisposable Watch<T>(string configKey, T defaultValue, Action<T> onChange, Context? context = null)
+        where T : notnull;
+
+    /// <summary>Cancels every watch on one config.</summary>
+    /// <param name="configKey">The config to stop watching.</param>
+    void Unwatch(string configKey);
+
+    /// <summary>Cancels every watch on every config.</summary>
+    void UnwatchAll();
 }
