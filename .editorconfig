@@ -25,6 +25,11 @@ dotnet_style_prefer_conditional_expression_over_return = false:none
 # ArgumentNullException.ThrowIfNull does not exist on netstandard2.0, which the SDK still targets.
 dotnet_diagnostic.CA1510.severity = none
 
+# Same: ObjectDisposedException.ThrowIf and the generic Enum.IsDefined<TEnum> are newer than
+# netstandard2.0.
+dotnet_diagnostic.CA1513.severity = none
+dotnet_diagnostic.CA2263.severity = none
+
 [tests/**.cs]
 # Test names use the vocabulary of what they test, "pointer" and "object" included.
 dotnet_diagnostic.CA1720.severity = none

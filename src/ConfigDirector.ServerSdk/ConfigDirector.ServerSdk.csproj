@@ -9,8 +9,9 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
   </ItemGroup>
 
-  <!-- In-box from net8.0 onwards; only netstandard2.0 needs the package. -->
+  <!-- In-box from net8.0 onwards; only netstandard2.0 needs the packages. -->
   <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" />
     <PackageReference Include="System.Text.Json" />
   </ItemGroup>
 
