@@ -30,6 +30,12 @@ dotnet_diagnostic.CA1510.severity = none
 dotnet_diagnostic.CA1513.severity = none
 dotnet_diagnostic.CA2263.severity = none
 
+[samples/**.cs]
+# A sample is read more than it is run. LoggerMessage delegates and their guard clauses are the
+# right call on a hot path and pure noise in startup code meant to be skimmed.
+dotnet_diagnostic.CA1848.severity = none
+dotnet_diagnostic.CA1873.severity = none
+
 [tests/**.cs]
 # Test names use the vocabulary of what they test, "pointer" and "object" included.
 dotnet_diagnostic.CA1720.severity = none

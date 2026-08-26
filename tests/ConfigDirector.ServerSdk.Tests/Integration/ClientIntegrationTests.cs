@@ -33,7 +33,7 @@ public class ClientIntegrationTests
     {
         await using var client = new ConfigDirectorClient("server-sdk-key");
 
-        client.GetValue("new-checkout", true).ShouldBeTrue();
+        client.GetValue("temporary-feature-flag", true).ShouldBeTrue();
         client.GetAllConfigs().ShouldBeEmpty();
     }
 
@@ -42,8 +42,8 @@ public class ClientIntegrationTests
     {
         await using var client = await ReadyClientAsync();
 
-        client.GetValue("new-checkout", false, ProUser).ShouldBeTrue();
-        client.GetValue("new-checkout", true, FreeUser).ShouldBeFalse();
+        client.GetValue("temporary-feature-flag", false, ProUser).ShouldBeTrue();
+        client.GetValue("temporary-feature-flag", true, FreeUser).ShouldBeFalse();
     }
 
     [Fact]
@@ -51,7 +51,7 @@ public class ClientIntegrationTests
     {
         await using var client = await ReadyClientAsync();
 
-        client.GetValue("checkout-banner", "unused").ShouldBe("Welcome back");
+        client.GetValue("day-of-the-week-config", "unused").ShouldBe("Monday");
     }
 
     [Fact]
@@ -60,7 +60,7 @@ public class ClientIntegrationTests
         await using var client = await ReadyClientAsync(Version("2.5.0"));
         var betaUser = new Context { Id = "user-1", Traits = { ["tags"] = new[] { "beta" } } };
 
-        client.GetValue("checkout-banner", "unused", betaUser).ShouldBe("Welcome to the beta");
+        client.GetValue("day-of-the-week-config", "unused", betaUser).ShouldBe("Caturday");
     }
 
     [Fact]
@@ -69,8 +69,8 @@ public class ClientIntegrationTests
         await using var modern = await ReadyClientAsync(Version("2.5.0"));
         await using var legacy = await ReadyClientAsync(Version("1.9.0"));
 
-        modern.GetValue("checkout-banner", "unused").ShouldBe("Welcome to the new checkout");
-        legacy.GetValue("checkout-banner", "unused").ShouldBe("Welcome back");
+        modern.GetValue("day-of-the-week-config", "unused").ShouldBe("Sunday");
+        legacy.GetValue("day-of-the-week-config", "unused").ShouldBe("Monday");
     }
 
     [Fact]
@@ -78,9 +78,9 @@ public class ClientIntegrationTests
     {
         await using var client = await ReadyClientAsync();
 
-        client.GetValue("max-cart-items", 0).ShouldBe(25);
-        client.GetValue("max-cart-items", 0L).ShouldBe(25L);
-        client.GetValue("discount-rate", 0d).ShouldBe(0.15);
+        client.GetValue("integer-config", 0).ShouldBe(25);
+        client.GetValue("integer-config", 0L).ShouldBe(25L);
+        client.GetValue("integer-config", 0d).ShouldBe(25d);
     }
 
     [Fact]
@@ -88,7 +88,7 @@ public class ClientIntegrationTests
     {
         await using var client = await ReadyClientAsync();
 
-        var settings = client.GetValue("checkout-settings", new CheckoutSettings());
+        var settings = client.GetValue("json-value-config", new RetrySettings());
 
         settings.Retries.ShouldBe(3);
         settings.TimeoutMs.ShouldBe(1500);
@@ -99,9 +99,11 @@ public class ClientIntegrationTests
     {
         await using var client = await ReadyClientAsync();
 
-        client.GetValue("checkout-experiment", "unused", ProUser).ShouldBe("variant");
-        client.GetValue("checkout-experiment", "unused", ProUser).ShouldBe("variant");
-        client.GetValue("checkout-experiment", "unused", FreeUser).ShouldBe("control");
+        // Each default is the opposite of what the rollout selects, so a bucket that stopped
+        // being found would read as the default and fail here.
+        client.GetValue("permanent-kill-switch", false, ProUser).ShouldBeTrue();
+        client.GetValue("permanent-kill-switch", false, ProUser).ShouldBeTrue();
+        client.GetValue("permanent-kill-switch", true, FreeUser).ShouldBeFalse();
     }
 
     [Fact]
@@ -117,9 +119,9 @@ public class ClientIntegrationTests
     {
         await using var client = await ReadyClientAsync();
 
-        client.GetValue("checkout-banner", -1).ShouldBe(-1);
-        client.GetValue("checkout-banner", false).ShouldBeFalse();
-        client.GetValue("max-cart-items", new CheckoutSettings { Retries = 9 }).Retries.ShouldBe(9);
+        client.GetValue("day-of-the-week-config", -1).ShouldBe(-1);
+        client.GetValue("day-of-the-week-config", false).ShouldBeFalse();
+        client.GetValue("integer-config", new RetrySettings { Retries = 9 }).Retries.ShouldBe(9);
     }
 
     [Fact]
@@ -131,18 +133,17 @@ public class ClientIntegrationTests
 
         all.Keys.ShouldBe(
             [
-                "new-checkout",
-                "checkout-banner",
-                "max-cart-items",
-                "discount-rate",
-                "checkout-settings",
-                "checkout-experiment",
+                "temporary-feature-flag",
+                "permanent-kill-switch",
+                "integer-config",
+                "day-of-the-week-config",
+                "json-value-config",
             ],
             ignoreOrder: true);
-        all["new-checkout"].Value.ShouldBe("true");
-        all["new-checkout"].ValueId.ShouldBe("new-checkout-on");
-        all["new-checkout"].Type.ShouldBe(ConfigType.Boolean);
-        all["max-cart-items"].Value.ShouldBe("25");
+        all["temporary-feature-flag"].Value.ShouldBe("true");
+        all["temporary-feature-flag"].ValueId.ShouldBe("temporary-feature-flag-on");
+        all["temporary-feature-flag"].Type.ShouldBe(ConfigType.Boolean);
+        all["integer-config"].Value.ShouldBe("25");
     }
 
     [Fact]
@@ -150,9 +151,9 @@ public class ClientIntegrationTests
     {
         await using var client = await ReadyClientAsync();
 
-        var some = client.GetAllConfigs(ProUser, ["max-cart-items", "never-heard-of-it", "max-cart-items"]);
+        var some = client.GetAllConfigs(ProUser, ["integer-config", "never-heard-of-it", "integer-config"]);
 
-        some.Keys.ShouldBe(["max-cart-items"]);
+        some.Keys.ShouldBe(["integer-config"]);
     }
 
     [Fact]
@@ -169,7 +170,7 @@ public class ClientIntegrationTests
     {
         await using var client = await ReadyClientAsync();
 
-        Should.Throw<ArgumentNullException>(() => client.GetValue<string>("checkout-banner", null!));
+        Should.Throw<ArgumentNullException>(() => client.GetValue<string>("day-of-the-week-config", null!));
     }
 
     [Fact]
@@ -180,7 +181,7 @@ public class ClientIntegrationTests
 
         client.IsClosed.ShouldBeTrue();
         client.IsReady.ShouldBeFalse();
-        client.GetValue("max-cart-items", 7).ShouldBe(7);
+        client.GetValue("integer-config", 7).ShouldBe(7);
         client.GetAllConfigs().ShouldBeEmpty();
         await Should.ThrowAsync<ObjectDisposedException>(client.InitializeAsync(TestContext.Current.CancellationToken));
     }
@@ -205,9 +206,9 @@ public class ClientIntegrationTests
     }
 
     private static ConfigDirectorClientOptions Version(string appVersion) =>
-        new() { Metadata = new Metadata { AppName = "checkout", AppVersion = appVersion } };
+        new() { Metadata = new Metadata { AppName = "sample", AppVersion = appVersion } };
 
-    private sealed record CheckoutSettings
+    private sealed record RetrySettings
     {
         public int Retries { get; init; }
 

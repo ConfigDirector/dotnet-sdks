@@ -2,6 +2,9 @@
   <Folder Name="/src/">
     <Project Path="src/ConfigDirector.ServerSdk/ConfigDirector.ServerSdk.csproj" />
   </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/ConfigDirector.Samples.AspNetCore/ConfigDirector.Samples.AspNetCore.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/ConfigDirector.ServerSdk.Tests/ConfigDirector.ServerSdk.Tests.csproj" />
   </Folder>

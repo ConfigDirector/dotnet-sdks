@@ -35,12 +35,11 @@ public class ClientEventTests
 
         keys.ShouldBe(
             [
-                "checkout-banner",
-                "checkout-experiment",
-                "checkout-settings",
-                "discount-rate",
-                "max-cart-items",
-                "new-checkout",
+                "day-of-the-week-config",
+                "integer-config",
+                "json-value-config",
+                "permanent-kill-switch",
+                "temporary-feature-flag",
             ]);
     }
 
@@ -50,14 +49,14 @@ public class ClientEventTests
         await using var client = await ReadyClientAsync();
         var evaluations = Collect(client);
 
-        client.GetValue("new-checkout", false, ProUser).ShouldBeTrue();
+        client.GetValue("temporary-feature-flag", false, ProUser).ShouldBeTrue();
 
         var evaluation = evaluations.ShouldHaveSingleItem();
-        evaluation.Key.ShouldBe("new-checkout");
+        evaluation.Key.ShouldBe("temporary-feature-flag");
         evaluation.Value.ShouldBe(true);
         evaluation.IsDefault.ShouldBeFalse();
         evaluation.Reason.ShouldBe(EvaluationReason.FoundMatch);
-        evaluation.ValueId.ShouldBe("new-checkout-on");
+        evaluation.ValueId.ShouldBe("temporary-feature-flag-on");
         evaluation.Context.ShouldBe(ProUser);
     }
 
@@ -83,7 +82,7 @@ public class ClientEventTests
         await using var client = new ConfigDirectorClient("server-sdk-key");
         var evaluations = Collect(client);
 
-        client.GetValue("new-checkout", false);
+        client.GetValue("temporary-feature-flag", false);
 
         evaluations.ShouldHaveSingleItem().Reason.ShouldBe(EvaluationReason.ClientNotReady);
     }
@@ -94,7 +93,7 @@ public class ClientEventTests
         await using var client = await ReadyClientAsync();
         var evaluations = Collect(client);
 
-        client.GetValue("checkout-banner", -1).ShouldBe(-1);
+        client.GetValue("day-of-the-week-config", -1).ShouldBe(-1);
 
         var evaluation = evaluations.ShouldHaveSingleItem();
         evaluation.IsDefault.ShouldBeTrue();
@@ -107,7 +106,7 @@ public class ClientEventTests
     {
         await using var client = new ConfigDirectorClient("server-sdk-key");
         var seen = new List<bool>();
-        client.Watch("new-checkout", false, seen.Add, ProUser);
+        client.Watch("temporary-feature-flag", false, seen.Add, ProUser);
 
         await client.InitializeAsync(TestContext.Current.CancellationToken);
 
@@ -120,14 +119,14 @@ public class ClientEventTests
         await using var client = new ConfigDirectorClient("server-sdk-key");
         var enabled = new List<bool>();
         var banner = new List<string>();
-        client.Watch("new-checkout", false, enabled.Add, ProUser);
-        client.Watch("new-checkout", false, enabled.Add, new Context { Id = "user-3" });
-        client.Watch("checkout-banner", "unused", banner.Add);
+        client.Watch("temporary-feature-flag", false, enabled.Add, ProUser);
+        client.Watch("temporary-feature-flag", false, enabled.Add, new Context { Id = "user-3" });
+        client.Watch("day-of-the-week-config", "unused", banner.Add);
 
         await client.InitializeAsync(TestContext.Current.CancellationToken);
 
         enabled.ShouldBe([true, false]);
-        banner.ShouldBe(["Welcome back"]);
+        banner.ShouldBe(["Monday"]);
     }
 
     [Fact]
@@ -135,7 +134,7 @@ public class ClientEventTests
     {
         await using var client = new ConfigDirectorClient("server-sdk-key");
         var seen = new List<bool>();
-        var watch = client.Watch("new-checkout", false, seen.Add, ProUser);
+        var watch = client.Watch("temporary-feature-flag", false, seen.Add, ProUser);
         watch.Dispose();
         watch.Dispose();
 
@@ -149,8 +148,8 @@ public class ClientEventTests
     {
         await using var client = new ConfigDirectorClient("server-sdk-key");
         var kept = new List<bool>();
-        var cancelled = client.Watch("new-checkout", false, _ => throw new InvalidOperationException("cancelled"));
-        client.Watch("new-checkout", false, kept.Add, ProUser);
+        var cancelled = client.Watch("temporary-feature-flag", false, _ => throw new InvalidOperationException("cancelled"));
+        client.Watch("temporary-feature-flag", false, kept.Add, ProUser);
         cancelled.Dispose();
 
         await client.InitializeAsync(TestContext.Current.CancellationToken);
@@ -164,12 +163,12 @@ public class ClientEventTests
         await using var client = new ConfigDirectorClient("server-sdk-key");
         var seen = new List<bool>();
         IDisposable? once = null;
-        once = client.Watch("new-checkout", false, value =>
+        once = client.Watch("temporary-feature-flag", false, value =>
         {
             seen.Add(value);
             once!.Dispose();
         });
-        client.Watch("new-checkout", false, seen.Add, ProUser);
+        client.Watch("temporary-feature-flag", false, seen.Add, ProUser);
 
         await client.InitializeAsync(TestContext.Current.CancellationToken);
 
@@ -183,15 +182,15 @@ public class ClientEventTests
         await using var client = new ConfigDirectorClient("server-sdk-key");
         var enabled = new List<bool>();
         var banner = new List<string>();
-        client.Watch("new-checkout", false, enabled.Add, ProUser);
-        client.Watch("new-checkout", false, enabled.Add, ProUser);
-        client.Watch("checkout-banner", "unused", banner.Add);
+        client.Watch("temporary-feature-flag", false, enabled.Add, ProUser);
+        client.Watch("temporary-feature-flag", false, enabled.Add, ProUser);
+        client.Watch("day-of-the-week-config", "unused", banner.Add);
 
-        client.Unwatch("new-checkout");
+        client.Unwatch("temporary-feature-flag");
         await client.InitializeAsync(TestContext.Current.CancellationToken);
 
         enabled.ShouldBeEmpty();
-        banner.ShouldBe(["Welcome back"]);
+        banner.ShouldBe(["Monday"]);
     }
 
     [Fact]
@@ -199,8 +198,8 @@ public class ClientEventTests
     {
         await using var client = new ConfigDirectorClient("server-sdk-key");
         var seen = new List<string>();
-        client.Watch("new-checkout", "unused", seen.Add);
-        client.Watch("checkout-banner", "unused", seen.Add);
+        client.Watch("temporary-feature-flag", "unused", seen.Add);
+        client.Watch("day-of-the-week-config", "unused", seen.Add);
 
         client.UnwatchAll();
         await client.InitializeAsync(TestContext.Current.CancellationToken);
@@ -213,13 +212,13 @@ public class ClientEventTests
     {
         await using var client = new ConfigDirectorClient("server-sdk-key");
         var evaluations = Collect(client);
-        client.Watch("new-checkout", false, _ => { }, ProUser);
+        client.Watch("temporary-feature-flag", false, _ => { }, ProUser);
 
         await client.InitializeAsync(TestContext.Current.CancellationToken);
 
         var evaluation = evaluations.ShouldHaveSingleItem();
-        evaluation.Key.ShouldBe("new-checkout");
-        evaluation.ValueId.ShouldBe("new-checkout-on");
+        evaluation.Key.ShouldBe("temporary-feature-flag");
+        evaluation.ValueId.ShouldBe("temporary-feature-flag-on");
     }
 
     [Fact]
@@ -231,7 +230,7 @@ public class ClientEventTests
         client.ConfigEvaluated += (_, _) => throw new InvalidOperationException("faulty handler");
         client.ConfigEvaluated += (_, _) => reached = true;
 
-        client.GetValue("max-cart-items", 0).ShouldBe(25);
+        client.GetValue("integer-config", 0).ShouldBe(25);
 
         reached.ShouldBeTrue();
         loggerFactory.Logger.Entries.ShouldContain(entry =>
@@ -246,8 +245,8 @@ public class ClientEventTests
             "server-sdk-key",
             new ConfigDirectorClientOptions { LoggerFactory = loggerFactory });
         var reached = false;
-        client.Watch("new-checkout", false, _ => throw new InvalidOperationException("faulty watch"));
-        client.Watch("new-checkout", false, _ => reached = true);
+        client.Watch("temporary-feature-flag", false, _ => throw new InvalidOperationException("faulty watch"));
+        client.Watch("temporary-feature-flag", false, _ => reached = true);
 
         await client.InitializeAsync(TestContext.Current.CancellationToken);
 
@@ -264,7 +263,7 @@ public class ClientEventTests
         var evaluations = Collect(client);
 
         await client.DisposeAsync();
-        client.GetValue("max-cart-items", 7).ShouldBe(7);
+        client.GetValue("integer-config", 7).ShouldBe(7);
 
         evaluations.ShouldBeEmpty();
     }
@@ -274,8 +273,8 @@ public class ClientEventTests
     {
         await using var client = await ReadyClientAsync();
 
-        Should.Throw<ArgumentNullException>(() => client.Watch("new-checkout", false, null!));
-        Should.Throw<ArgumentNullException>(() => client.Watch<string>("new-checkout", null!, _ => { }));
+        Should.Throw<ArgumentNullException>(() => client.Watch("temporary-feature-flag", false, null!));
+        Should.Throw<ArgumentNullException>(() => client.Watch<string>("temporary-feature-flag", null!, _ => { }));
         Should.Throw<ArgumentException>(() => client.Watch(" ", false, _ => { }));
     }
 

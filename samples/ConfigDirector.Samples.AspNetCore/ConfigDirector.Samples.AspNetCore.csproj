@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <RootNamespace>ConfigDirector.Samples.AspNetCore</RootNamespace>
+    <UserSecretsId>configdirector-aspnetcore-sample</UserSecretsId>
+  </PropertyGroup>
+
+  <!-- Referenced from this checkout rather than from NuGet, so a breaking API change fails the
+       build here rather than after it ships. -->
+  <ItemGroup>
+    <ProjectReference Include="../../src/ConfigDirector.ServerSdk/ConfigDirector.ServerSdk.csproj" />
+  </ItemGroup>
+
+</Project>

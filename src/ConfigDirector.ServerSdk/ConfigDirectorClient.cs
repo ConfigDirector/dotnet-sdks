@@ -13,7 +13,7 @@ namespace ConfigDirector;
 /// await using var client = new ConfigDirectorClient(serverSdkKey);
 /// await client.InitializeAsync();
 ///
-/// var enabled = client.GetValue("new-checkout", false, new Context { Id = "user-1" });
+/// var enabled = client.GetValue("temporary-feature-flag", false, new Context { Id = "user-1" });
 /// </code>
 /// </remarks>
 public sealed class ConfigDirectorClient : IConfigDirectorClient
