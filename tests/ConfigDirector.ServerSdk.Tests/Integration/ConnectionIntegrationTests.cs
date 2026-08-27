@@ -13,12 +13,31 @@ public sealed class ConnectionIntegrationTests : IDisposable
     [Fact]
     public async Task StreamsFromTheEventEndpointByDefault()
     {
-        await using var client = Client();
+        var loggerFactory = new CapturingLoggerFactory();
+        await using var client = Client(new ConfigDirectorClientOptions { LoggerFactory = loggerFactory });
 
         await client.InitializeAsync(TestContext.Current.CancellationToken);
 
-        client.IsReady.ShouldBeTrue();
+        // Reported with what the SDK and the server each saw: a stream that fails to deliver says
+        // nothing useful through IsReady alone, and this is the first test to notice.
+        client.IsReady.ShouldBeTrue(Diagnose(loggerFactory));
         _server.Paths.ShouldBe(["/server/sse/v1"]);
+    }
+
+    private string Diagnose(CapturingLoggerFactory loggerFactory)
+    {
+        var log = string.Join(
+            Environment.NewLine,
+            loggerFactory.Logger.Entries.Select(entry =>
+                $"  [{entry.Level}] {entry.Message}"
+                + (entry.Error is null ? string.Empty : $" -> {entry.Error.GetType().Name}: {entry.Error.Message}")));
+
+        var seen = string.Join(", ", _server.Paths);
+        return $"config state never arrived.{Environment.NewLine}"
+            + $"requests the server saw: [{seen}]{Environment.NewLine}"
+            + $"bytes written to the stream: {_server.StreamedBytes}{Environment.NewLine}"
+            + $"server-side failures: [{string.Join("; ", _server.Failures)}]{Environment.NewLine}"
+            + $"SDK log:{Environment.NewLine}{log}";
     }
 
     [Fact]
@@ -95,6 +114,21 @@ public sealed class ConnectionIntegrationTests : IDisposable
 
         seen.ShouldBe(["Monday", "Friday"]);
         client.GetValue("day-of-the-week-config", "unused").ShouldBe("Friday");
+    }
+
+    [Fact]
+    public async Task ReadsABundleWhoseLinesEndTheWayWindowsEndsThem()
+    {
+        // A source checkout on Windows carries CRLF, so the sample bundles do too. The stream has
+        // to survive that: a stray carriage return is whitespace to a JSON reader but a line
+        // terminator to an event stream, which is enough to cut a frame in half.
+        _server.Bundle = SampleConfigs.Bundle.Replace("\n", "\r\n", StringComparison.Ordinal);
+        await using var client = Client();
+
+        await client.InitializeAsync(TestContext.Current.CancellationToken);
+
+        client.IsReady.ShouldBeTrue();
+        client.GetValue("integer-config", 0).ShouldBe(25);
     }
 
     [Fact]

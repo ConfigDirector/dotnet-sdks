@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -8,22 +9,28 @@ namespace ConfigDirector.Tests.Integration;
 // A real HTTP server on loopback answering ConfigDirector's endpoints. The SDK reaches it over a
 // real socket with its own HttpClient, so an integration test replaces the server and nothing
 // inside the SDK: the transports, the event stream, and the bundle parser all run as shipped.
+//
+// Spoken over a plain socket rather than through HttpListener, which is http.sys on Windows and a
+// managed implementation elsewhere -- two stacks that differ on URL reservations, prefix matching,
+// and when a partial response is actually flushed. A stub the tests rely on has to behave the same
+// on every platform, and HTTP/1.1 is small enough to answer directly.
 internal sealed class SdkServer : IDisposable
 {
-    private readonly HttpListener _listener = new();
+    private static readonly byte[] HeaderEnd = Encoding.ASCII.GetBytes("\r\n\r\n");
+
+    private readonly TcpListener _listener;
     private readonly CancellationTokenSource _stop = new();
     private readonly List<Channel<string>> _streams = [];
-    private readonly List<HttpListenerContext> _held = [];
+    private readonly List<TcpClient> _connections = [];
     private readonly Queue<(HttpStatusCode Status, string Body)> _replies = new();
-    private readonly List<Task> _connections = [];
     private readonly object _lock = new();
     private readonly Task _accepting;
 
     internal SdkServer()
     {
-        BaseUrl = new Uri($"http://127.0.0.1:{FreePort()}/");
-        _listener.Prefixes.Add(BaseUrl.AbsoluteUri);
+        _listener = new TcpListener(IPAddress.Loopback, 0);
         _listener.Start();
+        BaseUrl = new Uri($"http://127.0.0.1:{((IPEndPoint)_listener.LocalEndpoint).Port}/");
         _accepting = AcceptAsync();
     }
 
@@ -43,8 +50,25 @@ internal sealed class SdkServer : IDisposable
 
     internal List<string?> Accepts { get; } = [];
 
+    // Anything the server itself tripped over, and how much of a stream it managed to write.
+    // Without these a stream that never arrives looks identical to one that was never asked for.
+    internal List<string> Failures { get; } = [];
+
+    internal int StreamedBytes { get; private set; }
+
     // A port nothing is listening on, for the case where the server cannot be reached at all.
-    internal static Uri UnreachableUrl { get; } = new($"http://127.0.0.1:{FreePort()}/");
+    internal static Uri UnreachableUrl { get; } = Unreachable();
+
+    internal int Requests
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return Paths.Count;
+            }
+        }
+    }
 
     // Points a client at this server through the same setting an application uses for a proxy.
     internal void Attach(ConfigDirectorClientOptions options) => options.Connection.Url = BaseUrl;
@@ -74,17 +98,6 @@ internal sealed class SdkServer : IDisposable
         }
     }
 
-    internal int Requests
-    {
-        get
-        {
-            lock (_lock)
-            {
-                return Paths.Count;
-            }
-        }
-    }
-
     public void Dispose()
     {
         _stop.Cancel();
@@ -98,110 +111,217 @@ internal sealed class SdkServer : IDisposable
 
             _streams.Clear();
 
-            foreach (var context in _held)
+            foreach (var connection in _connections)
             {
-                Close(context);
+                connection.Dispose();
             }
 
-            _held.Clear();
+            _connections.Clear();
         }
 
-        _listener.Close();
+        _listener.Stop();
         _accepting.Wait(TimeSpan.FromSeconds(5));
         _stop.Dispose();
+    }
+
+    private static Uri Unreachable()
+    {
+        var probe = new TcpListener(IPAddress.Loopback, 0);
+        probe.Start();
+        var port = ((IPEndPoint)probe.LocalEndpoint).Port;
+        probe.Stop();
+        return new Uri($"http://127.0.0.1:{port}/");
     }
 
     private async Task AcceptAsync()
     {
         while (!_stop.IsCancellationRequested)
         {
-            HttpListenerContext context;
+            TcpClient connection;
             try
             {
-                context = await _listener.GetContextAsync().ConfigureAwait(false);
+                connection = await _listener.AcceptTcpClientAsync(_stop.Token).ConfigureAwait(false);
             }
-            catch (Exception) when (_stop.IsCancellationRequested)
-            {
-                return;
-            }
-            catch (HttpListenerException)
-            {
-                return;
-            }
-            catch (ObjectDisposedException)
+            catch (Exception error) when (error is OperationCanceledException or ObjectDisposedException or SocketException)
             {
                 return;
             }
 
             lock (_lock)
             {
-                _connections.Add(HandleAsync(context));
+                _connections.Add(connection);
             }
+
+            _ = HandleAsync(connection);
         }
     }
 
-    private async Task HandleAsync(HttpListenerContext context)
+    private async Task HandleAsync(TcpClient connection)
     {
-        var path = context.Request.Url!.AbsolutePath;
-        string body;
-        using (var reader = new StreamReader(context.Request.InputStream, Encoding.UTF8))
-        {
-            body = await reader.ReadToEndAsync().ConfigureAwait(false);
-        }
+        connection.NoDelay = true;
+        var socket = connection.GetStream();
 
-        (HttpStatusCode Status, string Body)? scripted;
-        lock (_lock)
-        {
-            Paths.Add(path);
-            Bodies.Add(body);
-            UserAgents.Add(context.Request.Headers["User-Agent"]);
-            Accepts.Add(context.Request.Headers["Accept"]);
-            scripted = _replies.Count > 0 ? _replies.Dequeue() : null;
-
-            if (Stalls)
-            {
-                // Held open and unanswered, and kept referenced so the connection stays alive.
-                _held.Add(context);
-                return;
-            }
-        }
-
+        // A stalled request keeps its socket open, so the connection outlives this method and is
+        // the server's to close when it is disposed.
+        var stalled = false;
         try
         {
+            var request = await ReadRequestAsync(socket).ConfigureAwait(false);
+            if (request is not { } asked)
+            {
+                return;
+            }
+
+            (HttpStatusCode Status, string Body)? scripted;
+            lock (_lock)
+            {
+                Paths.Add(asked.Path);
+                Bodies.Add(asked.Body);
+                UserAgents.Add(asked.Header("user-agent"));
+                Accepts.Add(asked.Header("accept"));
+                scripted = _replies.Count > 0 ? _replies.Dequeue() : null;
+
+                if (Stalls)
+                {
+                    // Accepted and never answered.
+                    stalled = true;
+                }
+            }
+
+            if (stalled)
+            {
+                return;
+            }
+
             if (scripted is { } reply)
             {
-                await RespondAsync(context, (int)reply.Status, "application/json", reply.Body)
-                    .ConfigureAwait(false);
+                await RespondAsync(socket, (int)reply.Status, "application/json", reply.Body).ConfigureAwait(false);
             }
-            else if (path.EndsWith("/sse/v1", StringComparison.Ordinal))
+            else if (asked.Path.EndsWith("/sse/v1", StringComparison.Ordinal))
             {
-                await StreamAsync(context).ConfigureAwait(false);
+                await StreamAsync(socket).ConfigureAwait(false);
             }
             else
             {
-                await RespondAsync(context, 200, "application/json", Bundle).ConfigureAwait(false);
+                await RespondAsync(socket, 200, "application/json", Bundle).ConfigureAwait(false);
             }
         }
-        catch (Exception error) when (error is HttpListenerException or IOException or ObjectDisposedException)
+        catch (Exception error) when (error is IOException or SocketException or ObjectDisposedException or OperationCanceledException)
         {
             // The client hung up, which is what closing a client looks like from here.
         }
+        catch (Exception error)
+        {
+            lock (_lock)
+            {
+                Failures.Add($"{error.GetType().Name}: {error.Message}");
+            }
+        }
         finally
         {
-            Close(context);
+            if (!stalled)
+            {
+                lock (_lock)
+                {
+                    _connections.Remove(connection);
+                }
+
+                socket.Dispose();
+                connection.Dispose();
+            }
         }
     }
 
-    private static async Task RespondAsync(HttpListenerContext context, int status, string type, string body)
+    // Content-Length framed, which is all the SDK ever sends.
+    private static async Task<Request?> ReadRequestAsync(NetworkStream socket)
     {
-        var bytes = Encoding.UTF8.GetBytes(body);
-        context.Response.StatusCode = status;
-        context.Response.ContentType = type;
-        context.Response.ContentLength64 = bytes.Length;
-        await context.Response.OutputStream.WriteAsync(bytes.AsMemory()).ConfigureAwait(false);
+        var buffer = new MemoryStream();
+        var chunk = new byte[1024];
+        int headerEnd;
+        while ((headerEnd = IndexOfHeaderEnd(buffer)) < 0)
+        {
+            var read = await socket.ReadAsync(chunk.AsMemory()).ConfigureAwait(false);
+            if (read == 0)
+            {
+                return null;
+            }
+
+            buffer.Write(chunk, 0, read);
+        }
+
+        var raw = buffer.ToArray();
+        var head = Encoding.ASCII.GetString(raw, 0, headerEnd);
+        var lines = head.Split(["\r\n"], StringSplitOptions.None);
+        var target = lines[0].Split(' ')[1];
+
+        var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var line in lines.Skip(1))
+        {
+            var separator = line.IndexOf(':');
+            if (separator > 0)
+            {
+                headers[line.Substring(0, separator).Trim()] = line.Substring(separator + 1).Trim();
+            }
+        }
+
+        var length = headers.TryGetValue("Content-Length", out var declared)
+            ? int.Parse(declared, CultureInfo.InvariantCulture)
+            : 0;
+
+        var body = new MemoryStream();
+        var carried = raw.Length - (headerEnd + HeaderEnd.Length);
+        if (carried > 0)
+        {
+            body.Write(raw, headerEnd + HeaderEnd.Length, Math.Min(carried, length));
+        }
+
+        while (body.Length < length)
+        {
+            var read = await socket.ReadAsync(chunk.AsMemory(0, (int)Math.Min(chunk.Length, length - body.Length)))
+                .ConfigureAwait(false);
+            if (read == 0)
+            {
+                break;
+            }
+
+            body.Write(chunk, 0, read);
+        }
+
+        return new Request(new Uri(new Uri("http://stub"), target).AbsolutePath, Encoding.UTF8.GetString(body.ToArray()), headers);
     }
 
-    private async Task StreamAsync(HttpListenerContext context)
+    private static int IndexOfHeaderEnd(MemoryStream buffer)
+    {
+        var raw = buffer.GetBuffer();
+        for (var index = 0; index + HeaderEnd.Length <= buffer.Length; index++)
+        {
+            if (raw[index] == HeaderEnd[0] && raw[index + 1] == HeaderEnd[1]
+                && raw[index + 2] == HeaderEnd[2] && raw[index + 3] == HeaderEnd[3])
+            {
+                return index;
+            }
+        }
+
+        return -1;
+    }
+
+    private static async Task RespondAsync(NetworkStream socket, int status, string type, string body)
+    {
+        var payload = Encoding.UTF8.GetBytes(body);
+        var head = Encoding.ASCII.GetBytes(
+            $"HTTP/1.1 {status} {Reason(status)}\r\n"
+            + $"Content-Type: {type}\r\n"
+            + $"Content-Length: {payload.Length}\r\n"
+            + "Connection: close\r\n\r\n");
+
+        await socket.WriteAsync(head.AsMemory()).ConfigureAwait(false);
+        await socket.WriteAsync(payload.AsMemory()).ConfigureAwait(false);
+        await socket.FlushAsync().ConfigureAwait(false);
+    }
+
+    // No Content-Length and no chunking: the body runs until the connection closes, which HTTP/1.1
+    // allows and which delivers each frame the moment it is written.
+    private async Task StreamAsync(NetworkStream socket)
     {
         var events = Channel.CreateUnbounded<string>();
         events.Writer.TryWrite(Frame(Bundle));
@@ -210,19 +330,24 @@ internal sealed class SdkServer : IDisposable
             _streams.Add(events);
         }
 
-        context.Response.StatusCode = 200;
-        context.Response.ContentType = "text/event-stream";
-        context.Response.SendChunked = true;
-
         try
         {
+            var head = Encoding.ASCII.GetBytes(
+                "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n");
+            await socket.WriteAsync(head.AsMemory()).ConfigureAwait(false);
+            await socket.FlushAsync().ConfigureAwait(false);
+
             while (await events.Reader.WaitToReadAsync(_stop.Token).ConfigureAwait(false))
             {
                 while (events.Reader.TryRead(out var text))
                 {
                     var frame = Encoding.UTF8.GetBytes(text);
-                    await context.Response.OutputStream.WriteAsync(frame.AsMemory()).ConfigureAwait(false);
-                    await context.Response.OutputStream.FlushAsync().ConfigureAwait(false);
+                    await socket.WriteAsync(frame.AsMemory()).ConfigureAwait(false);
+                    await socket.FlushAsync().ConfigureAwait(false);
+                    lock (_lock)
+                    {
+                        StreamedBytes += frame.Length;
+                    }
                 }
             }
         }
@@ -239,35 +364,28 @@ internal sealed class SdkServer : IDisposable
         }
     }
 
-    private static void Close(HttpListenerContext context)
-    {
-        try
-        {
-            context.Response.Close();
-        }
-        catch (Exception error) when (error is HttpListenerException or IOException or ObjectDisposedException)
-        {
-            // Already gone.
-        }
-    }
-
-    // One event carrying the bundle. The wire format puts it on a single line.
+    // One event carrying the bundle, which the wire format puts on a single line. Both line
+    // endings have to go: a checkout on Windows makes the sample bundles CRLF, and a carriage
+    // return left behind is whitespace to a JSON reader but a line terminator to an event stream.
     private static string Frame(string bundle) =>
         "event: config-update\ndata: "
-        + bundle.Replace("\n", string.Empty, StringComparison.Ordinal)
+        + bundle.Replace("\r", string.Empty, StringComparison.Ordinal)
+            .Replace("\n", string.Empty, StringComparison.Ordinal)
         + "\n\n";
 
-    private static int FreePort()
+    private static string Reason(int status) =>
+        status switch
+        {
+            200 => "OK",
+            204 => "No Content",
+            403 => "Forbidden",
+            502 => "Bad Gateway",
+            503 => "Service Unavailable",
+            _ => "Status",
+        };
+
+    private sealed record Request(string Path, string Body, Dictionary<string, string> Headers)
     {
-        var probe = new TcpListener(IPAddress.Loopback, 0);
-        probe.Start();
-        try
-        {
-            return ((IPEndPoint)probe.LocalEndpoint).Port;
-        }
-        finally
-        {
-            probe.Stop();
-        }
+        internal string? Header(string name) => Headers.TryGetValue(name, out var value) ? value : null;
     }
 }
