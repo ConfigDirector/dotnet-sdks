@@ -1,5 +1,6 @@
 using System.Text.Json;
 using ConfigDirector.Evaluation;
+using ConfigDirector.Telemetry;
 using ConfigDirector.Transport;
 using ConfigDirector.Value;
 using Microsoft.Extensions.Logging;
@@ -29,6 +30,7 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
     private readonly TimeSpan _timeout;
     private readonly ConfigEvaluator _evaluator;
     private readonly ITransport _transport;
+    private readonly TelemetryCollector _telemetry;
 
     // Null until the first bundle arrives, which is what separates "not ready" from "ready but the
     // server does not know this key". Only ever swapped, never edited in place, so a read on the
@@ -63,13 +65,18 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
         _evaluator = new ConfigEvaluator(settings.LoggerFactory.CreateLogger<ConfigEvaluator>());
 
         var connection = settings.Connection;
+        var baseUrl = connection.Url ?? Transports.DefaultBaseUrl;
+
+        _telemetry = new TelemetryCollector(
+            new TelemetryCollectorOptions(serverSdkKey, baseUrl, settings.LoggerFactory)
+            {
+                EventQueueLimit = settings.Telemetry.EventQueueLimit,
+                FlushInterval = settings.Telemetry.FlushInterval,
+            });
+
         _transport = TransportFactory.Create(
             connection.Mode,
-            new TransportOptions(
-                serverSdkKey,
-                connection.Url ?? Transports.DefaultBaseUrl,
-                OnBundle,
-                settings.LoggerFactory)
+            new TransportOptions(serverSdkKey, baseUrl, OnBundle, settings.LoggerFactory)
             {
                 Metadata = settings.Metadata,
                 PollingInterval = connection.PollingInterval,
@@ -181,25 +188,37 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
         {
             Log.NoConfigState(_logger, configKey, null);
             var reason = IsReady ? EvaluationReason.ConfigStateMissing : EvaluationReason.ClientNotReady;
-            Report(configKey, defaultValue, true, reason, null, context);
+            Report(configKey, defaultValue, defaultValue, true, reason, null, null, context);
             return defaultValue;
         }
 
         var state = _evaluator.Evaluate(definition, context, _metadata);
         var result = bind ? ValueParser.Bind(state, defaultValue) : ValueParser.Parse(state, defaultValue);
-        Report(configKey, result.Value, result.UsedDefault, result.Reason, result.ValueId, context);
+        Report(
+            configKey,
+            defaultValue,
+            result.Value,
+            result.UsedDefault,
+            result.Reason,
+            result.ValueId,
+            state.Type,
+            context);
         return result.Value;
     }
 
     // Generic all the way through, so nothing is boxed for an evaluation nobody is listening to.
     private void Report<T>(
         string configKey,
+        T defaultValue,
         T value,
         bool isDefault,
         EvaluationReason reason,
         string? valueId,
+        ConfigType? configType,
         Context? context)
     {
+        _telemetry.Record(configKey, defaultValue, value, isDefault, reason, context, configType, valueId);
+
         var handlers = ConfigEvaluated;
         if (handlers is null)
         {
@@ -360,6 +379,9 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
         if (Close())
         {
             await _transport.DisposeAsync().ConfigureAwait(false);
+
+            // Last, so that everything the application evaluated on its way down is reported.
+            await _telemetry.DisposeAsync().ConfigureAwait(false);
         }
     }
 

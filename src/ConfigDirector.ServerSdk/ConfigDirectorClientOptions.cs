@@ -34,6 +34,11 @@ public sealed class ConfigDirectorClientOptions
     public ConnectionOptions Connection { get; } = new();
 
     /// <summary>
+    /// How evaluations are reported back to ConfigDirector. The defaults suit most applications.
+    /// </summary>
+    public TelemetryOptions Telemetry { get; } = new();
+
+    /// <summary>
     /// Where the SDK writes. Defaults to <see cref="NullLoggerFactory"/>, which discards everything.
     /// </summary>
     public ILoggerFactory LoggerFactory
