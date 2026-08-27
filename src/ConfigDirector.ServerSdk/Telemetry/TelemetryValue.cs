@@ -20,12 +20,12 @@ internal sealed record TelemetryValue
     public ConfigType? Type { get; init; }
 
     // `valueId` is the ID the server sent along with the config state, when there was one.
-    internal static TelemetryValue Of<T>(T value, ConfigType? configType = null, string? valueId = null)
+    internal static TelemetryValue From<T>(T value, ConfigType? configType = null, string? valueId = null)
     {
         if (IsJson(value, configType))
         {
             return valueId is null
-                ? new TelemetryValue { Value = TelemetryJson.Stringify(value), Type = ConfigType.Json }
+                ? new TelemetryValue { Value = TelemetryJson.Serialize(value), Type = ConfigType.Json }
                 : new TelemetryValue { ValueId = valueId, Type = ConfigType.Json };
         }
 
@@ -58,7 +58,7 @@ internal sealed record TelemetryValue
     // A scalar is reported as the text the config holds, so a string config reads "hello" on the
     // dashboard rather than as the JSON literal it would be inside a document.
     private static string Render<T>(T value) =>
-        value is string text ? text : TelemetryJson.Stringify(value);
+        value is string text ? text : TelemetryJson.Serialize(value);
 
     // An evaluation that found no config state has no declared type, so the shape of the value is
     // all there is to go on.

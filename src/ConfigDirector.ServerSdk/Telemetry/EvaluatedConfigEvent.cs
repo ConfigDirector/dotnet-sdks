@@ -34,7 +34,7 @@ internal sealed record EvaluatedConfigEvent
     [JsonConverter(typeof(EvaluationReasonJsonConverter))]
     public EvaluationReason Reason { get; init; }
 
-    internal static EvaluatedConfigEvent Of<T>(
+    internal static EvaluatedConfigEvent Create<T>(
         string key,
         T defaultValue,
         T value,
@@ -46,8 +46,8 @@ internal sealed record EvaluatedConfigEvent
         new()
         {
             Key = key,
-            DefaultValue = TelemetryValue.Of(defaultValue, configType),
-            EvaluatedValue = TelemetryValue.Of(value, configType, valueId),
+            DefaultValue = TelemetryValue.From(defaultValue, configType),
+            EvaluatedValue = TelemetryValue.From(value, configType, valueId),
             RequestedType = RequestedTypeOf<T>(),
             UsedDefault = usedDefault,
             Reason = reason,

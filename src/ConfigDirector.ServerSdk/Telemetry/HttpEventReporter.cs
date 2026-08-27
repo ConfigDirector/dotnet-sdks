@@ -11,6 +11,9 @@ internal sealed class HttpEventReporter : IAsyncDisposable
 {
     private const string Path = "server/telemetry/v1";
 
+    private static readonly IReadOnlyDictionary<string, TraitValue> EmptyMembers =
+        new Dictionary<string, TraitValue>(StringComparer.Ordinal);
+
     // Telemetry waits a good deal less than a transport does before giving up, and lets the next
     // flush carry the events instead. Nothing here streams, so bounding the whole exchange is
     // what is wanted.
@@ -206,7 +209,7 @@ internal sealed class HttpEventReporter : IAsyncDisposable
                 break;
             case TraitValueKind.Object:
                 json.WriteStartObject();
-                foreach (var member in trait.Members ?? new Dictionary<string, TraitValue>())
+                foreach (var member in trait.Members ?? EmptyMembers)
                 {
                     json.WritePropertyName(member.Key);
                     WriteTrait(json, member.Value);

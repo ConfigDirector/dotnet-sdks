@@ -12,18 +12,18 @@ public class TelemetryJsonTests
     [InlineData(true, "true")]
     [InlineData(false, "false")]
     public void SpellsBooleansTheWayJsonDoes(bool value, string expected) =>
-        TelemetryJson.Stringify(value).ShouldBe(expected);
+        TelemetryJson.Serialize(value).ShouldBe(expected);
 
     [Theory]
     [InlineData(26, "26")]
     [InlineData(-3, "-3")]
     [InlineData(0, "0")]
     public void WritesIntegers(int value, string expected) =>
-        TelemetryJson.Stringify(value).ShouldBe(expected);
+        TelemetryJson.Serialize(value).ShouldBe(expected);
 
     [Fact]
     public void WritesALongBeyondTheRangeOfADouble() =>
-        TelemetryJson.Stringify(9_007_199_254_740_993L).ShouldBe("9007199254740993");
+        TelemetryJson.Serialize(9_007_199_254_740_993L).ShouldBe("9007199254740993");
 
     // JSON draws no line between whole and fractional numbers, so 26.0 renders as "26".
     [Theory]
@@ -32,7 +32,7 @@ public class TelemetryJsonTests
     [InlineData(-0.0, "0")]
     [InlineData(1e21, "1e+21")]
     public void WritesDoublesTheWayJsonStringifyDoes(double value, string expected) =>
-        TelemetryJson.Stringify(value).ShouldBe(expected);
+        TelemetryJson.Serialize(value).ShouldBe(expected);
 
     // JSON has no way to spell either one, and JSON.stringify writes null for both.
     [Theory]
@@ -40,12 +40,12 @@ public class TelemetryJsonTests
     [InlineData(double.PositiveInfinity)]
     [InlineData(double.NegativeInfinity)]
     public void WritesNullForANumberJsonCannotSpell(double value) =>
-        TelemetryJson.Stringify(value).ShouldBe("null");
+        TelemetryJson.Serialize(value).ShouldBe("null");
 
     // Widening the float to a double first would render 0.1f as 0.10000000149011612.
     [Fact]
     public void WritesAFloatAtItsOwnPrecision() =>
-        TelemetryJson.Stringify(0.1f).ShouldBe("0.1");
+        TelemetryJson.Serialize(0.1f).ShouldBe("0.1");
 
     // A decimal keeps the trailing zeros it was written with, where every other SDK holds the
     // same value as a double and renders it without them.
@@ -54,7 +54,7 @@ public class TelemetryJsonTests
     [InlineData("26.000", "26")]
     [InlineData("0.10", "0.1")]
     public void WritesADecimalWithoutItsTrailingZeros(string value, string expected) =>
-        TelemetryJson.Stringify(decimal.Parse(value, System.Globalization.CultureInfo.InvariantCulture))
+        TelemetryJson.Serialize(decimal.Parse(value, System.Globalization.CultureInfo.InvariantCulture))
             .ShouldBe(expected);
 
     [Theory]
@@ -62,7 +62,7 @@ public class TelemetryJsonTests
     [InlineData("quote \" and \\ and \n", "\"quote \\\" and \\\\ and \\n\"")]
     [InlineData("tab\there", "\"tab\\there\"")]
     public void EscapesAStringTheWayJsonDoes(string value, string expected) =>
-        TelemetryJson.Stringify(value).ShouldBe(expected);
+        TelemetryJson.Serialize(value).ShouldBe(expected);
 
     // Escaping these would change the digest, and JSON.stringify leaves them alone.
     [Theory]
@@ -70,7 +70,7 @@ public class TelemetryJsonTests
     [InlineData("unicode ☂", "\"unicode ☂\"")]
     [InlineData("<a>&'+", "\"<a>&'+\"")]
     public void LeavesCharactersJsonStringifyDoesNotEscape(string value, string expected) =>
-        TelemetryJson.Stringify(value).ShouldBe(expected);
+        TelemetryJson.Serialize(value).ShouldBe(expected);
 
     [Theory]
     [InlineData("{}", "{}")]
@@ -79,7 +79,7 @@ public class TelemetryJsonTests
     [InlineData("{ \"a\" : 1, \"b\" : 2 }", "{\"a\":1,\"b\":2}")]
     [InlineData("{\"nested\":{\"list\":[1.0,{\"deep\":false}]}}", "{\"nested\":{\"list\":[1,{\"deep\":false}]}}")]
     public void WritesJsonWithNothingBetweenThePunctuation(string json, string expected) =>
-        TelemetryJson.Stringify(Parse(json)).ShouldBe(expected);
+        TelemetryJson.Serialize(Parse(json)).ShouldBe(expected);
 
     // System.Text.Json echoes a number back exactly as it was written, so without normalising
     // them a config the server sent as 26.0 would not match the same value sent as 26.
@@ -87,24 +87,24 @@ public class TelemetryJsonTests
     [InlineData("{\"n\":26.0}", "{\"n\":26}")]
     [InlineData("{\"n\":2.6e1}", "{\"n\":26}")]
     public void NormalisesANumberTheServerSpelledDifferently(string json, string expected) =>
-        TelemetryJson.Stringify(Parse(json)).ShouldBe(expected);
+        TelemetryJson.Serialize(Parse(json)).ShouldBe(expected);
 
     [Fact]
     public void PreservesKeyOrderRatherThanSorting() =>
-        TelemetryJson.Stringify(Parse("{\"b\":1,\"a\":2}")).ShouldBe("{\"b\":1,\"a\":2}");
+        TelemetryJson.Serialize(Parse("{\"b\":1,\"a\":2}")).ShouldBe("{\"b\":1,\"a\":2}");
 
     [Fact]
     public void WritesAnUnsetJsonElementAsNull() =>
-        TelemetryJson.Stringify(default(JsonElement)).ShouldBe("null");
+        TelemetryJson.Serialize(default(JsonElement)).ShouldBe("null");
 
     [Fact]
     public void WritesAnObjectTheCallerAskedToBeBoundTo() =>
-        TelemetryJson.Stringify(new Sample { Name = "a", Count = 2.0, Tags = ["x"] })
+        TelemetryJson.Serialize(new Sample { Name = "a", Count = 2.0, Tags = ["x"] })
             .ShouldBe("{\"name\":\"a\",\"count\":2,\"tags\":[\"x\"]}");
 
     [Fact]
     public void WritesADictionaryDefault() =>
-        TelemetryJson.Stringify(new Dictionary<string, int> { ["b"] = 1, ["a"] = 2 })
+        TelemetryJson.Serialize(new Dictionary<string, int> { ["b"] = 1, ["a"] = 2 })
             .ShouldBe("{\"b\":1,\"a\":2}");
 
     private static JsonElement Parse(string json) => JsonDocument.Parse(json).RootElement.Clone();

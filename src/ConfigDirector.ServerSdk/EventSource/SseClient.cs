@@ -90,7 +90,8 @@ internal sealed class SseClient
         CancellationToken idleToken,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        await using var events = parser.EnumerateAsync(idleToken).GetAsyncEnumerator(idleToken);
+        var events = parser.EnumerateAsync(idleToken).GetAsyncEnumerator(idleToken);
+        await using var disposal = events.ConfigureAwait(false);
         while (true)
         {
             SseItem<string> current = default;
@@ -127,7 +128,7 @@ internal sealed class SseClient
                 yield break;
             }
 
-            yield return StreamItem.Of(current);
+            yield return StreamItem.Received(current);
         }
     }
 
@@ -259,7 +260,7 @@ internal sealed class SseClient
 
     private readonly record struct StreamItem(SseItem<string> Message, Exception? Failure)
     {
-        internal static StreamItem Of(SseItem<string> message) => new(message, null);
+        internal static StreamItem Received(SseItem<string> message) => new(message, null);
 
         internal static StreamItem Failed(Exception failure) => new(default, failure);
     }

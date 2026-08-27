@@ -23,6 +23,7 @@ internal sealed class TelemetryCollector : IAsyncDisposable
     // interval already started.
     private readonly SemaphoreSlim _flushing = new(1, 1);
     private readonly CancellationTokenSource _stop = new();
+    private readonly object _closing = new();
     private readonly Task _reporting;
 
     private volatile bool _collecting = true;
@@ -67,7 +68,7 @@ internal sealed class TelemetryCollector : IAsyncDisposable
             _contexts.Add(identifier, context);
         }
 
-        _events.Push(EvaluatedConfigEvent.Of(
+        _events.Push(EvaluatedConfigEvent.Create(
             key, defaultValue, value, usedDefault, reason, contextId, configType, valueId));
     }
 
@@ -125,7 +126,7 @@ internal sealed class TelemetryCollector : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         bool wasCollecting;
-        lock (_stop)
+        lock (_closing)
         {
             if (_closed)
             {

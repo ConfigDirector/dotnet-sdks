@@ -18,7 +18,7 @@ internal static class TelemetryJson
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
-    internal static string Stringify<T>(T value)
+    internal static string Serialize<T>(T value)
     {
         switch (value)
         {

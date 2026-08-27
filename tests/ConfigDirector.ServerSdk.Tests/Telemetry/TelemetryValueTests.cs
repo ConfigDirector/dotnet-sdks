@@ -9,22 +9,22 @@ public class TelemetryValueTests
     // reads "hello" on the dashboard rather than "\"hello\"".
     [Fact]
     public void ReportsAStringWithoutQuotingIt() =>
-        TelemetryValue.Of("hello").Value.ShouldBe("hello");
+        TelemetryValue.From("hello").Value.ShouldBe("hello");
 
     [Theory]
     [InlineData(true, "true")]
     [InlineData(false, "false")]
     public void ReportsABooleanTheWayJsonSpellsIt(bool value, string expected) =>
-        TelemetryValue.Of(value).Value.ShouldBe(expected);
+        TelemetryValue.From(value).Value.ShouldBe(expected);
 
     [Fact]
     public void ReportsAWholeNumberWithoutAFractionalPart() =>
-        TelemetryValue.Of(26.0).Value.ShouldBe("26");
+        TelemetryValue.From(26.0).Value.ShouldBe("26");
 
     [Fact]
     public void SerializesAJsonValueCompactly()
     {
-        var reported = TelemetryValue.Of(Parse("{ \"b\": 1, \"a\": [true] }"), ConfigType.Json);
+        var reported = TelemetryValue.From(Parse("{ \"b\": 1, \"a\": [true] }"), ConfigType.Json);
 
         reported.Value.ShouldBe("{\"b\":1,\"a\":[true]}");
         reported.Type.ShouldBe(ConfigType.Json);
@@ -35,19 +35,19 @@ public class TelemetryValueTests
     [Fact]
     public void TreatsAnUntypedDocumentAsJson()
     {
-        TelemetryValue.Of(Parse("{\"a\":1}")).Type.ShouldBe(ConfigType.Json);
-        TelemetryValue.Of(Parse("[1,2]")).Type.ShouldBe(ConfigType.Json);
-        TelemetryValue.Of(new Dictionary<string, int> { ["a"] = 1 }).Type.ShouldBe(ConfigType.Json);
+        TelemetryValue.From(Parse("{\"a\":1}")).Type.ShouldBe(ConfigType.Json);
+        TelemetryValue.From(Parse("[1,2]")).Type.ShouldBe(ConfigType.Json);
+        TelemetryValue.From(new Dictionary<string, int> { ["a"] = 1 }).Type.ShouldBe(ConfigType.Json);
     }
 
     [Fact]
     public void DoesNotTreatAScalarAsJson() =>
-        TelemetryValue.Of("hello").Type.ShouldBeNull();
+        TelemetryValue.From("hello").Type.ShouldBeNull();
 
     [Fact]
     public void PrefersTheValueIdTheServerSentForAJsonValue()
     {
-        var reported = TelemetryValue.Of(Parse("{\"a\":1}"), ConfigType.Json, "server-id");
+        var reported = TelemetryValue.From(Parse("{\"a\":1}"), ConfigType.Json, "server-id");
 
         reported.ValueId.ShouldBe("server-id");
         reported.Value.ShouldBeNull();
@@ -56,7 +56,7 @@ public class TelemetryValueTests
     [Fact]
     public void ReportsAnOversizedValueByTheIdTheServerSent()
     {
-        var reported = TelemetryValue.Of(Oversized, valueId: "server-id");
+        var reported = TelemetryValue.From(Oversized, valueId: "server-id");
 
         reported.ValueId.ShouldBe("server-id");
         reported.Value.ShouldBeNull();
@@ -66,7 +66,7 @@ public class TelemetryValueTests
     // caller's thread.
     [Fact]
     public void KeepsAnOversizedValueWhenTheServerSentNoId() =>
-        TelemetryValue.Of(Oversized).Value.ShouldBe(Oversized);
+        TelemetryValue.From(Oversized).Value.ShouldBe(Oversized);
 
     // Every SDK reports inline up to the same length, or the dashboard would show one SDK's
     // values by ID and another's in full for the same config.
@@ -129,7 +129,7 @@ public class TelemetryValueTests
 
     [Fact]
     public void ComparesEqualToTheSameReportedValue() =>
-        TelemetryValue.Of("hello").ShouldBe(TelemetryValue.Of("hello"));
+        TelemetryValue.From("hello").ShouldBe(TelemetryValue.From("hello"));
 
     private static string Oversized => new('x', TelemetryValue.ConfigValueMaxLength + 1);
 

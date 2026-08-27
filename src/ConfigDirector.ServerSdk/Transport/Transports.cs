@@ -82,7 +82,6 @@ internal static class Transports
             Headers = { { "Content-Type", "application/json" } },
         };
 
-    internal static string Utf8(byte[] payload) => Encoding.UTF8.GetString(payload);
 
     private static void WriteIfPresent(Utf8JsonWriter json, string name, string? value)
     {

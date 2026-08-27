@@ -47,7 +47,7 @@ internal sealed class ConfigEvaluator
             }
         }
 
-        return Selection.Of(config.Target.DefaultValue, config.Target.DefaultValueId);
+        return Selection.From(config.Target.DefaultValue, config.Target.DefaultValueId);
     }
 
     private Selection Apply(Rule rule, Config config, Context? context, Metadata? metadata)
@@ -82,7 +82,7 @@ internal sealed class ConfigEvaluator
             return SelectBucket(rule.Percentages, config, context);
         }
 
-        return rule.Target == "value" ? Selection.Of(rule.Value, rule.ValueId) : Selection.None;
+        return rule.Target == "value" ? Selection.From(rule.Value, rule.ValueId) : Selection.None;
     }
 
     private static bool Matches(ConditionalRule rule, Context? context, Metadata? metadata)
@@ -115,7 +115,7 @@ internal sealed class ConfigEvaluator
         {
             if (assigned < bucket.Percentage + total)
             {
-                return Selection.Of(bucket.Value, bucket.ValueId);
+                return Selection.From(bucket.Value, bucket.ValueId);
             }
 
             total += bucket.Percentage;
@@ -128,10 +128,10 @@ internal sealed class ConfigEvaluator
     {
         internal static Selection None => default;
 
-        internal static Selection Of(string? value, string? valueId) => new(true, value, valueId);
+        internal static Selection From(string? value, string? valueId) => new(true, value, valueId);
 
         // A rule or bucket carrying no value selects nothing, and the next rule is tried.
-        internal static Selection Of(TraitValue value, string? valueId) =>
+        internal static Selection From(TraitValue value, string? valueId) =>
             value.Kind == TraitValueKind.Null ? None : new Selection(true, TraitText.Render(value), valueId);
     }
 }

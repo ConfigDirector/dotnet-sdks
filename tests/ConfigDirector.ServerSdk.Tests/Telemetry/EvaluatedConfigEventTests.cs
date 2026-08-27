@@ -8,7 +8,7 @@ public class EvaluatedConfigEventTests
     [Fact]
     public void ReportsBothValuesAndTheRequestedType()
     {
-        var built = EvaluatedConfigEvent.Of(
+        var built = EvaluatedConfigEvent.Create(
             "my-config", false, true, false, EvaluationReason.FoundMatch, configType: ConfigType.Boolean);
 
         built.DefaultValue.Value.ShouldBe("false");
@@ -40,7 +40,7 @@ public class EvaluatedConfigEventTests
     [Fact]
     public void OnlyTheEvaluatedValueCarriesTheServerValueId()
     {
-        var built = EvaluatedConfigEvent.Of(
+        var built = EvaluatedConfigEvent.Create(
             "my-config",
             Parse("{\"a\":1}"),
             Parse("{\"b\":2}"),
@@ -128,7 +128,7 @@ public class EvaluatedConfigEventTests
     [Fact]
     public void ReportsAJsonValueById()
     {
-        var built = EvaluatedConfigEvent.Of(
+        var built = EvaluatedConfigEvent.Create(
             "my-config", Parse("{\"a\":1}"), Parse("{\"b\":2}"), false, EvaluationReason.FoundMatch)
             .Compacted();
 
@@ -146,7 +146,7 @@ public class EvaluatedConfigEventTests
         Serialize(Event(reason: reason).Compacted()).ShouldContain($"\"evaluationReason\":\"{expected}\"");
 
     private static string RequestedTypeOf<T>(T defaultValue) =>
-        EvaluatedConfigEvent.Of("my-config", defaultValue, defaultValue, true, EvaluationReason.FoundMatch)
+        EvaluatedConfigEvent.Create("my-config", defaultValue, defaultValue, true, EvaluationReason.FoundMatch)
             .RequestedType;
 
     private static EvaluatedConfigEvent Event(
@@ -158,7 +158,7 @@ public class EvaluatedConfigEventTests
         string? contextId = null,
         ConfigType? configType = null,
         string? valueId = null) =>
-        EvaluatedConfigEvent.Of(key, defaultValue, value, usedDefault, reason, contextId, configType, valueId);
+        EvaluatedConfigEvent.Create(key, defaultValue, value, usedDefault, reason, contextId, configType, valueId);
 
     private static string Serialize(EvaluatedConfigEvent built) =>
         JsonSerializer.Serialize(built, TelemetryWire.Options);

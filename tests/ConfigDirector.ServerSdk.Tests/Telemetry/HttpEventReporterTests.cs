@@ -189,7 +189,7 @@ public sealed class HttpEventReporterTests : IDisposable
         int droppedEvaluations = 0,
         int droppedContexts = 0) =>
         new(
-            [new AggregatedEvent(Start, End, 3, EvaluatedConfigEvent.Of(
+            [new AggregatedEvent(Start, End, 3, EvaluatedConfigEvent.Create(
                 "my-config", "default", "hello", false, EvaluationReason.FoundMatch))],
             droppedEvaluations,
             contexts ?? [],

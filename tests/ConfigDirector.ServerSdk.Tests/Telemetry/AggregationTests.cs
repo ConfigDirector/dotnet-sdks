@@ -38,5 +38,5 @@ public class AggregationTests
         Aggregation.Aggregate([], Start, End).ShouldBeEmpty();
 
     private static EvaluatedConfigEvent Event(string key = "my-config") =>
-        EvaluatedConfigEvent.Of(key, "default", "hello", false, EvaluationReason.FoundMatch);
+        EvaluatedConfigEvent.Create(key, "default", "hello", false, EvaluationReason.FoundMatch);
 }
