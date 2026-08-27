@@ -22,7 +22,7 @@ internal sealed class HttpEventReporter : IAsyncDisposable
     private readonly string _serverSdkKey;
     private readonly Uri _url;
     private readonly ILogger _logger;
-    private readonly HttpClient _http = new() { Timeout = RequestTimeout };
+    private readonly HttpClient _http = Transports.BuildHttpClient(RequestTimeout);
 
     private bool _sendRequests = true;
 

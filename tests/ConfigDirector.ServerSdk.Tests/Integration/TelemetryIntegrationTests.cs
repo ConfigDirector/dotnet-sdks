@@ -175,6 +175,46 @@ public sealed class TelemetryIntegrationTests : IDisposable
         Evaluations().Length.ShouldBe(1);
     }
 
+    // A container that disposes synchronously has to report too, or shutting down quietly drops
+    // everything the application evaluated since the last interval.
+    [Fact]
+    public async Task ReportsWhatIsLeftWhenTheClientIsDisposedSynchronously()
+    {
+        var client = Client(flushInterval: TimeSpan.FromMinutes(5));
+        await client.InitializeAsync(TestContext.Current.CancellationToken);
+        client.GetValue("integer-config", 0);
+
+        client.Dispose();
+
+        // Sooner than the collector's own first report would arrive, so only the close can have
+        // produced it.
+        await WaitAsync(
+            () => _server.Paths.Contains("/server/telemetry/v1"), TimeSpan.FromSeconds(2));
+        Evaluations().Length.ShouldBe(1);
+    }
+
+    // Closing is a single transition however many callers race for it: two of them getting past
+    // the check would each tear the same connection down.
+    [Fact]
+    public async Task ClosesOnceWhenSeveralThreadsDisposeAtOnce()
+    {
+        var loggerFactory = new CapturingLoggerFactory();
+        var client = Client(flushInterval: TimeSpan.FromMinutes(5), loggerFactory: loggerFactory);
+        await client.InitializeAsync(TestContext.Current.CancellationToken);
+        client.GetValue("integer-config", 0);
+
+        using var start = new Barrier(8);
+        await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => Task.Run(async () =>
+        {
+            start.SignalAndWait();
+            await client.DisposeAsync();
+        })));
+
+        loggerFactory.Logger.Entries
+            .Count(entry => entry.Message.Contains("has been closed", StringComparison.Ordinal))
+            .ShouldBe(1);
+    }
+
     [Fact]
     public async Task DropsTheOldestEvaluationsOnceTheQueueLimitIsReached()
     {
@@ -196,10 +236,17 @@ public sealed class TelemetryIntegrationTests : IDisposable
     public void Dispose() => _server.Dispose();
 
     private ConfigDirectorClient Client(
-        TimeSpan? flushInterval = null, int eventQueueLimit = TelemetryOptions.DefaultEventQueueLimit)
+        TimeSpan? flushInterval = null,
+        int eventQueueLimit = TelemetryOptions.DefaultEventQueueLimit,
+        CapturingLoggerFactory? loggerFactory = null)
     {
         var options = new ConfigDirectorClientOptions();
         _server.Attach(options);
+        if (loggerFactory is not null)
+        {
+            options.LoggerFactory = loggerFactory;
+        }
+
         options.Telemetry.FlushInterval = flushInterval ?? TimeSpan.FromMinutes(5);
         options.Telemetry.EventQueueLimit = eventQueueLimit;
         return new ConfigDirectorClient("sdk-key", options);

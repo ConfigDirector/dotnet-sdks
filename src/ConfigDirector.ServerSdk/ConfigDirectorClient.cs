@@ -37,6 +37,7 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
     // path every GetValue takes is a volatile read and a lookup.
     private volatile IReadOnlyDictionary<string, Config>? _configs;
     private volatile bool _closed;
+    private int _closing;
 
     /// <summary>
     /// Builds a client that has not connected yet.
@@ -366,7 +367,7 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
     {
         if (Close())
         {
-            _transport.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            ReleaseAsync().AsTask().GetAwaiter().GetResult();
         }
     }
 
@@ -378,16 +379,25 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
     {
         if (Close())
         {
-            await _transport.DisposeAsync().ConfigureAwait(false);
-
-            // Last, so that everything the application evaluated on its way down is reported.
-            await _telemetry.DisposeAsync().ConfigureAwait(false);
+            await ReleaseAsync().ConfigureAwait(false);
         }
+    }
+
+    // Shared by both disposal paths: a container that disposes synchronously has to release the
+    // same things, telemetry's final report included.
+    private async ValueTask ReleaseAsync()
+    {
+        await _transport.DisposeAsync().ConfigureAwait(false);
+
+        // Last, so that everything the application evaluated on its way down is reported.
+        await _telemetry.DisposeAsync().ConfigureAwait(false);
     }
 
     private bool Close()
     {
-        if (_closed)
+        // Checking the flag and setting it has to be one step: two callers racing to dispose would
+        // otherwise both get through and tear the same connection down twice.
+        if (Interlocked.Exchange(ref _closing, 1) == 1)
         {
             return false;
         }

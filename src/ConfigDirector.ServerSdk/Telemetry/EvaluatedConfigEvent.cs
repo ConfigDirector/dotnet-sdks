@@ -48,7 +48,7 @@ internal sealed record EvaluatedConfigEvent
             Key = key,
             DefaultValue = TelemetryValue.From(defaultValue, configType),
             EvaluatedValue = TelemetryValue.From(value, configType, valueId),
-            RequestedType = RequestedTypeOf<T>(),
+            RequestedType = TypeName<T>.Name,
             UsedDefault = usedDefault,
             Reason = reason,
             ContextId = contextId,
@@ -62,10 +62,16 @@ internal sealed record EvaluatedConfigEvent
     // The type the caller asked the config to be returned as, named the way .NET names it -- the
     // JavaScript SDK reports string/number/Object for the same three. The arity a generic type
     // carries in its name is dropped, so a bound dictionary does not report "Dictionary`2".
-    private static string RequestedTypeOf<T>()
+    // Worked out once per T rather than on every evaluation, which is a hot path.
+    private static class TypeName<T>
     {
-        var name = typeof(T).Name;
-        var arity = name.IndexOf('`');
-        return arity < 0 ? name : name.Substring(0, arity);
+        internal static readonly string Name = Resolve();
+
+        private static string Resolve()
+        {
+            var name = typeof(T).Name;
+            var arity = name.IndexOf('`');
+            return arity < 0 ? name : name.Substring(0, arity);
+        }
     }
 }

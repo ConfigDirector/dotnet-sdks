@@ -14,10 +14,32 @@ internal static class Transports
 
     internal static Uri DefaultBaseUrl { get; } = new("https://server-sdk-api.configdirector.com/");
 
+    // Long enough not to churn connections, short enough that a failover is picked up without a
+    // restart. Matches what IHttpClientFactory rotates handlers on.
+    private static readonly TimeSpan ConnectionLifetime = TimeSpan.FromMinutes(2);
+
     // HttpClient.Timeout bounds the whole exchange, the response body included, so a streaming
     // connection would be severed the moment it outlived it. A transport bounds its own requests
     // instead: one deadline per request while polling, and one for opening a stream.
-    internal static HttpClient BuildHttpClient() => new() { Timeout = Timeout.InfiniteTimeSpan };
+    internal static HttpClient BuildHttpClient() => BuildHttpClient(Timeout.InfiniteTimeSpan);
+
+    internal static HttpClient BuildHttpClient(TimeSpan timeout)
+    {
+#if NET8_0_OR_GREATER
+        // A client is built once and kept for the life of the process, so without a lifetime its
+        // pooled connections pin whatever address DNS resolved at startup and a ConfigDirector
+        // failover stays invisible until a restart. Expiry is applied when a connection returns to
+        // the pool, so it never severs a stream that is still being read.
+        return new HttpClient(new SocketsHttpHandler { PooledConnectionLifetime = ConnectionLifetime })
+        {
+            Timeout = timeout,
+        };
+#else
+        // .NET Framework pools through ServicePointManager, whose equivalent setting is global to
+        // the host process rather than to this client, so it is left to the application.
+        return new HttpClient { Timeout = timeout };
+#endif
+    }
 
     internal static bool IsFatalStatus(int status) => status is >= 400 and < 500;
 
