@@ -1,8 +1,10 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json.Serialization;
 
 namespace ConfigDirector;
 
 /// <summary>The type a config was declared with in the ConfigDirector dashboard.</summary>
+[JsonConverter(typeof(ConfigTypeJsonConverter))]
 [SuppressMessage(
     "Naming",
     "CA1720:Identifier contains type name",
