@@ -223,6 +223,46 @@ public class SseClientTests
         handler.Requests.Count.ShouldBe(1);
     }
 
+    // ConfigDirector keeps a quiet stream alive with SSE comments, and the parser does not surface
+    // those. Timed between events rather than between bytes, this would reconnect every timeout.
+    [Fact]
+    public async Task ReconnectsWhenAStreamSaysNothingFromTheStart()
+    {
+        // Open, and silent from the first byte, so the timer has to be armed before any read
+        // rather than by one.
+        var handler = new ScriptedHandler(
+            () => ScriptedHandler.Trickle(TimeSpan.Zero),
+            () => ScriptedHandler.Sse("data: eventually\n\n"));
+
+        var items = await ReadAsync(handler, 1, options => options with
+        {
+            IdleTimeout = TimeSpan.FromMilliseconds(150),
+        });
+
+        items[0].Data.ShouldBe("eventually");
+        handler.Requests.Count.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task StaysOnAStreamThatSendsOnlyKeepaliveComments()
+    {
+        var handler = new ScriptedHandler(() => ScriptedHandler.Trickle(
+            TimeSpan.FromMilliseconds(200),
+            "data: first\n\n",
+            ": keepalive\n\n",
+            ": keepalive\n\n",
+            ": keepalive\n\n",
+            "data: second\n\n"));
+
+        var items = await ReadAsync(handler, 2, options => options with
+        {
+            IdleTimeout = TimeSpan.FromMilliseconds(500),
+        });
+
+        items.Select(item => item.Data).ShouldBe(["first", "second"]);
+        handler.Requests.Count.ShouldBe(1);
+    }
+
     [Fact]
     public async Task TellsThePolicyWhyTheStreamEnded()
     {

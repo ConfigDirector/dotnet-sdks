@@ -1,0 +1,93 @@
+using System.Text;
+using System.Text.Json;
+
+namespace ConfigDirector.Transport;
+
+internal static class Transports
+{
+    // 2^9 = 512 seconds, which caps the backoff just under 10 minutes.
+    private const int LongestBackoffExponent = 9;
+
+    // How much of each delay is fixed; the rest is drawn at random. Half and half keeps the delay
+    // growing with every attempt while spreading a fleet that all lost the connection at once.
+    private const double FixedShare = 0.5;
+
+    // A 4xx means the request itself is wrong -- a revoked SDK key, a bad URL -- and repeating it
+    // unchanged will only fail the same way.
+    internal static bool IsFatalStatus(int status) => status is >= 400 and < 500;
+
+    internal static Uri Resolve(Uri baseUrl, string path)
+    {
+        // The trailing slash is what keeps Uri from treating the last segment of a proxy base URL
+        // as a file name and dropping it.
+        var text = baseUrl.AbsoluteUri;
+        var root = text[text.Length - 1] == '/' ? text : text + "/";
+        return new Uri(new Uri(root), path);
+    }
+
+    internal static ConfigDirectorConnectionException FatalStatusError(int status, string? detail)
+    {
+        var body = string.IsNullOrWhiteSpace(detail) ? string.Empty : $" ({detail!.Trim()})";
+        return new ConfigDirectorConnectionException(
+            $"Connection failed with status: {status}{body}. This is an unrecoverable error, "
+                + "retry attempts will be ignored.",
+            status);
+    }
+
+    // The wire format is camelCase, and the server treats every field but the SDK identity as
+    // optional, so absent metadata is left out rather than sent as null.
+    internal static byte[] RequestPayload(TransportOptions options, string? lastUpdateTimestamp)
+    {
+        using var buffer = new MemoryStream();
+        using (var json = new Utf8JsonWriter(buffer))
+        {
+            json.WriteStartObject();
+            json.WriteString("serverSdkKey", options.ServerSdkKey);
+
+            json.WriteStartObject("metaContext");
+            json.WriteString("sdkName", SdkIdentity.Name);
+            json.WriteString("sdkVersion", SdkIdentity.Version);
+            WriteIfPresent(json, "appName", options.Metadata?.AppName);
+            WriteIfPresent(json, "appVersion", options.Metadata?.AppVersion);
+            json.WriteEndObject();
+
+            WriteIfPresent(json, "lastUpdateTimestamp", lastUpdateTimestamp);
+            json.WriteEndObject();
+        }
+
+        return buffer.ToArray();
+    }
+
+    internal static IReadOnlyDictionary<string, string> RequestHeaders { get; } =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            // Left to itself HttpClient sends no user agent at all, and bot-protection layers in
+            // front of the API reject that before the request reaches the origin -- surfacing as a
+            // 403 that looks exactly like a rejected SDK key.
+            ["User-Agent"] = SdkIdentity.UserAgent,
+        };
+
+    internal static TimeSpan BackoffDelay(int attempt, Random random)
+    {
+        var exponent = Math.Min(Math.Max(attempt, 1), LongestBackoffExponent);
+        var ceiling = TimeSpan.FromSeconds(1L << exponent).TotalMilliseconds;
+        var fixedPart = ceiling * FixedShare;
+        return TimeSpan.FromMilliseconds(fixedPart + (random.NextDouble() * (ceiling - fixedPart)));
+    }
+
+    internal static HttpContent JsonBody(byte[] payload) =>
+        new ByteArrayContent(payload)
+        {
+            Headers = { { "Content-Type", "application/json" } },
+        };
+
+    internal static string Utf8(byte[] payload) => Encoding.UTF8.GetString(payload);
+
+    private static void WriteIfPresent(Utf8JsonWriter json, string name, string? value)
+    {
+        if (value is not null)
+        {
+            json.WriteString(name, value);
+        }
+    }
+}

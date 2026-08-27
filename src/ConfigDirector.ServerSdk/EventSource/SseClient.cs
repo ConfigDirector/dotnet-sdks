@@ -55,9 +55,11 @@ internal sealed class SseClient
 
                 using (response)
                 using (var body = await ReadBodyAsync(response.Content, cancellationToken).ConfigureAwait(false))
+                using (var idle = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+                using (var timed = new IdleTimeoutStream(body, idle, _options.IdleTimeout))
                 {
-                    var parser = SseParser.Create(body);
-                    await foreach (var item in ReadStreamAsync(parser, cancellationToken).ConfigureAwait(false))
+                    var parser = SseParser.Create(timed);
+                    await foreach (var item in ReadStreamAsync(parser, idle.Token, cancellationToken).ConfigureAwait(false))
                     {
                         if (item.Failure is not null)
                         {
@@ -84,12 +86,10 @@ internal sealed class SseClient
     // catch, and reading an item needs one.
     private async IAsyncEnumerable<StreamItem> ReadStreamAsync(
         SseParser<string> parser,
+        CancellationToken idleToken,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        using var idle = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        ResetIdleTimer(idle);
-
-        await using var events = parser.EnumerateAsync(idle.Token).GetAsyncEnumerator(idle.Token);
+        await using var events = parser.EnumerateAsync(idleToken).GetAsyncEnumerator(idleToken);
         while (true)
         {
             SseItem<string> current = default;
@@ -126,16 +126,7 @@ internal sealed class SseClient
                 yield break;
             }
 
-            ResetIdleTimer(idle);
             yield return StreamItem.Of(current);
-        }
-    }
-
-    private void ResetIdleTimer(CancellationTokenSource idle)
-    {
-        if (_options.IdleTimeout > TimeSpan.Zero)
-        {
-            idle.CancelAfter(_options.IdleTimeout);
         }
     }
 

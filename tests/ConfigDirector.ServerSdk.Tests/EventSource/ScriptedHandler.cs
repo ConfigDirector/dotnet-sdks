@@ -42,6 +42,12 @@ internal sealed class ScriptedHandler : HttpMessageHandler
 
     internal static HttpResponseMessage Status(HttpStatusCode status) => new(status);
 
+    internal static HttpResponseMessage Status(HttpStatusCode status, string body) =>
+        new(status) { Content = new StringContent(body, Encoding.UTF8, "application/json") };
+
+    internal static HttpResponseMessage Json(string body) =>
+        new(HttpStatusCode.OK) { Content = new StringContent(body, Encoding.UTF8, "application/json") };
+
     internal static Func<HttpResponseMessage> Throws() =>
         () => throw new HttpRequestException("the connection failed");
 
