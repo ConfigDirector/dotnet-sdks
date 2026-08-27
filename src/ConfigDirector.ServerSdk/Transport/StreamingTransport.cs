@@ -13,12 +13,13 @@ internal sealed class StreamingTransport : ITransport
 
     // The server sends a keepalive comment every 15 seconds, so three missed in a row means a dead
     // connection rather than a quiet one.
-    internal static TimeSpan DefaultReadTimeout { get; } = TimeSpan.FromSeconds(45);
+    private static readonly TimeSpan ReadTimeout = TimeSpan.FromSeconds(45);
 
     private readonly TransportOptions _options;
     private readonly ILogger _logger;
     private readonly SseClient _stream;
     private readonly CancellationTokenSource _stop = new();
+    private readonly HttpClient _http = Transports.BuildHttpClient();
     private readonly Random _jitter = new();
 
     // Completed by the first config state, or by a failure the stream cannot recover from, so
@@ -29,24 +30,18 @@ internal sealed class StreamingTransport : ITransport
     private Task _reading = Task.CompletedTask;
 
     internal StreamingTransport(TransportOptions options)
-        : this(options, DefaultReadTimeout)
-    {
-    }
-
-    // The timeout is a parameter so a test can stall a stream out in milliseconds.
-    internal StreamingTransport(TransportOptions options, TimeSpan readTimeout)
     {
         _options = options;
         _logger = options.LoggerFactory.CreateLogger<StreamingTransport>();
 
         _stream = new SseClient(
-            options.Http,
+            _http,
             new SseClientOptions(Transports.Resolve(options.BaseUrl, Path))
             {
                 Method = HttpMethod.Post,
                 Headers = Transports.RequestHeaders,
                 Body = () => Transports.JsonBody(Transports.RequestPayload(options, null)),
-                IdleTimeout = readTimeout,
+                IdleTimeout = ReadTimeout,
                 IsFatalStatus = Transports.IsFatalStatus,
                 ReconnectDelay = ReconnectDelay,
                 Connected = () => Log.Connected(_logger, null),
@@ -80,6 +75,7 @@ internal sealed class StreamingTransport : ITransport
         }
 
         _stop.Dispose();
+        _http.Dispose();
     }
 
     private async Task ReadAsync()

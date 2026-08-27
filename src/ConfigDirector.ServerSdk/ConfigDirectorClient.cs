@@ -43,14 +43,6 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
     /// <exception cref="ArgumentNullException"><paramref name="serverSdkKey"/> is null.</exception>
     /// <exception cref="ArgumentException"><paramref name="serverSdkKey"/> is empty or whitespace.</exception>
     public ConfigDirectorClient(string serverSdkKey, ConfigDirectorClientOptions? options = null)
-        : this(serverSdkKey, options, onBundle => new StubTransport(onBundle))
-    {
-    }
-
-    internal ConfigDirectorClient(
-        string serverSdkKey,
-        ConfigDirectorClientOptions? options,
-        Func<Action<ConfigBundle>, ITransport> createTransport)
     {
         if (serverSdkKey is null)
         {
@@ -68,7 +60,20 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
         _metadata = settings.Metadata;
         _timeout = settings.Connection.Timeout;
         _evaluator = new ConfigEvaluator(settings.LoggerFactory.CreateLogger<ConfigEvaluator>());
-        _transport = createTransport(OnBundle);
+
+        var connection = settings.Connection;
+        _transport = TransportFactory.Create(
+            connection.Mode,
+            new TransportOptions(
+                serverSdkKey,
+                connection.Url ?? Transports.DefaultBaseUrl,
+                OnBundle,
+                settings.LoggerFactory)
+            {
+                Metadata = settings.Metadata,
+                PollingInterval = connection.PollingInterval,
+                RequestTimeout = connection.Timeout,
+            });
     }
 
     /// <inheritdoc/>
@@ -105,6 +110,13 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             Log.InitializationTimedOut(_logger, _timeout, null);
+        }
+        catch (Exception error) when (error is not OperationCanceledException)
+        {
+            // Reported through IsReady rather than by throwing. An application that cannot reach
+            // ConfigDirector should still start and serve its defaults, and every SDK that fronts
+            // this service behaves the same way.
+            Log.InitializationFailed(_logger, error);
         }
     }
 
@@ -421,6 +433,13 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
                 new EventId(1, "InitializationTimedOut"),
                 "Timed out waiting for initialization after {Timeout}. Configs will return their "
                     + "default value until config state arrives.");
+
+        internal static readonly Action<ILogger, Exception?> InitializationFailed =
+            LoggerMessage.Define(
+                LogLevel.Error,
+                new EventId(8, "InitializationFailed"),
+                "Initialization failed. Configs will return their default value until config state "
+                    + "arrives.");
 
         internal static readonly Action<ILogger, string, Exception?> NoConfigState =
             LoggerMessage.Define<string>(

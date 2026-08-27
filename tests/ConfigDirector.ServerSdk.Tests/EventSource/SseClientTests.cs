@@ -385,6 +385,38 @@ public class SseClientTests
         return new SseClient(new HttpClient(handler), configure is null ? options : configure(options), NullLogger.Instance);
     }
 
+    [Fact]
+    public async Task ReconnectsWhenTheServerNeverAnswersTheRequest()
+    {
+        var handler = new ScriptedHandler(
+            ScriptedHandler.Stalls(),
+            ScriptedHandler.Then(() => ScriptedHandler.Sse("data: arrived\n\n")));
+
+        var items = await ReadAsync(handler, 1, options => options with
+        {
+            ConnectTimeout = TimeSpan.FromMilliseconds(50),
+            ReconnectDelay = _ => TimeSpan.FromMilliseconds(1),
+        });
+
+        items[0].Data.ShouldBe("arrived");
+        handler.Requests.Count.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task StaysOnAStreamThatOutlivesTheTimeAllowedToOpenIt()
+    {
+        var handler = new ScriptedHandler(() => ScriptedHandler.Trickle(
+            TimeSpan.FromMilliseconds(150), "data: first\n\n", "data: second\n\n"));
+
+        var items = await ReadAsync(handler, 2, options => options with
+        {
+            ConnectTimeout = TimeSpan.FromMilliseconds(40),
+        });
+
+        items.Select(item => item.Data).ShouldBe(["first", "second"]);
+        handler.Requests.Count.ShouldBe(1);
+    }
+
     private static async Task<List<SseItem<string>>> ReadAsync(
         ScriptedHandler handler,
         int count,

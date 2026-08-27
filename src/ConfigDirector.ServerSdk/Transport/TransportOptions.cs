@@ -7,13 +7,11 @@ internal sealed record TransportOptions
     internal TransportOptions(
         string serverSdkKey,
         Uri baseUrl,
-        HttpClient http,
         Action<ConfigBundle> onBundle,
         ILoggerFactory loggerFactory)
     {
         ServerSdkKey = serverSdkKey;
         BaseUrl = baseUrl;
-        Http = http;
         OnBundle = onBundle;
         LoggerFactory = loggerFactory;
     }
@@ -22,8 +20,6 @@ internal sealed record TransportOptions
 
     internal Uri BaseUrl { get; }
 
-    internal HttpClient Http { get; }
-
     internal Action<ConfigBundle> OnBundle { get; }
 
     internal ILoggerFactory LoggerFactory { get; }
@@ -31,4 +27,7 @@ internal sealed record TransportOptions
     internal Metadata? Metadata { get; init; }
 
     internal TimeSpan PollingInterval { get; init; } = TimeSpan.FromSeconds(60);
+
+    // Bounds a single request, since the HttpClient underneath carries no timeout of its own.
+    internal TimeSpan RequestTimeout { get; init; } = TimeSpan.FromSeconds(3);
 }

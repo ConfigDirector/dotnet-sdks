@@ -2,8 +2,10 @@ namespace ConfigDirector.Tests.Integration;
 
 // Drives the whole SDK through its public API against the config state the transport supplies,
 // with nothing inside the SDK substituted.
-public class ClientIntegrationTests
+public sealed class ClientIntegrationTests : IDisposable
 {
+    private readonly SdkServer _server = new();
+
     private static readonly Context ProUser = new()
     {
         Id = "user-1",
@@ -19,7 +21,7 @@ public class ClientIntegrationTests
     [Fact]
     public async Task ReportsItselfReadyOnceConfigStateHasArrived()
     {
-        await using var client = new ConfigDirectorClient("server-sdk-key");
+        await using var client = Client();
 
         client.IsReady.ShouldBeFalse();
         await client.InitializeAsync(TestContext.Current.CancellationToken);
@@ -31,7 +33,7 @@ public class ClientIntegrationTests
     [Fact]
     public async Task ReturnsTheDefaultBeforeItIsInitialized()
     {
-        await using var client = new ConfigDirectorClient("server-sdk-key");
+        await using var client = Client();
 
         client.GetValue("temporary-feature-flag", true).ShouldBeTrue();
         client.GetAllConfigs().ShouldBeEmpty();
@@ -198,12 +200,21 @@ public class ClientIntegrationTests
         client.IsClosed.ShouldBeTrue();
     }
 
-    private static async Task<ConfigDirectorClient> ReadyClientAsync(ConfigDirectorClientOptions? options = null)
+    private async Task<ConfigDirectorClient> ReadyClientAsync(ConfigDirectorClientOptions? options = null)
     {
-        var client = new ConfigDirectorClient("server-sdk-key", options);
+        var client = Client(options);
         await client.InitializeAsync(TestContext.Current.CancellationToken);
         return client;
     }
+
+    private ConfigDirectorClient Client(ConfigDirectorClientOptions? options = null)
+    {
+        var settings = options ?? new ConfigDirectorClientOptions();
+        _server.Attach(settings);
+        return new ConfigDirectorClient("server-sdk-key", settings);
+    }
+
+    public void Dispose() => _server.Dispose();
 
     private static ConfigDirectorClientOptions Version(string appVersion) =>
         new() { Metadata = new Metadata { AppName = "sample", AppVersion = appVersion } };

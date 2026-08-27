@@ -1,4 +1,5 @@
 using ConfigDirector.Transport;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ConfigDirector.Tests.Transport;
 
@@ -63,4 +64,13 @@ public class TransportsTests
     [InlineData(200, false)]
     public void TreatsOnlyAClientErrorAsUnrecoverable(int status, bool fatal) =>
         Transports.IsFatalStatus(status).ShouldBe(fatal);
+
+    [Fact]
+    public void BoundsEveryRequestEvenWhenNothingAsksItTo() =>
+        new TransportOptions(
+            "sdk-key",
+            new Uri("https://server-sdk-api.example.com/"),
+            _ => { },
+            NullLoggerFactory.Instance)
+            .RequestTimeout.ShouldBe(TimeSpan.FromSeconds(3));
 }

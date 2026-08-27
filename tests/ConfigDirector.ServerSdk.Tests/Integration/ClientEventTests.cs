@@ -4,8 +4,10 @@ namespace ConfigDirector.Tests.Integration;
 
 // Events and watches driven entirely through the public API. Handlers are registered before
 // initialization, so the first config state is what triggers them.
-public class ClientEventTests
+public sealed class ClientEventTests : IDisposable
 {
+    private readonly SdkServer _server = new();
+
     private static readonly Context ProUser = new()
     {
         Id = "user-1",
@@ -15,7 +17,7 @@ public class ClientEventTests
     [Fact]
     public async Task AnnouncesItselfReadyWhenTheFirstConfigStateArrives()
     {
-        await using var client = new ConfigDirectorClient("server-sdk-key");
+        await using var client = Client();
         var announced = 0;
         client.ClientReady += (_, _) => announced++;
 
@@ -27,7 +29,7 @@ public class ClientEventTests
     [Fact]
     public async Task AnnouncesTheKeysAnUpdateCarried()
     {
-        await using var client = new ConfigDirectorClient("server-sdk-key");
+        await using var client = Client();
         IReadOnlyList<string> keys = [];
         client.ConfigsUpdated += (_, updated) => keys = updated.Keys;
 
@@ -79,7 +81,7 @@ public class ClientEventTests
     [Fact]
     public async Task SeparatesAnUnknownKeyFromNotBeingReadyYet()
     {
-        await using var client = new ConfigDirectorClient("server-sdk-key");
+        await using var client = Client();
         var evaluations = Collect(client);
 
         client.GetValue("temporary-feature-flag", false);
@@ -104,7 +106,7 @@ public class ClientEventTests
     [Fact]
     public async Task NotifiesAWatchWhenConfigStateArrives()
     {
-        await using var client = new ConfigDirectorClient("server-sdk-key");
+        await using var client = Client();
         var seen = new List<bool>();
         client.Watch("temporary-feature-flag", false, seen.Add, ProUser);
 
@@ -116,7 +118,7 @@ public class ClientEventTests
     [Fact]
     public async Task NotifiesEachWatchOnAKeyWithItsOwnDefaultAndContext()
     {
-        await using var client = new ConfigDirectorClient("server-sdk-key");
+        await using var client = Client();
         var enabled = new List<bool>();
         var banner = new List<string>();
         client.Watch("temporary-feature-flag", false, enabled.Add, ProUser);
@@ -132,7 +134,7 @@ public class ClientEventTests
     [Fact]
     public async Task StopsNotifyingAWatchThatWasCancelled()
     {
-        await using var client = new ConfigDirectorClient("server-sdk-key");
+        await using var client = Client();
         var seen = new List<bool>();
         var watch = client.Watch("temporary-feature-flag", false, seen.Add, ProUser);
         watch.Dispose();
@@ -146,7 +148,7 @@ public class ClientEventTests
     [Fact]
     public async Task CancellingOneWatchLeavesTheOthersInPlace()
     {
-        await using var client = new ConfigDirectorClient("server-sdk-key");
+        await using var client = Client();
         var kept = new List<bool>();
         var cancelled = client.Watch("temporary-feature-flag", false, _ => throw new InvalidOperationException("cancelled"));
         client.Watch("temporary-feature-flag", false, kept.Add, ProUser);
@@ -160,7 +162,7 @@ public class ClientEventTests
     [Fact]
     public async Task LetsAWatchCancelItselfWhileItIsBeingNotified()
     {
-        await using var client = new ConfigDirectorClient("server-sdk-key");
+        await using var client = Client();
         var seen = new List<bool>();
         IDisposable? once = null;
         once = client.Watch("temporary-feature-flag", false, value =>
@@ -179,7 +181,7 @@ public class ClientEventTests
     [Fact]
     public async Task UnwatchRemovesEveryWatchOnOneKey()
     {
-        await using var client = new ConfigDirectorClient("server-sdk-key");
+        await using var client = Client();
         var enabled = new List<bool>();
         var banner = new List<string>();
         client.Watch("temporary-feature-flag", false, enabled.Add, ProUser);
@@ -196,7 +198,7 @@ public class ClientEventTests
     [Fact]
     public async Task UnwatchAllRemovesEveryWatch()
     {
-        await using var client = new ConfigDirectorClient("server-sdk-key");
+        await using var client = Client();
         var seen = new List<string>();
         client.Watch("temporary-feature-flag", "unused", seen.Add);
         client.Watch("day-of-the-week-config", "unused", seen.Add);
@@ -210,7 +212,7 @@ public class ClientEventTests
     [Fact]
     public async Task AWatchIsEvaluatedLikeAnyOtherRead()
     {
-        await using var client = new ConfigDirectorClient("server-sdk-key");
+        await using var client = Client();
         var evaluations = Collect(client);
         client.Watch("temporary-feature-flag", false, _ => { }, ProUser);
 
@@ -241,9 +243,7 @@ public class ClientEventTests
     public async Task AFaultyWatchCostsNeitherTheUpdateNorTheWatchesAfterIt()
     {
         var loggerFactory = new CapturingLoggerFactory();
-        await using var client = new ConfigDirectorClient(
-            "server-sdk-key",
-            new ConfigDirectorClientOptions { LoggerFactory = loggerFactory });
+        await using var client = Client(new ConfigDirectorClientOptions { LoggerFactory = loggerFactory });
         var reached = false;
         client.Watch("temporary-feature-flag", false, _ => throw new InvalidOperationException("faulty watch"));
         client.Watch("temporary-feature-flag", false, _ => reached = true);
@@ -278,6 +278,50 @@ public class ClientEventTests
         Should.Throw<ArgumentException>(() => client.Watch(" ", false, _ => { }));
     }
 
+    [Fact]
+    public async Task AnnouncesItselfReadyOnlyForTheFirstConfigState()
+    {
+        await using var client = Client();
+        var announced = 0;
+        var updates = 0;
+        client.ClientReady += (_, _) => announced++;
+        client.ConfigsUpdated += (_, _) => updates++;
+
+        await client.InitializeAsync(TestContext.Current.CancellationToken);
+        _server.Push(SampleConfigs.DayOfTheWeek("Friday"));
+        await WaitAsync(() => updates == 2);
+
+        announced.ShouldBe(1);
+        updates.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task NotifiesAWatchOnlyForTheKeysAnUpdateCarried()
+    {
+        await using var client = Client();
+        var days = new List<string>();
+        var flags = new List<bool>();
+        client.Watch("day-of-the-week-config", "unused", days.Add);
+        client.Watch("temporary-feature-flag", false, flags.Add);
+
+        await client.InitializeAsync(TestContext.Current.CancellationToken);
+        _server.Push(SampleConfigs.DayOfTheWeek("Friday"));
+        await WaitAsync(() => days.Count == 2);
+
+        days.ShouldBe(["Monday", "Friday"]);
+        flags.ShouldBe([false]);
+    }
+
+    private static async Task WaitAsync(Func<bool> until)
+    {
+        for (var attempt = 0; attempt < 300 && !until(); attempt++)
+        {
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+
+        until().ShouldBeTrue();
+    }
+
     private static List<ConfigEvaluation> Collect(IConfigDirectorClient client)
     {
         var evaluations = new List<ConfigEvaluation>();
@@ -285,10 +329,19 @@ public class ClientEventTests
         return evaluations;
     }
 
-    private static async Task<ConfigDirectorClient> ReadyClientAsync(ConfigDirectorClientOptions? options = null)
+    private async Task<ConfigDirectorClient> ReadyClientAsync(ConfigDirectorClientOptions? options = null)
     {
-        var client = new ConfigDirectorClient("server-sdk-key", options);
+        var client = Client(options);
         await client.InitializeAsync(TestContext.Current.CancellationToken);
         return client;
     }
+
+    private ConfigDirectorClient Client(ConfigDirectorClientOptions? options = null)
+    {
+        var settings = options ?? new ConfigDirectorClientOptions();
+        _server.Attach(settings);
+        return new ConfigDirectorClient("server-sdk-key", settings);
+    }
+
+    public void Dispose() => _server.Dispose();
 }

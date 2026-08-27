@@ -42,9 +42,14 @@ public sealed class ConnectionOptions
     }
 
     /// <summary>
-    /// How long initialization waits for the first config state. Defaults to 3 seconds, and must be
-    /// positive.
+    /// How long initialization waits for the first config state, and how long any one request to
+    /// ConfigDirector may take. Defaults to 3 seconds, and must be positive.
     /// </summary>
+    /// <remarks>
+    /// Running out is not an error: <see cref="IConfigDirectorClient.IsReady"/> is what says
+    /// whether config state arrived, and in <see cref="ConnectionMode.Streaming"/> the client keeps
+    /// trying in the background.
+    /// </remarks>
     public TimeSpan Timeout
     {
         get => _timeout;

@@ -13,7 +13,9 @@ internal class PollingTransport : ITransport
     private readonly ILogger _logger;
     private readonly Uri _url;
     private readonly TimeSpan _interval;
+    private readonly TimeSpan _requestTimeout;
     private readonly CancellationTokenSource _stop = new();
+    private readonly HttpClient _http = Transports.BuildHttpClient();
 
     private string? _lastUpdateTimestamp;
     private Task _polling = Task.CompletedTask;
@@ -25,6 +27,7 @@ internal class PollingTransport : ITransport
         _logger = options.LoggerFactory.CreateLogger<PollingTransport>();
         _url = Transports.Resolve(options.BaseUrl, Path);
         _interval = interval > TimeSpan.Zero ? interval : TimeSpan.Zero;
+        _requestTimeout = options.RequestTimeout;
     }
 
     internal PollingTransport(TransportOptions options)
@@ -66,6 +69,7 @@ internal class PollingTransport : ITransport
         }
 
         _stop.Dispose();
+        _http.Dispose();
     }
 
     private async Task PollAsync()
@@ -101,6 +105,28 @@ internal class PollingTransport : ITransport
             return;
         }
 
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        if (_requestTimeout > TimeSpan.Zero)
+        {
+            deadline.CancelAfter(_requestTimeout);
+        }
+
+        try
+        {
+            await RequestAsync(deadline.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            // Reported as a connection failure rather than allowed to surface as cancellation: one
+            // request outrunning its deadline is a poll to retry, and the loop reads cancellation
+            // as the signal to stop polling altogether.
+            throw new ConfigDirectorConnectionException(
+                $"The request to {_url} did not complete within {_requestTimeout}.");
+        }
+    }
+
+    private async Task RequestAsync(CancellationToken cancellationToken)
+    {
         using var request = new HttpRequestMessage(HttpMethod.Post, _url)
         {
             Content = Transports.JsonBody(Transports.RequestPayload(_options, _lastUpdateTimestamp)),
@@ -158,7 +184,7 @@ internal class PollingTransport : ITransport
     {
         try
         {
-            return await _options.Http.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            return await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
         }
         catch (HttpRequestException error)
         {

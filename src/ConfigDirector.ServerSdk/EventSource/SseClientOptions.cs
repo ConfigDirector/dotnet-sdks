@@ -6,6 +6,8 @@ internal sealed record SseClientOptions
     // a connection dead below the application is noticed.
     private static readonly TimeSpan DefaultIdleTimeout = TimeSpan.FromMinutes(5);
 
+    private static readonly TimeSpan DefaultConnectTimeout = TimeSpan.FromSeconds(10);
+
     internal SseClientOptions(Uri url) => Url = url ?? throw new ArgumentNullException(nameof(url));
 
     internal Uri Url { get; }
@@ -25,6 +27,11 @@ internal sealed record SseClientOptions
     // How long an open stream may go without delivering an event before it counts as dead.
     // TimeSpan.Zero waits forever.
     internal TimeSpan IdleTimeout { get; init; } = DefaultIdleTimeout;
+
+    // How long to wait for the response headers. Separate from the idle timeout, which only starts
+    // once the stream is open, and needed because the HttpClient a stream runs on cannot carry a
+    // timeout of its own without severing the stream it just opened. TimeSpan.Zero waits forever.
+    internal TimeSpan ConnectTimeout { get; init; } = DefaultConnectTimeout;
 
     // A status the stream cannot recover from, which ends the read rather than retrying it.
     internal Func<int, bool> IsFatalStatus { get; init; } = status => status is >= 400 and < 500;

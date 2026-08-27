@@ -10,16 +10,19 @@ internal static class Transports
 
     // How much of each delay is fixed; the rest is drawn at random. Half and half keeps the delay
     // growing with every attempt while spreading a fleet that all lost the connection at once.
-    private const double FixedShare = 0.5;
+    private const double BackoffFixedShare = 0.5;
 
-    // A 4xx means the request itself is wrong -- a revoked SDK key, a bad URL -- and repeating it
-    // unchanged will only fail the same way.
+    internal static Uri DefaultBaseUrl { get; } = new("https://server-sdk-api.configdirector.com/");
+
+    // HttpClient.Timeout bounds the whole exchange, the response body included, so a streaming
+    // connection would be severed the moment it outlived it. A transport bounds its own requests
+    // instead: one deadline per request while polling, and one for opening a stream.
+    internal static HttpClient BuildHttpClient() => new() { Timeout = Timeout.InfiniteTimeSpan };
+
     internal static bool IsFatalStatus(int status) => status is >= 400 and < 500;
 
     internal static Uri Resolve(Uri baseUrl, string path)
     {
-        // The trailing slash is what keeps Uri from treating the last segment of a proxy base URL
-        // as a file name and dropping it.
         var text = baseUrl.AbsoluteUri;
         var root = text[text.Length - 1] == '/' ? text : text + "/";
         return new Uri(new Uri(root), path);
@@ -34,8 +37,6 @@ internal static class Transports
             status);
     }
 
-    // The wire format is camelCase, and the server treats every field but the SDK identity as
-    // optional, so absent metadata is left out rather than sent as null.
     internal static byte[] RequestPayload(TransportOptions options, string? lastUpdateTimestamp)
     {
         using var buffer = new MemoryStream();
@@ -71,7 +72,7 @@ internal static class Transports
     {
         var exponent = Math.Min(Math.Max(attempt, 1), LongestBackoffExponent);
         var ceiling = TimeSpan.FromSeconds(1L << exponent).TotalMilliseconds;
-        var fixedPart = ceiling * FixedShare;
+        var fixedPart = ceiling * BackoffFixedShare;
         return TimeSpan.FromMilliseconds(fixedPart + (random.NextDouble() * (ceiling - fixedPart)));
     }
 

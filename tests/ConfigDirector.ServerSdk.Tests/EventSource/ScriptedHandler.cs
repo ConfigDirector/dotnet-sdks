@@ -7,11 +7,16 @@ namespace ConfigDirector.Tests.EventSource;
 // runs out, and records what was asked for.
 internal sealed class ScriptedHandler : HttpMessageHandler
 {
-    private readonly Queue<Func<HttpResponseMessage>> _script;
-    private Func<HttpResponseMessage> _last = () => Sse("");
+    private readonly Queue<Func<CancellationToken, Task<HttpResponseMessage>>> _script;
+    private Func<CancellationToken, Task<HttpResponseMessage>> _last = Then(() => Sse(""));
 
-    internal ScriptedHandler(params Func<HttpResponseMessage>[] script) =>
-        _script = new Queue<Func<HttpResponseMessage>>(script);
+    internal ScriptedHandler(params Func<HttpResponseMessage>[] script)
+        : this(Array.ConvertAll(script, Then))
+    {
+    }
+
+    internal ScriptedHandler(params Func<CancellationToken, Task<HttpResponseMessage>>[] script) =>
+        _script = new Queue<Func<CancellationToken, Task<HttpResponseMessage>>>(script);
 
     internal List<HttpRequestMessage> Requests { get; } = [];
 
@@ -31,8 +36,29 @@ internal sealed class ScriptedHandler : HttpMessageHandler
             _last = _script.Dequeue();
         }
 
-        return _last();
+        var response = await _last(cancellationToken).ConfigureAwait(false);
+
+        // What a real handler does, and what the SDK's connect deadline relies on: the token that
+        // opened the request keeps aborting the response body after the headers have arrived.
+        if (response.Content is SilentContent streamed)
+        {
+            streamed.Abort = cancellationToken;
+        }
+
+        return response;
     }
+
+    internal static Func<CancellationToken, Task<HttpResponseMessage>> Then(Func<HttpResponseMessage> reply) =>
+        _ => Task.FromResult(reply());
+
+    // Never answers at all, which is what a request to a server that has stopped talking looks
+    // like: no status, no headers, nothing to time out on but the clock.
+    internal static Func<CancellationToken, Task<HttpResponseMessage>> Stalls() =>
+        async cancellationToken =>
+        {
+            await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false);
+            return Sse("");
+        };
 
     internal static HttpResponseMessage Sse(string body) =>
         new(HttpStatusCode.OK)
@@ -65,8 +91,10 @@ internal sealed class ScriptedHandler : HttpMessageHandler
     // the whole body first, which never finishes for a stream that stays open.
     private sealed class SilentContent(string[] chunks, TimeSpan gap) : HttpContent
     {
+        internal CancellationToken Abort { get; set; }
+
         protected override Task<Stream> CreateContentReadStreamAsync() =>
-            Task.FromResult<Stream>(new SilentStream(chunks, gap));
+            Task.FromResult<Stream>(new SilentStream(chunks, gap, Abort));
 
         protected override async Task SerializeToStreamAsync(Stream stream, TransportContext? context)
         {
@@ -81,7 +109,7 @@ internal sealed class ScriptedHandler : HttpMessageHandler
         }
     }
 
-    private sealed class SilentStream(string[] chunks, TimeSpan gap) : Stream
+    private sealed class SilentStream(string[] chunks, TimeSpan gap, CancellationToken abort) : Stream
     {
         private int _chunk;
         private int _offset;
@@ -104,17 +132,21 @@ internal sealed class ScriptedHandler : HttpMessageHandler
             Memory<byte> buffer,
             CancellationToken cancellationToken = default)
         {
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, abort);
+
             if (_chunk >= chunks.Length)
             {
                 // Open, and silent from here on.
-                await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(Timeout.Infinite, linked.Token).ConfigureAwait(false);
                 return 0;
             }
 
             if (_chunk > 0 && _offset == 0 && gap > TimeSpan.Zero)
             {
-                await Task.Delay(gap, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(gap, linked.Token).ConfigureAwait(false);
             }
+
+            linked.Token.ThrowIfCancellationRequested();
 
             var bytes = Encoding.UTF8.GetBytes(chunks[_chunk]);
             var count = Math.Min(buffer.Length, bytes.Length - _offset);

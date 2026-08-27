@@ -54,6 +54,7 @@ internal sealed class SseClient
                 _options.Connected?.Invoke();
 
                 using (response)
+                using (opened.Deadline)
                 using (var body = await ReadBodyAsync(response.Content, cancellationToken).ConfigureAwait(false))
                 using (var idle = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
                 using (var timed = new IdleTimeoutStream(body, idle, _options.IdleTimeout))
@@ -133,40 +134,70 @@ internal sealed class SseClient
     // A null response with a null failure means the server asked the stream to stop.
     private async Task<Opened> OpenAsync(string? lastEventId, CancellationToken cancellationToken)
     {
-        HttpResponseMessage response;
+        var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var handedOff = false;
         try
         {
-            response = await _http.SendAsync(
-                    BuildRequest(lastEventId),
-                    HttpCompletionOption.ResponseHeadersRead,
-                    cancellationToken)
-                .ConfigureAwait(false);
-        }
-        catch (Exception error) when (error is not OperationCanceledException)
-        {
-            return new Opened(null, error);
-        }
-
-        var status = (int)response.StatusCode;
-        if (status == NoContent)
-        {
-            response.Dispose();
-            Log.ServerEndedStream(_logger, null);
-            return default;
-        }
-
-        if (status >= 400)
-        {
-            response.Dispose();
-            if (_options.IsFatalStatus(status))
+            if (_options.ConnectTimeout > TimeSpan.Zero)
             {
-                throw new SseStatusException(status);
+                deadline.CancelAfter(_options.ConnectTimeout);
             }
 
-            return new Opened(null, new SseStatusException(status));
-        }
+            HttpResponseMessage response;
+            try
+            {
+                response = await _http.SendAsync(
+                        BuildRequest(lastEventId),
+                        HttpCompletionOption.ResponseHeadersRead,
+                        deadline.Token)
+                    .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                return new Opened(
+                    null,
+                    new TimeoutException($"The event stream did not open within {_options.ConnectTimeout}."),
+                    null);
+            }
+            catch (Exception error) when (error is not OperationCanceledException)
+            {
+                return new Opened(null, error, null);
+            }
 
-        return new Opened(response, null);
+            var status = (int)response.StatusCode;
+            if (status == NoContent)
+            {
+                response.Dispose();
+                Log.ServerEndedStream(_logger, null);
+                return default;
+            }
+
+            if (status >= 400)
+            {
+                response.Dispose();
+                if (_options.IsFatalStatus(status))
+                {
+                    throw new SseStatusException(status);
+                }
+
+                return new Opened(null, new SseStatusException(status), null);
+            }
+
+            // The headers are in, so the deadline has done its job. It cannot simply be disposed:
+            // the token it issued is still what aborts the body stream, and HttpClient holds a
+            // registration on it until the response is read to the end. Disarmed and handed to the
+            // reader instead, which disposes it once the stream is done with.
+            deadline.CancelAfter(Timeout.InfiniteTimeSpan);
+            handedOff = true;
+            return new Opened(response, null, deadline);
+        }
+        finally
+        {
+            if (!handedOff)
+            {
+                deadline.Dispose();
+            }
+        }
     }
 
     private HttpRequestMessage BuildRequest(string? lastEventId)
@@ -221,7 +252,10 @@ internal sealed class SseClient
         content.ReadAsStreamAsync();
 #endif
 
-    private readonly record struct Opened(HttpResponseMessage? Response, Exception? Failure);
+    private readonly record struct Opened(
+        HttpResponseMessage? Response,
+        Exception? Failure,
+        CancellationTokenSource? Deadline);
 
     private readonly record struct StreamItem(SseItem<string> Message, Exception? Failure)
     {
