@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace ConfigDirector.Value;
 
@@ -19,6 +20,12 @@ internal static class ValueParser
     {
         PropertyNameCaseInsensitive = true,
     };
+
+    // The caller has asked for binding explicitly, so System.Text.Json's rules are theirs to own.
+    internal static ParseResult<T> Bind<T>(ConfigState state, T defaultValue) =>
+        string.IsNullOrEmpty(state.Value)
+            ? UsedDefault(defaultValue, EvaluationReason.ValueMissing)
+            : ParseJson(state.Value!, state, defaultValue);
 
     internal static ParseResult<T> Parse<T>(ConfigState state, T defaultValue)
     {

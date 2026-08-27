@@ -135,11 +135,15 @@ internal static class SampleConfigs
         }
         """;
 
-    // A delta carrying one config, which is what the server sends when a single config changes.
-    internal static string DayOfTheWeek(string value, string timestamp = "2026-08-01T12:00:01.000Z") =>
+    // One config on its own: a delta is what the server sends when only that config changed, a
+    // full bundle is what it sends when that is all the config state there is.
+    internal static string DayOfTheWeek(
+        string value,
+        string kind = "delta",
+        string timestamp = "2026-08-01T12:00:01.000Z") =>
         $$"""
         {
-          "kind": "delta",
+          "kind": "{{kind}}",
           "timestamp": "{{timestamp}}",
           "configs": {
             "day-of-the-week-config": {

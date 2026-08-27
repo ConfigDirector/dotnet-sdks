@@ -1,3 +1,4 @@
+using System.Text.Json;
 using ConfigDirector;
 using ConfigDirector.Samples.AspNetCore;
 using Microsoft.Extensions.Options;
@@ -38,6 +39,10 @@ builder.Services.AddSingleton<IConfigDirectorClient>(services =>
     });
 });
 
+// Parsed once, and cloned so it outlives the document it came from. A default(JsonElement) would
+// not do: its kind is Undefined, which throws when the response is serialised.
+var emptyJson = JsonDocument.Parse("{}").RootElement.Clone();
+
 var app = builder.Build();
 
 app.MapGet("/configs", (HttpContext http, IConfigDirectorClient client) =>
@@ -57,9 +62,10 @@ app.MapGet("/configs", (HttpContext http, IConfigDirectorClient client) =>
         ["integer-config"] = client.GetValue("integer-config", 10, context),
         ["day-of-the-week-config"] = client.GetValue("day-of-the-week-config", "Friday", context),
 
-        // A JSON config read into a type of this application's own, rather than into a dictionary
-        // the handler would have to pick apart.
-        ["json-value-config"] = client.GetValue("json-value-config", new RetrySettings(), context),
+        // A JSON config read as it stands, because its shape lives in the dashboard rather than
+        // here. GetJsonValue binds it to a type of this application's own instead, for a config
+        // whose shape this application is the one that decides.
+        ["json-value-config"] = client.GetValue("json-value-config", emptyJson, context),
     });
 });
 

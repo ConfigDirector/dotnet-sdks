@@ -46,6 +46,16 @@ The config keys are the ones every ConfigDirector sample application uses, so th
 up with the Java and Python samples. The values above are what those keys hold in the sample
 project; yours will reflect your own environment.
 
+`json-value-config` is read as a `JsonNode`, so whatever the dashboard holds comes back verbatim.
+`GetValue` refuses a type it cannot fill faithfully, because `System.Text.Json` silently drops
+properties your type does not declare — a config whose shape has moved on would bind to your type's
+own defaults and read exactly like the SDK having returned your default value. When you do control
+the shape and want that binding, ask for it deliberately:
+
+```csharp
+var settings = client.GetJsonValue("json-value-config", new MySettings());
+```
+
 `plan=pro` matches a targeting rule and turns `temporary-feature-flag` on. `id` alone decides the
 percentage bucket for `permanent-kill-switch`, so the same id always lands in the same half. A
 repeated `tags` parameter becomes an array trait, which `day-of-the-week-config` matches on:

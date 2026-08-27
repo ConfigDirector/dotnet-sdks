@@ -269,12 +269,24 @@ public sealed class ClientEventTests : IDisposable
     }
 
     [Fact]
+    public async Task BindsAWatchedJsonConfigToATypeWhenAskedToExplicitly()
+    {
+        await using var client = Client();
+        var seen = new List<int>();
+        client.WatchJson("json-value-config", new RetrySettings(), settings => seen.Add(settings.Retries));
+
+        await client.InitializeAsync(TestContext.Current.CancellationToken);
+
+        seen.ShouldBe([3]);
+    }
+
+    [Fact]
     public async Task RejectsAWatchWithNothingToCallBack()
     {
         await using var client = await ReadyClientAsync();
 
         Should.Throw<ArgumentNullException>(() => client.Watch("temporary-feature-flag", false, null!));
-        Should.Throw<ArgumentNullException>(() => client.Watch<string>("temporary-feature-flag", null!, _ => { }));
+        Should.Throw<ArgumentNullException>(() => client.Watch("temporary-feature-flag", (string)null!, _ => { }));
         Should.Throw<ArgumentException>(() => client.Watch(" ", false, _ => { }));
     }
 
@@ -320,6 +332,11 @@ public sealed class ClientEventTests : IDisposable
         }
 
         until().ShouldBeTrue();
+    }
+
+    private sealed record RetrySettings
+    {
+        public int Retries { get; init; }
     }
 
     private static List<ConfigEvaluation> Collect(IConfigDirectorClient client)

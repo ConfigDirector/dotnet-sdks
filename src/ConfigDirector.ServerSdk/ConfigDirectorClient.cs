@@ -1,3 +1,4 @@
+using System.Text.Json;
 using ConfigDirector.Evaluation;
 using ConfigDirector.Transport;
 using ConfigDirector.Value;
@@ -121,8 +122,43 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
     }
 
     /// <inheritdoc/>
-    public T GetValue<T>(string configKey, T defaultValue, Context? context = null)
-        where T : notnull
+    public int GetValue(string configKey, int defaultValue, Context? context = null)
+        => Read(configKey, defaultValue, context, bind: false);
+
+    /// <inheritdoc/>
+    public long GetValue(string configKey, long defaultValue, Context? context = null)
+        => Read(configKey, defaultValue, context, bind: false);
+
+    /// <inheritdoc/>
+    public double GetValue(string configKey, double defaultValue, Context? context = null)
+        => Read(configKey, defaultValue, context, bind: false);
+
+    /// <inheritdoc/>
+    public float GetValue(string configKey, float defaultValue, Context? context = null)
+        => Read(configKey, defaultValue, context, bind: false);
+
+    /// <inheritdoc/>
+    public decimal GetValue(string configKey, decimal defaultValue, Context? context = null)
+        => Read(configKey, defaultValue, context, bind: false);
+
+    /// <inheritdoc/>
+    public bool GetValue(string configKey, bool defaultValue, Context? context = null)
+        => Read(configKey, defaultValue, context, bind: false);
+
+    /// <inheritdoc/>
+    public string GetValue(string configKey, string defaultValue, Context? context = null)
+        => Read(configKey, defaultValue, context, bind: false);
+
+    /// <inheritdoc/>
+    public JsonElement GetValue(string configKey, JsonElement defaultValue, Context? context = null)
+        => Read(configKey, defaultValue, context, bind: false);
+
+    /// <inheritdoc/>
+    public T GetJsonValue<T>(string configKey, T defaultValue, Context? context = null)
+        where T : notnull =>
+        Read(configKey, defaultValue, context, bind: true);
+
+    private T Read<T>(string configKey, T defaultValue, Context? context, bool bind)
     {
         ValidateKey(configKey);
         if (defaultValue is null)
@@ -134,12 +170,12 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
         Config? definition = null;
         configs?.TryGetValue(configKey, out definition);
 
-        return Evaluate(configKey, definition, defaultValue, context);
+        return Evaluate(configKey, definition, defaultValue, context, bind);
     }
 
     // Shared by the getter and by a watch being notified: for a watch the definition comes from
     // the update that carried it, so the two only differ in where the definition was found.
-    private T Evaluate<T>(string configKey, Config? definition, T defaultValue, Context? context)
+    private T Evaluate<T>(string configKey, Config? definition, T defaultValue, Context? context, bool bind)
     {
         if (definition is null)
         {
@@ -150,7 +186,7 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
         }
 
         var state = _evaluator.Evaluate(definition, context, _metadata);
-        var result = ValueParser.Parse(state, defaultValue);
+        var result = bind ? ValueParser.Bind(state, defaultValue) : ValueParser.Parse(state, defaultValue);
         Report(configKey, result.Value, result.UsedDefault, result.Reason, result.ValueId, context);
         return result.Value;
     }
@@ -214,8 +250,48 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
     }
 
     /// <inheritdoc/>
-    public IDisposable Watch<T>(string configKey, T defaultValue, Action<T> onChange, Context? context = null)
-        where T : notnull
+    public IDisposable Watch(string configKey, int defaultValue, Action<int> onChange, Context? context = null)
+        => Observe(configKey, defaultValue, onChange, context, bind: false);
+
+    /// <inheritdoc/>
+    public IDisposable Watch(string configKey, long defaultValue, Action<long> onChange, Context? context = null)
+        => Observe(configKey, defaultValue, onChange, context, bind: false);
+
+    /// <inheritdoc/>
+    public IDisposable Watch(string configKey, double defaultValue, Action<double> onChange, Context? context = null)
+        => Observe(configKey, defaultValue, onChange, context, bind: false);
+
+    /// <inheritdoc/>
+    public IDisposable Watch(string configKey, float defaultValue, Action<float> onChange, Context? context = null)
+        => Observe(configKey, defaultValue, onChange, context, bind: false);
+
+    /// <inheritdoc/>
+    public IDisposable Watch(string configKey, decimal defaultValue, Action<decimal> onChange, Context? context = null)
+        => Observe(configKey, defaultValue, onChange, context, bind: false);
+
+    /// <inheritdoc/>
+    public IDisposable Watch(string configKey, bool defaultValue, Action<bool> onChange, Context? context = null)
+        => Observe(configKey, defaultValue, onChange, context, bind: false);
+
+    /// <inheritdoc/>
+    public IDisposable Watch(string configKey, string defaultValue, Action<string> onChange, Context? context = null)
+        => Observe(configKey, defaultValue, onChange, context, bind: false);
+
+    /// <inheritdoc/>
+    public IDisposable Watch(string configKey, JsonElement defaultValue, Action<JsonElement> onChange, Context? context = null)
+        => Observe(configKey, defaultValue, onChange, context, bind: false);
+
+    /// <inheritdoc/>
+    public IDisposable WatchJson<T>(string configKey, T defaultValue, Action<T> onChange, Context? context = null)
+        where T : notnull =>
+        Observe(configKey, defaultValue, onChange, context, bind: true);
+
+    private Cancellation Observe<T>(
+        string configKey,
+        T defaultValue,
+        Action<T> onChange,
+        Context? context,
+        bool bind)
     {
         ValidateKey(configKey);
         if (defaultValue is null)
@@ -229,7 +305,7 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
         }
 
         var watcher = new Watcher(definition =>
-            onChange(Evaluate(configKey, definition, defaultValue, context)));
+            onChange(Evaluate(configKey, definition, defaultValue, context, bind)));
 
         lock (_watchLock)
         {
@@ -311,8 +387,16 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
             return;
         }
 
-        var firstBundle = _configs is null;
-        _configs = bundle.Configs;
+        var current = _configs;
+        var firstBundle = current is null;
+
+        // A delta carries only what changed, so it is merged into what is already held. A full
+        // bundle is the entire config state and replaces it, which is also how a config that was
+        // deleted stops being served.
+        _configs = bundle.Kind == BundleKind.Delta && current is not null
+            ? Merge(current, bundle.Configs)
+            : bundle.Configs;
+
         Log.ConfigStateUpdated(_logger, bundle.Configs.Count, null);
 
         var keys = bundle.Configs.Keys.OrderBy(key => key, StringComparer.Ordinal).ToArray();
@@ -323,6 +407,26 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
         {
             Raise(ClientReady, new ClientReadyEventArgs(), nameof(ClientReady));
         }
+    }
+
+    private static Dictionary<string, Config> Merge(
+        IReadOnlyDictionary<string, Config> current,
+        IReadOnlyDictionary<string, Config> update)
+    {
+        // Copied rather than edited in place, so a reader already walking the config state is not
+        // overtaken by an update landing underneath it.
+        var merged = new Dictionary<string, Config>(current.Count + update.Count, StringComparer.Ordinal);
+        foreach (var entry in current)
+        {
+            merged[entry.Key] = entry.Value;
+        }
+
+        foreach (var entry in update)
+        {
+            merged[entry.Key] = entry.Value;
+        }
+
+        return merged;
     }
 
     // Notified from the update rather than from the merged state: a watch only fires for a key the

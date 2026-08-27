@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace ConfigDirector.Tests.Integration;
 
 // Drives the whole SDK through its public API against the config state the transport supplies,
@@ -86,14 +88,34 @@ public sealed class ClientIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task ReadsAJsonConfigIntoTheCallersOwnType()
+    public async Task ReadsAJsonConfigWithoutTheCallerDeclaringItsShape()
     {
         await using var client = await ReadyClientAsync();
 
-        var settings = client.GetValue("json-value-config", new RetrySettings());
+        var settings = client.GetValue("json-value-config", EmptyJson);
+
+        settings.GetProperty("retries").GetInt32().ShouldBe(3);
+        settings.GetProperty("timeoutMs").GetInt32().ShouldBe(1500);
+    }
+
+    [Fact]
+    public async Task BindsAJsonConfigToATypeWhenAskedToExplicitly()
+    {
+        await using var client = await ReadyClientAsync();
+
+        var settings = client.GetJsonValue("json-value-config", new RetrySettings());
 
         settings.Retries.ShouldBe(3);
         settings.TimeoutMs.ShouldBe(1500);
+    }
+
+    [Fact]
+    public async Task ReturnsTheDefaultWhenAnExplicitBindFindsMalformedJson()
+    {
+        await using var client = await ReadyClientAsync();
+
+        client.GetJsonValue("day-of-the-week-config", new RetrySettings { Retries = 9 })
+            .Retries.ShouldBe(9);
     }
 
     [Fact]
@@ -123,7 +145,6 @@ public sealed class ClientIntegrationTests : IDisposable
 
         client.GetValue("day-of-the-week-config", -1).ShouldBe(-1);
         client.GetValue("day-of-the-week-config", false).ShouldBeFalse();
-        client.GetValue("integer-config", new RetrySettings { Retries = 9 }).Retries.ShouldBe(9);
     }
 
     [Fact]
@@ -172,7 +193,7 @@ public sealed class ClientIntegrationTests : IDisposable
     {
         await using var client = await ReadyClientAsync();
 
-        Should.Throw<ArgumentNullException>(() => client.GetValue<string>("day-of-the-week-config", null!));
+        Should.Throw<ArgumentNullException>(() => client.GetValue("day-of-the-week-config", (string)null!));
     }
 
     [Fact]
@@ -219,10 +240,18 @@ public sealed class ClientIntegrationTests : IDisposable
     private static ConfigDirectorClientOptions Version(string appVersion) =>
         new() { Metadata = new Metadata { AppName = "sample", AppVersion = appVersion } };
 
+    private static readonly JsonElement EmptyJson = JsonDocument.Parse("{}").RootElement.Clone();
+
     private sealed record RetrySettings
     {
         public int Retries { get; init; }
 
         public int TimeoutMs { get; init; }
+    }
+
+    // Declares nothing json-value-config actually holds.
+    private sealed record MismatchedSettings
+    {
+        public int Attempts { get; init; }
     }
 }

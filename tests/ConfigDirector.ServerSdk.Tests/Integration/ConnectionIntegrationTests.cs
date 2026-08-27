@@ -98,6 +98,38 @@ public sealed class ConnectionIntegrationTests : IDisposable
     }
 
     [Fact]
+    public async Task KeepsTheConfigsADeltaDidNotCarry()
+    {
+        var proUser = new Context { Id = "user-1", Traits = { ["plan"] = "pro" } };
+        await using var client = Client();
+        await client.InitializeAsync(TestContext.Current.CancellationToken);
+        client.GetValue("integer-config", 0).ShouldBe(25);
+
+        _server.Push(SampleConfigs.DayOfTheWeek("Friday"));
+        await WaitAsync(() => client.GetValue("day-of-the-week-config", "unused") == "Friday");
+
+        // A delta carries only what changed. Taking it as the whole config state drops every
+        // config the server had no news about.
+        client.GetValue("integer-config", 0).ShouldBe(25);
+        client.GetValue("temporary-feature-flag", false, proUser).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task ReplacesTheConfigStateWhenAFullBundleArrives()
+    {
+        await using var client = Client();
+        await client.InitializeAsync(TestContext.Current.CancellationToken);
+        client.GetValue("integer-config", 0).ShouldBe(25);
+
+        _server.Push(SampleConfigs.DayOfTheWeek("Friday", kind: "full"));
+        await WaitAsync(() => client.GetValue("day-of-the-week-config", "unused") == "Friday");
+
+        // A full bundle is the whole config state, so a config it leaves out is one the server no
+        // longer has. Merging it would keep serving a config that was deleted.
+        client.GetValue("integer-config", 0).ShouldBe(0);
+    }
+
+    [Fact]
     public async Task RoutesThroughAProxyUrlWithAPathOfItsOwn()
     {
         var options = Polling();
