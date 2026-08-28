@@ -1,4 +1,4 @@
-name: dotnet-sdks
+name: server-sdk-ci
 
 on:
   push:

@@ -1,4 +1,4 @@
-name: slow-tests
+name: server-sdk-slow-tests
 
 # Kept off the push path: every test here is bound by elapsed time, and none of them guards a
 # behaviour a code change is likely to break between nightly runs.

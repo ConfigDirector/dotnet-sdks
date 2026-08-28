@@ -38,9 +38,9 @@ git tag v1.2.3
 git push origin v1.2.3
 ```
 
-That builds, tests and packs, then waits for approval on the `nuget` environment before anything
-reaches nuget.org. `workflow_dispatch` on the same workflow packs a given version and uploads the
-artifact without publishing, which is the way to rehearse one.
+That builds, tests and packs, and publishes to nuget.org if all of it passes. A published version
+is permanent and can only be delisted, so rehearse with `workflow_dispatch` on the same workflow
+first: it packs a given version and uploads the artifact without publishing anything.
 
 It checks the working tree rather than the commits being pushed, so uncommitted changes are
 included. Bypass it for a single push with `git push --no-verify`.

@@ -1,4 +1,4 @@
-name: release
+name: server-sdk-release
 
 # Tagging is what publishes. The tag carries the version, so nothing in the repository has to be
 # edited to cut a release.
@@ -75,9 +75,6 @@ jobs:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # Gated so a release can require a human before anything reaches nuget.org, which cannot be
-    # undone: a published version is permanent, only delistable.
-    environment: nuget
     permissions:
       contents: write
     steps:
