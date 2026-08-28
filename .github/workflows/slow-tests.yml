@@ -1,0 +1,32 @@
+name: slow-tests
+
+# Kept off the push path: every test here is bound by elapsed time, and none of them guards a
+# behaviour a code change is likely to break between nightly runs.
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  CONFIGURATION: Release
+
+jobs:
+  slow-tests:
+    name: Slow tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/setup-dotnet
+
+      - run: |
+          dotnet test tests/ConfigDirector.ServerSdk.SlowTests/ConfigDirector.ServerSdk.SlowTests.csproj \
+            -c "$CONFIGURATION"

@@ -36,6 +36,11 @@ jobs:
 
       - run: dotnet test -c "$CONFIGURATION" --no-build
 
+      # Outside the solution, so building it here is what stops it rotting between nightly runs.
+      - run: |
+          dotnet build tests/ConfigDirector.ServerSdk.SlowTests/ConfigDirector.ServerSdk.SlowTests.csproj \
+            -c "$CONFIGURATION"
+
   format:
     name: Format
     runs-on: ubuntu-latest

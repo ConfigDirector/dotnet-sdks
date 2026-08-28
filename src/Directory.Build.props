@@ -6,8 +6,39 @@
     <TargetFrameworks>netstandard2.0;net8.0</TargetFrameworks>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <IsPackable>true</IsPackable>
-    <Company>ConfigDirector</Company>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
+
+  <!-- Overridden by the release workflow, which takes the version from the tag it builds. -->
+  <PropertyGroup>
+    <VersionPrefix>0.1.0</VersionPrefix>
+    <VersionSuffix Condition="'$(VersionSuffix)' == '' And '$(CI)' != 'true'">dev</VersionSuffix>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Company>ConfigDirector</Company>
+    <Authors>ConfigDirector</Authors>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/ConfigDirector/dotnet-sdks</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/ConfigDirector/dotnet-sdks</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>configdirector;feature-flags;feature-toggles;remote-config;configuration</PackageTags>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+  </PropertyGroup>
+
+  <!-- A stack trace from a consumer's process should land on the line that threw. SourceLink ships
+       in the SDK, so the repository URL and an embedded symbol package are all it needs. -->
+  <PropertyGroup>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <DebugType>portable</DebugType>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="/" Condition="Exists('README.md')" />
+    <None Include="$(MSBuildThisFileDirectory)../LICENSE" Pack="true" PackagePath="/" />
+  </ItemGroup>
 
 </Project>
