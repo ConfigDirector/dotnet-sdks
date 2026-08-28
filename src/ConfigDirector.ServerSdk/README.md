@@ -27,11 +27,12 @@ There is also [a quickstart guide for ConfigDirector and any of our SDKs](https:
 ## Sample apps
 
 [`samples/`](https://github.com/ConfigDirector/dotnet-sdks/tree/main/samples) holds small, runnable
-applications built on this SDK. Start with
-[`ConfigDirector.Samples.AspNetCore`](https://github.com/ConfigDirector/dotnet-sdks/tree/main/samples/ConfigDirector.Samples.AspNetCore):
+applications built on this SDK -- the same app written as a
+[Minimal API](https://github.com/ConfigDirector/dotnet-sdks/tree/main/samples/ConfigDirector.Samples.MinimalApi) and with
+[MVC controllers](https://github.com/ConfigDirector/dotnet-sdks/tree/main/samples/ConfigDirector.Samples.Mvc), so the two can be read side by side.
 
 ```bash
-dotnet run --project samples/ConfigDirector.Samples.AspNetCore
+dotnet run --project samples/ConfigDirector.Samples.MinimalApi
 ```
 
 ## Getting Help

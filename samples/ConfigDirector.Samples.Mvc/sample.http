@@ -1,0 +1,16 @@
+@host = http://localhost:5001
+
+### Every config, with no context
+GET {{host}}/configs
+
+### A paid plan, which matches the temporary-feature-flag targeting rule
+GET {{host}}/configs?id=user-123&plan=pro
+
+### An array trait, which matches the day-of-the-week-config rule
+GET {{host}}/configs?id=user-3&tags=beta&tags=vip
+
+### The hydration payload a client SDK would receive
+GET {{host}}/configs/all?id=user-123&plan=pro
+
+### Readiness
+GET {{host}}/health

@@ -1,4 +1,4 @@
-namespace ConfigDirector.Samples.AspNetCore;
+namespace ConfigDirector.Samples.MinimalApi;
 
 /// Bound from the "ConfigDirector" section, so a real deployment supplies these as environment
 /// variables rather than editing code.

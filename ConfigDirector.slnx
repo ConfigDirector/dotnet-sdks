@@ -3,7 +3,8 @@
     <Project Path="src/ConfigDirector.ServerSdk/ConfigDirector.ServerSdk.csproj" />
   </Folder>
   <Folder Name="/samples/">
-    <Project Path="samples/ConfigDirector.Samples.AspNetCore/ConfigDirector.Samples.AspNetCore.csproj" />
+    <Project Path="samples/ConfigDirector.Samples.MinimalApi/ConfigDirector.Samples.MinimalApi.csproj" />
+    <Project Path="samples/ConfigDirector.Samples.Mvc/ConfigDirector.Samples.Mvc.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/ConfigDirector.ServerSdk.Tests/ConfigDirector.ServerSdk.Tests.csproj" />

@@ -14,11 +14,19 @@ There is also [a quickstart guide for ConfigDirector and any of our SDKs](https:
 
 ## Sample apps
 
-[`samples/`](samples/) holds small, runnable applications built on this SDK. Start with
-[`ConfigDirector.Samples.AspNetCore`](samples/ConfigDirector.Samples.AspNetCore/):
+[`samples/`](samples/) holds small, runnable applications built on this SDK. They are the same app
+written each way -- a single `/configs` endpoint -- so they can be read side by side.
+
+[`ConfigDirector.Samples.MinimalApi`](samples/ConfigDirector.Samples.MinimalApi/):
 
 ```bash
-dotnet run --project samples/ConfigDirector.Samples.AspNetCore
+dotnet run --project samples/ConfigDirector.Samples.MinimalApi
+```
+
+[`ConfigDirector.Samples.Mvc`](samples/ConfigDirector.Samples.Mvc/):
+
+```bash
+dotnet run --project samples/ConfigDirector.Samples.Mvc
 ```
 
 ## Getting Help

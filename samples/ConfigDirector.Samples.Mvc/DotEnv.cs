@@ -1,4 +1,4 @@
-namespace ConfigDirector.Samples.AspNetCore;
+namespace ConfigDirector.Samples.Mvc;
 
 internal static class DotEnv
 {

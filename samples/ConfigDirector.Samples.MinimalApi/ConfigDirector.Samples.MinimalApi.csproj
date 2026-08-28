@@ -1,8 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <RootNamespace>ConfigDirector.Samples.AspNetCore</RootNamespace>
-    <UserSecretsId>configdirector-aspnetcore-sample</UserSecretsId>
+    <RootNamespace>ConfigDirector.Samples.MinimalApi</RootNamespace>
+    <UserSecretsId>configdirector-minimal-api-sample</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(UseLocalSdk)' == 'true'">

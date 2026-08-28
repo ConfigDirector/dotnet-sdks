@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <RootNamespace>ConfigDirector.Samples.Mvc</RootNamespace>
+    <UserSecretsId>configdirector-mvc-sample</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(UseLocalSdk)' == 'true'">
+    <ProjectReference Include="../../src/ConfigDirector.ServerSdk/ConfigDirector.ServerSdk.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(UseLocalSdk)' != 'true'">
+    <PackageReference Include="ConfigDirector.ServerSdk" />
+  </ItemGroup>
+
+</Project>

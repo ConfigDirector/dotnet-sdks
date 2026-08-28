@@ -1,6 +1,6 @@
 using System.Text.Json;
 using ConfigDirector;
-using ConfigDirector.Samples.AspNetCore;
+using ConfigDirector.Samples.MinimalApi;
 using Microsoft.Extensions.Options;
 
 // Before the builder, so the environment-variable provider it sets up sees these. Read from the
@@ -24,7 +24,7 @@ builder.Services.AddSingleton<IConfigDirectorClient>(services =>
     // Building a client makes no network calls.
     return new ConfigDirectorClient(settings.ServerSdkKey, new ConfigDirectorClientOptions
     {
-        Metadata = new Metadata { AppName = "aspnetcore-sample", AppVersion = "1.0.0" },
+        Metadata = new Metadata { AppName = "minimal-api-sample", AppVersion = "1.0.0" },
 
         // The host's own factory, so SDK output goes through this application's logging pipeline
         // and obeys the levels configured in appsettings.json.

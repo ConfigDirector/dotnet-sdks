@@ -1,16 +1,21 @@
-# ConfigDirector server SDK — ASP.NET Core sample
+# ConfigDirector server SDK — ASP.NET Core Minimal API sample
 
 A minimal API showing how to use the SDK from an ASP.NET Core application: one client for the
 process, built by dependency injection, initialized before the server starts listening, and
 disposed on shutdown.
 
+The [`ConfigDirector.Samples.Mvc`](../ConfigDirector.Samples.Mvc/) sample is the same app written
+with controllers, so the two can be read side by side.
+
 It connects to ConfigDirector for real, so it needs a server SDK key:
 
 ```bash
-cp samples/ConfigDirector.Samples.AspNetCore/.env.example samples/ConfigDirector.Samples.AspNetCore/.env
+cp samples/ConfigDirector.Samples.MinimalApi/.env.example samples/ConfigDirector.Samples.MinimalApi/.env
 # put your key in .env, then
-dotnet run --project samples/ConfigDirector.Samples.AspNetCore
+dotnet run --project samples/ConfigDirector.Samples.MinimalApi
 ```
+
+It listens on port 5000, so it and the MVC sample on 5001 can run at the same time.
 
 Without a usable key it still starts. Initialization does not throw on a connection failure, so
 the application comes up, logs a warning, and every config resolves to the default the calling
@@ -23,7 +28,7 @@ way a real consuming application does. CI and the pre-push hook set `UseLocalSdk
 the project from this checkout instead:
 
 ```bash
-UseLocalSdk=true dotnet build samples/ConfigDirector.Samples.AspNetCore
+UseLocalSdk=true dotnet build samples/ConfigDirector.Samples.MinimalApi
 ```
 
 That is what catches a breaking API change here rather than after it ships. The package version is
