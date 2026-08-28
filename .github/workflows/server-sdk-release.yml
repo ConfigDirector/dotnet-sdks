@@ -76,6 +76,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
+      # id-token lets nuget.org verify this workflow through OIDC and hand back a short-lived key,
+      # so no long-lived credential is stored anywhere. contents is for the GitHub release.
+      id-token: write
       contents: write
     steps:
       - uses: actions/checkout@v7
@@ -87,14 +90,20 @@ jobs:
           name: nupkg
           path: artifacts
 
+      # Exchanges this run's OIDC token for a key that expires within the hour. The trusted
+      # publishing policy on nuget.org decides whether to issue one, matching on this repository,
+      # this workflow file, and the tag it was triggered by.
+      - uses: NuGet/login@v1
+        id: nuget-login
+        with:
+          user: ${{ vars.NUGET_USER }}
+
       # The symbol package next to it is pushed with it.
       - run: |
           dotnet nuget push "artifacts/*.nupkg" \
-            --api-key "$NUGET_API_KEY" \
+            --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" \
             --source https://api.nuget.org/v3/index.json \
             --skip-duplicate
-        env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
 
       - run: gh release create "$GITHUB_REF_NAME" artifacts/*.nupkg --generate-notes --verify-tag
         env:
