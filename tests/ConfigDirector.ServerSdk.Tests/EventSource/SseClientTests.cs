@@ -8,13 +8,6 @@ namespace ConfigDirector.Tests.EventSource;
 
 public class SseClientTests
 {
-    // A stream that stays alive has to survive a machine that stalls. The gap is seven times
-    // inside the timeout so a stretched schedule cannot trip it, and the frames together run well
-    // past the timeout so a timer that never reset would still be caught.
-    private static readonly TimeSpan TrickleGap = TimeSpan.FromMilliseconds(100);
-    private static readonly TimeSpan IdleTimeout = TimeSpan.FromMilliseconds(700);
-    private const int EventCount = 12;
-
     private static readonly Uri Endpoint = new("https://stream.example.com/configs");
 
     [Fact]
@@ -210,30 +203,6 @@ public class SseClientTests
     }
 
     [Fact]
-    public async Task StaysOnAStreamThatKeepsDeliveringSlowly()
-    {
-        // Events arriving well inside the idle timeout but together outlasting it, so a timer that
-        // is armed once and never reset tears this stream down mid-read. The gap is a fraction of
-        // the timeout rather than close to it: a loaded machine stretches every gap, and a margin
-        // that only just held would make a healthy stream look like a timed-out one.
-        var frames = Enumerable.Range(0, EventCount)
-            .Select(index => $"data: event-{index}\n\n")
-            .ToArray();
-        var handler = new ScriptedHandler(() => ScriptedHandler.Trickle(TrickleGap, frames));
-
-        var items = await ReadAsync(handler, frames.Length, options => options with
-        {
-            IdleTimeout = IdleTimeout,
-        });
-
-        items.Select(item => item.Data)
-            .ShouldBe(Enumerable.Range(0, EventCount).Select(index => $"event-{index}"));
-        handler.Requests.Count.ShouldBe(1);
-    }
-
-    // ConfigDirector keeps a quiet stream alive with SSE comments, and the parser does not surface
-    // those. Timed between events rather than between bytes, this would reconnect every timeout.
-    [Fact]
     public async Task ReconnectsWhenAStreamSaysNothingFromTheStart()
     {
         // Open, and silent from the first byte, so the timer has to be armed before any read
@@ -249,25 +218,6 @@ public class SseClientTests
 
         items[0].Data.ShouldBe("eventually");
         handler.Requests.Count.ShouldBe(2);
-    }
-
-    [Fact]
-    public async Task StaysOnAStreamThatSendsOnlyKeepaliveComments()
-    {
-        // Nothing but comments for longer than the idle timeout. The parser never surfaces them,
-        // so only a timer measured on bytes keeps this connection up.
-        var frames = new List<string> { "data: first\n\n" };
-        frames.AddRange(Enumerable.Repeat(": keepalive\n\n", EventCount - 2));
-        frames.Add("data: second\n\n");
-        var handler = new ScriptedHandler(() => ScriptedHandler.Trickle(TrickleGap, [.. frames]));
-
-        var items = await ReadAsync(handler, 2, options => options with
-        {
-            IdleTimeout = IdleTimeout,
-        });
-
-        items.Select(item => item.Data).ShouldBe(["first", "second"]);
-        handler.Requests.Count.ShouldBe(1);
     }
 
     [Fact]

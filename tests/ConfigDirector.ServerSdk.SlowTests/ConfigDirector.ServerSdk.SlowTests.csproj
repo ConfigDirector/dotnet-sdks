@@ -17,6 +17,7 @@
     <Compile Include="../ConfigDirector.ServerSdk.Tests/Integration/SampleConfigs.cs" Link="Shared/SampleConfigs.cs" />
     <Compile Include="../ConfigDirector.ServerSdk.Tests/CapturingLogger.cs" Link="Shared/CapturingLogger.cs" />
     <Compile Include="../ConfigDirector.ServerSdk.Tests/CapturingLoggerFactory.cs" Link="Shared/CapturingLoggerFactory.cs" />
+    <Compile Include="../ConfigDirector.ServerSdk.Tests/EventSource/ScriptedHandler.cs" Link="Shared/ScriptedHandler.cs" />
   </ItemGroup>
 
 </Project>

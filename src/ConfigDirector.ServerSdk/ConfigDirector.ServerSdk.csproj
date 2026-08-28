@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="ConfigDirector.ServerSdk.Tests" />
+    <InternalsVisibleTo Include="ConfigDirector.ServerSdk.SlowTests" />
   </ItemGroup>
 
 </Project>
