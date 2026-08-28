@@ -6,6 +6,11 @@ This is the .NET server SDK for [ConfigDirector](https://www.configdirector.com)
 [`src/ConfigDirector.ServerSdk/`](src/ConfigDirector.ServerSdk/). More ConfigDirector packages for
 .NET will be published from this repository over time, each in a project of its own.
 
+Each package carries its own README and changelog:
+
+- [`ConfigDirector.ServerSdk`](src/ConfigDirector.ServerSdk/) --
+  [changelog](src/ConfigDirector.ServerSdk/CHANGELOG.md)
+
 ## Documentation
 
 Refer to the [official documentation for the .NET SDK](https://docs.configdirector.com/sdks/server/dotnet).

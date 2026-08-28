@@ -1,9 +1,11 @@
 # Changelog
 
-All notable changes to `ConfigDirector.ServerSdk` are recorded here.
+All notable changes to `ConfigDirector.ServerSdk` are recorded here. Every other package in this
+repository keeps its own changelog beside it, covering that package alone.
 
-The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
-[semantic versioning](https://semver.org/spec/v2.0.0.html).
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the package uses
+[semantic versioning](https://semver.org/spec/v2.0.0.html). The `v*` tags this changelog links to
+are releases of this package.
 
 ## [Unreleased]
 

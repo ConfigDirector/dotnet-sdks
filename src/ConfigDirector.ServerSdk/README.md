@@ -31,6 +31,9 @@ Refer to the [official documentation for the .NET SDK](https://docs.configdirect
 
 There is also [a quickstart guide for ConfigDirector and any of our SDKs](https://docs.configdirector.com/getting-started/quickstart).
 
+What changed in each release is in
+[the changelog](https://github.com/ConfigDirector/dotnet-sdks/blob/main/src/ConfigDirector.ServerSdk/CHANGELOG.md).
+
 ## Sample apps
 
 [`samples/`](https://github.com/ConfigDirector/dotnet-sdks/tree/main/samples) holds small, runnable
