@@ -488,3 +488,4 @@ $RECYCLE.BIN/
 conformance-results*.json
 
 .vscode
+aot

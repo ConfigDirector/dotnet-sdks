@@ -10,12 +10,24 @@
     <TrimmerSingleWarn>false</TrimmerSingleWarn>
   </PropertyGroup>
 
-  <ItemGroup Condition="'$(UseLocalSdk)' == 'true'">
+  <!-- The other samples reference the published package, so they read the way a consuming
+       application does. This one always builds the SDK in this checkout, because its job is to
+       prove that what is about to ship compiles and runs as native code. Pointing it at the last
+       release would only ever tell us about the last release, and 1.0.0 predates AOT support, so
+       it would fail here for anyone who tried. -->
+  <ItemGroup>
     <ProjectReference Include="../../src/ConfigDirector.ServerSdk/ConfigDirector.ServerSdk.csproj" SetTargetFramework="TargetFramework=net8.0" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(UseLocalSdk)' != 'true'">
-    <PackageReference Include="ConfigDirector.ServerSdk" />
+  <!-- Native AOT on macOS links against OpenSSL and Brotli, which Homebrew installs outside the
+       linker's default search path; without these the link fails with "library 'ssl' not found".
+       Applied automatically so publishing takes no extra arguments. Linux and Windows need
+       nothing: their package managers put these where the linker already looks. -->
+  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+    <LinkerArg Include="-L/opt/homebrew/opt/openssl@3/lib" Condition="Exists('/opt/homebrew/opt/openssl@3/lib')" />
+    <LinkerArg Include="-L/opt/homebrew/opt/brotli/lib" Condition="Exists('/opt/homebrew/opt/brotli/lib')" />
+    <LinkerArg Include="-L/usr/local/opt/openssl@3/lib" Condition="Exists('/usr/local/opt/openssl@3/lib')" />
+    <LinkerArg Include="-L/usr/local/opt/brotli/lib" Condition="Exists('/usr/local/opt/brotli/lib')" />
   </ItemGroup>
 
 </Project>

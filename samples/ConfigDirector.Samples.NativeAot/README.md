@@ -19,7 +19,7 @@ nothing sits between the sample and the SDK:
 ## Publishing to native code
 
 ```bash
-dotnet publish samples/ConfigDirector.Samples.NativeAot -c Release -r linux-x64 -o aot
+dotnet publish samples/ConfigDirector.Samples.NativeAot -c Release -o aot
 ./aot/ConfigDirector.Samples.NativeAot
 ```
 
@@ -27,13 +27,24 @@ The result is a single executable with no .NET runtime to install. Publishing ru
 whole program, so anything in the SDK that trimming or AOT cannot support fails the publish rather
 than the process.
 
-On macOS the linker needs OpenSSL and Brotli on its search path, which Homebrew installs outside
-the default one:
+On macOS this needs OpenSSL and Brotli, which native AOT links against and which do not ship with
+the system:
 
 ```bash
-dotnet publish samples/ConfigDirector.Samples.NativeAot -c Release -r osx-arm64 -o aot \
-  -p:CustomAfterMicrosoftCommonTargets=$PWD/scripts/macos-aot-linker.props
+brew install openssl@3 brotli
 ```
+
+Homebrew puts them outside the linker's default search path, so the project adds that path itself.
+Without them the publish fails with `ld: library 'ssl' not found`. Linux and Windows need nothing
+extra.
+
+## Why this sample pins the SDK in this checkout
+
+The other samples reference the published package, so they read the way your own application
+would. This one always builds [`src/ConfigDirector.ServerSdk`](../../src/ConfigDirector.ServerSdk/)
+instead, because its job is to prove that what is about to ship compiles and runs as native code.
+Pointing it at the last release would only ever tell us about the last release — and 1.0.0 predates
+AOT support, so it would fail here for anyone who tried.
 
 ## Reading JSON without reflection
 
