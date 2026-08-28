@@ -15,7 +15,7 @@ dotnet add package ConfigDirector.ServerSdk
 Or as a package reference:
 
 ```xml
-<PackageReference Include="ConfigDirector.ServerSdk" Version="0.1.0" />
+<PackageReference Include="ConfigDirector.ServerSdk" Version="1.0.0" />
 ```
 
 ## Trimming and native AOT

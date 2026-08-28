@@ -11,6 +11,10 @@ are releases of this package.
 
 ### Added
 
+- `ConfigDirectorClientOptions.Connection` and `Telemetry` can now be assigned as well as populated
+  in place, so a caller holding a `ConnectionOptions` or `TelemetryOptions` of its own -- one bound
+  from configuration, say -- can hand it over whole rather than copying it property by property.
+  Assigning null throws, as it does for `LoggerFactory`, and populating them in place is unchanged.
 - The package is trim and native AOT safe. `IsAotCompatible` is set for `net8.0`, telemetry
   serializes through a source-generated `System.Text.Json` context, and a native AOT sample is
   published and run by CI to keep it that way.

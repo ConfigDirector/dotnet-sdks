@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/ConfigDirector.ServerSdk/ConfigDirector.ServerSdk.csproj" />
+    <Project Path="src/ConfigDirector.ServerSdk.AspNetCore/ConfigDirector.ServerSdk.AspNetCore.csproj" />
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/ConfigDirector.Samples.MinimalApi/ConfigDirector.Samples.MinimalApi.csproj" />
@@ -9,5 +10,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/ConfigDirector.ServerSdk.Tests/ConfigDirector.ServerSdk.Tests.csproj" />
+    <Project Path="tests/ConfigDirector.ServerSdk.AspNetCore.Tests/ConfigDirector.ServerSdk.AspNetCore.Tests.csproj" />
   </Folder>
 </Solution>

@@ -39,3 +39,9 @@ dotnet_diagnostic.CA1873.severity = none
 [tests/**.cs]
 # Test names use the vocabulary of what they test, "pointer" and "object" included.
 dotnet_diagnostic.CA1720.severity = none
+
+[src/ConfigDirector.ServerSdk.AspNetCore/DependencyInjection/**.cs]
+# AddConfigDirector lives in Microsoft.Extensions.DependencyInjection so a consuming Program.cs
+# finds it without a using directive. The namespace is chosen for discoverability, not to match the
+# folder it sits in.
+dotnet_diagnostic.IDE0130.severity = none

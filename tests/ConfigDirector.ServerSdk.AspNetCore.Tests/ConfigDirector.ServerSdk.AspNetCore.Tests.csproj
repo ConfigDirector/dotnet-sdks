@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>ConfigDirector.AspNetCore.Tests</RootNamespace>
+    <!-- This assembly is the entry assembly under the test host, so it is the one the package reads
+         the default AppVersion from. Stamped with build metadata on purpose: stripping it is the
+         behaviour under test, and an ordinary local build carries none. -->
+    <InformationalVersion>9.9.9+9f4c1a</InformationalVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="../../src/ConfigDirector.ServerSdk.AspNetCore/ConfigDirector.ServerSdk.AspNetCore.csproj" />
+  </ItemGroup>
+
+</Project>

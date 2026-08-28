@@ -22,6 +22,8 @@ namespace ConfigDirector;
 /// </remarks>
 public sealed class ConfigDirectorClientOptions
 {
+    private ConnectionOptions _connection = new();
+    private TelemetryOptions _telemetry = new();
     private ILoggerFactory _loggerFactory = NullLoggerFactory.Instance;
 
     /// <summary>
@@ -30,13 +32,25 @@ public sealed class ConfigDirectorClientOptions
     /// </summary>
     public Metadata? Metadata { get; set; }
 
-    /// <summary>How the client connects to ConfigDirector.</summary>
-    public ConnectionOptions Connection { get; } = new();
+    /// <summary>
+    /// How the client connects to ConfigDirector. Populate it in place, or assign one you already
+    /// hold; assigning null throws.
+    /// </summary>
+    public ConnectionOptions Connection
+    {
+        get => _connection;
+        set => _connection = value ?? throw new ArgumentNullException(nameof(value));
+    }
 
     /// <summary>
     /// How evaluations are reported back to ConfigDirector. The defaults suit most applications.
+    /// Populate it in place, or assign one you already hold; assigning null throws.
     /// </summary>
-    public TelemetryOptions Telemetry { get; } = new();
+    public TelemetryOptions Telemetry
+    {
+        get => _telemetry;
+        set => _telemetry = value ?? throw new ArgumentNullException(nameof(value));
+    }
 
     /// <summary>
     /// Where the SDK writes. Defaults to <see cref="NullLoggerFactory"/>, which discards everything.

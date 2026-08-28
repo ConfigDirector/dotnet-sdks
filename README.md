@@ -10,6 +10,8 @@ Each package carries its own README and changelog:
 
 - [`ConfigDirector.ServerSdk`](src/ConfigDirector.ServerSdk/) --
   [changelog](src/ConfigDirector.ServerSdk/CHANGELOG.md)
+- [`ConfigDirector.ServerSdk.AspNetCore`](src/ConfigDirector.ServerSdk.AspNetCore/) --
+  [changelog](src/ConfigDirector.ServerSdk.AspNetCore/CHANGELOG.md)
 
 ## Documentation
 

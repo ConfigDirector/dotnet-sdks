@@ -2,8 +2,14 @@
 
 ## Development
 
-Requires the .NET SDK pinned in [global.json](global.json), plus the .NET 8 runtime, which the
-test suite runs against alongside the current one.
+Requires the .NET SDK pinned in [global.json](global.json), plus the .NET 8 and ASP.NET Core 8
+runtimes, which the test suite runs against alongside the current ones.
+
+On a machine whose SDK came from a package manager, install those two by unpacking the official
+runtime archives and copying only their `shared/Microsoft.NETCore.App/<version>` and
+`shared/Microsoft.AspNetCore.App/<version>` directories into the SDK's `shared` directory. Do not
+point `dotnet-install.sh --install-dir` at it: the archives carry their own `dotnet` host binary,
+which overwrites the one already there and leaves a `dotnet` that macOS refuses to run.
 
 ```bash
 dotnet build -c Release
