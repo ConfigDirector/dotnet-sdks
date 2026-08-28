@@ -18,9 +18,11 @@ internal static class Transports
     // restart. Matches what IHttpClientFactory rotates handlers on.
     private static readonly TimeSpan ConnectionLifetime = TimeSpan.FromMinutes(2);
 
-    // HttpClient.Timeout bounds the whole exchange, the response body included, so a streaming
-    // connection would be severed the moment it outlived it. A transport bounds its own requests
-    // instead: one deadline per request while polling, and one for opening a stream.
+    // HttpClient.Timeout bounds the whole exchange on .NET Framework, the response body included,
+    // so a streaming connection there is severed the moment it outlives it. Measured on .NET 10 it
+    // stops at the response headers and leaves the body alone, which makes this insurance for the
+    // netstandard2.0 target rather than something the modern runtimes need. Either way a transport
+    // bounds its own requests: one deadline per request while polling, one for opening a stream.
     internal static HttpClient BuildHttpClient() => BuildHttpClient(Timeout.InfiniteTimeSpan);
 
     internal static HttpClient BuildHttpClient(TimeSpan timeout)

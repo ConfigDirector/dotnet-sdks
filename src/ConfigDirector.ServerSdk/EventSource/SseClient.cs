@@ -184,10 +184,12 @@ internal sealed class SseClient
                 return new Opened(null, new SseStatusException(status), null);
             }
 
-            // The headers are in, so the deadline has done its job. It cannot simply be disposed:
-            // the token it issued is still what aborts the body stream, and HttpClient holds a
-            // registration on it until the response is read to the end. Disarmed and handed to the
-            // reader instead, which disposes it once the stream is done with.
+            // The headers are in, so the deadline has done its job. Disarmed and handed to the
+            // reader rather than disposed here, because the token it issued is the one HttpClient
+            // holds while the body is read. Measured on .NET 10, cancelling that token after the
+            // headers arrive does not abort the body -- so this is insurance for the
+            // netstandard2.0 target, where .NET Framework bounds the whole exchange instead. No
+            // test can observe it on a runtime this suite can run.
             deadline.CancelAfter(Timeout.InfiniteTimeSpan);
             handedOff = true;
             return new Opened(response, null, deadline);

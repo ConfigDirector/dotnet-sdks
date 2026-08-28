@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>ConfigDirector.Tests</RootNamespace>
+    <!-- One framework only: every test here is bound by elapsed time, so running the suite twice
+         doubles the wall clock for no extra coverage. -->
+    <TargetFrameworks>net10.0</TargetFrameworks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/ConfigDirector.ServerSdk/ConfigDirector.ServerSdk.csproj" />
+  </ItemGroup>
+
+  <!-- Shared with the fast suite rather than copied, so the stub server cannot drift between them. -->
+  <ItemGroup>
+    <Compile Include="../ConfigDirector.ServerSdk.Tests/Integration/SdkServer.cs" Link="Shared/SdkServer.cs" />
+    <Compile Include="../ConfigDirector.ServerSdk.Tests/Integration/SampleConfigs.cs" Link="Shared/SampleConfigs.cs" />
+    <Compile Include="../ConfigDirector.ServerSdk.Tests/CapturingLogger.cs" Link="Shared/CapturingLogger.cs" />
+    <Compile Include="../ConfigDirector.ServerSdk.Tests/CapturingLoggerFactory.cs" Link="Shared/CapturingLoggerFactory.cs" />
+  </ItemGroup>
+
+</Project>
