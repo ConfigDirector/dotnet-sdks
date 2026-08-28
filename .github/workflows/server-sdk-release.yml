@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version to build, without the leading v (packs and uploads, publishes nothing)."
+        description: "Version to build, with or without the leading v (packs and uploads, publishes nothing)."
         required: true
 
 permissions:
@@ -34,14 +34,15 @@ jobs:
 
       - uses: ./.github/actions/setup-dotnet
 
-      - name: Read the version from the tag
+      - name: Resolve the version
         id: version
         run: |
           if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
             version="${{ inputs.version }}"
           else
-            version="${GITHUB_REF_NAME#v}"
+            version="$GITHUB_REF_NAME"
           fi
+          version="${version#v}"
 
           # A malformed tag would otherwise publish a package nobody can refer to.
           if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
