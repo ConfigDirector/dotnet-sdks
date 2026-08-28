@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace ConfigDirector.Samples.Mvc.Controllers;
 
-/// Evaluates configs against a context built from the query string.
+/// Evaluates configs against the context built for this request in Program.cs.
 ///
 /// Query parameters double as the evaluation context: id, name and anonymous map onto the matching
 /// Context fields, and anything else becomes a trait.
@@ -11,21 +11,27 @@ namespace ConfigDirector.Samples.Mvc.Controllers;
 [Route("configs")]
 public sealed class ConfigsController : ControllerBase
 {
-    private static readonly string[] ContextFields = ["id", "name", "anonymous"];
-
     // Parsed once, and cloned so it outlives the document it came from. A default(JsonElement)
     // would not do: its kind is Undefined, which throws when the response is serialised.
     private static readonly JsonElement EmptyJson = JsonDocument.Parse("{}").RootElement.Clone();
 
     private readonly IConfigDirectorClient _client;
+    private readonly IConfigDirectorContextAccessor _context;
 
-    /// The one client for the process, injected. Never build one per request.
-    public ConfigsController(IConfigDirectorClient client) => _client = client;
+    /// The one client for the process, and the context for this request. Never build a client per
+    /// request.
+    public ConfigsController(IConfigDirectorClient client, IConfigDirectorContextAccessor context)
+    {
+        _client = client;
+        _context = context;
+    }
 
     [HttpGet]
     public IReadOnlyDictionary<string, object> Get()
     {
-        var context = ContextFrom(Request.Query);
+        // Built once for the request however many times it is read, so the six evaluations below
+        // cost one pass over the query string rather than six.
+        var context = _context.Context;
 
         // Each call reads config state the client already holds, with no network call on the
         // request path, which is what makes several of them in one action cheap.
@@ -51,38 +57,5 @@ public sealed class ConfigsController : ControllerBase
     /// and it records no telemetry, since the SDK that receives it reports its own evaluations.
     [HttpGet("all")]
     public IReadOnlyDictionary<string, ConfigState> GetAll() =>
-        _client.GetAllConfigs(ContextFrom(Request.Query));
-
-    // The context is per request; the client that evaluates it is not. A real application would
-    // build this from the authenticated session rather than from the query string.
-    private static Context ContextFrom(IQueryCollection query)
-    {
-        var context = new Context
-        {
-            Id = query["id"],
-            Name = query["name"],
-            Anonymous = query["anonymous"] == "true",
-        };
-
-        foreach (var (name, values) in query)
-        {
-            if (ContextFields.Contains(name, StringComparer.Ordinal))
-            {
-                continue;
-            }
-
-            // A parameter given more than once becomes an array trait, which is what the "contains
-            // any of" operators match on.
-            if (values.Count > 1)
-            {
-                context.Traits[name] = values.ToArray();
-            }
-            else
-            {
-                context.Traits[name] = values.ToString();
-            }
-        }
-
-        return context;
-    }
+        _client.GetAllConfigs(_context.Context);
 }

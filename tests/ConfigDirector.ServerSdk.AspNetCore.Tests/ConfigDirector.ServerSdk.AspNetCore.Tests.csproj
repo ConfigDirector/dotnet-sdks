@@ -13,4 +13,13 @@
     <ProjectReference Include="../../src/ConfigDirector.ServerSdk.AspNetCore/ConfigDirector.ServerSdk.AspNetCore.csproj" />
   </ItemGroup>
 
+  <!-- Shared with the server SDK's suite rather than copied, so the stub server cannot drift
+       between them. -->
+  <ItemGroup>
+    <Compile Include="../ConfigDirector.ServerSdk.Tests/Integration/SdkServer.cs" Link="Shared/SdkServer.cs" />
+    <Compile Include="../ConfigDirector.ServerSdk.Tests/Integration/SampleConfigs.cs" Link="Shared/SampleConfigs.cs" />
+    <Compile Include="../ConfigDirector.ServerSdk.Tests/CapturingLogger.cs" Link="Shared/CapturingLogger.cs" />
+    <Compile Include="../ConfigDirector.ServerSdk.Tests/CapturingLoggerFactory.cs" Link="Shared/CapturingLoggerFactory.cs" />
+  </ItemGroup>
+
 </Project>

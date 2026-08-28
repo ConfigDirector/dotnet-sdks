@@ -43,6 +43,14 @@ public sealed class ConfigDirectorOptions
     /// </summary>
     public string? AppVersion { get; set; }
 
+    /// <summary>
+    /// Whether a host that has not reached ConfigDirector by the end of startup fails to start.
+    /// Defaults to false, which is the SDK's own posture: the application starts, a warning is
+    /// logged, and every config resolves to the default its caller supplied until config state
+    /// arrives.
+    /// </summary>
+    public bool RequireReadyOnStartup { get; set; }
+
     /// <summary>How the client connects to ConfigDirector.</summary>
     public ConnectionOptions Connection { get; } = new();
 

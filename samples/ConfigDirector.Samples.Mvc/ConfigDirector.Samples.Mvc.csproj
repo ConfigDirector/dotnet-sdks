@@ -5,12 +5,11 @@
     <UserSecretsId>configdirector-mvc-sample</UserSecretsId>
   </PropertyGroup>
 
-  <ItemGroup Condition="'$(UseLocalSdk)' == 'true'">
-    <ProjectReference Include="../../src/ConfigDirector.ServerSdk/ConfigDirector.ServerSdk.csproj" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(UseLocalSdk)' != 'true'">
-    <PackageReference Include="ConfigDirector.ServerSdk" />
+  <!-- ConfigDirector.ServerSdk.AspNetCore is not published yet, so this sample always builds
+       against the copy in this checkout and UseLocalSdk does not apply to it. The server SDK
+       arrives transitively, which is how a consuming application gets both. -->
+  <ItemGroup>
+    <ProjectReference Include="../../src/ConfigDirector.ServerSdk.AspNetCore/ConfigDirector.ServerSdk.AspNetCore.csproj" />
   </ItemGroup>
 
 </Project>

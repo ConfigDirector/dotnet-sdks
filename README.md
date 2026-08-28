@@ -30,7 +30,8 @@ written each way -- a single `/configs` endpoint -- so they can be read side by 
 dotnet run --project samples/ConfigDirector.Samples.MinimalApi
 ```
 
-[`ConfigDirector.Samples.Mvc`](samples/ConfigDirector.Samples.Mvc/):
+[`ConfigDirector.Samples.Mvc`](samples/ConfigDirector.Samples.Mvc/), the same app wired up with
+the `ConfigDirector.ServerSdk.AspNetCore` package rather than by hand:
 
 ```bash
 dotnet run --project samples/ConfigDirector.Samples.Mvc

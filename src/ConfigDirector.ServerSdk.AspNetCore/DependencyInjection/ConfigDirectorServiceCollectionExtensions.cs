@@ -107,6 +107,7 @@ public static class ConfigDirectorServiceCollectionExtensions
             .ValidateOnStart();
 
         services.TryAddSingleton<IConfigDirectorClient>(BuildClient);
+        services.AddHostedService<ConfigDirectorInitializer>();
 
         return new ConfigDirectorBuilder(services);
     }

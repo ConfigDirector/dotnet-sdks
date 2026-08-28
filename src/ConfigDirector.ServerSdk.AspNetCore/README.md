@@ -48,7 +48,47 @@ The client is a singleton and the container disposes it on shutdown. It is regis
 `TryAdd`, so an `IConfigDirectorClient` already in the collection is left alone -- which is how an
 integration test substitutes a fake.
 
-Connecting is still the caller's to do, with `InitializeAsync` during startup.
+## Startup
+
+Connecting happens during startup, before any hosted service is started -- which puts it ahead of
+the web server, so no request is served config defaults while the first config state is still in
+flight. There is no `InitializeAsync` call for you to place.
+
+Failing to reach ConfigDirector does not stop the host: a warning is logged and every config
+resolves to the default its caller supplied, which is the SDK's own posture. Set
+`RequireReadyOnStartup` to fail the deployment instead:
+
+```json
+{ "ConfigDirector": { "RequireReadyOnStartup": true } }
+```
+
+## The per-request context
+
+Declare once how a request becomes an evaluation context, rather than rebuilding one in every
+action:
+
+```csharp
+builder.Services.AddConfigDirector()
+    .WithContext(http => new Context { Id = http.User.FindFirst("sub")?.Value });
+```
+
+Then inject `IConfigDirectorContextAccessor` and read `Context` from it. It is built at most once
+per request however many times it is read, so six evaluations in one action cost one call to the
+delegate.
+
+It is registered only when `WithContext` has been called. That is deliberate: evaluating with a
+null context silently disables targeting, so a missing `WithContext` fails loudly instead.
+
+## Health checks
+
+```csharp
+builder.Services.AddHealthChecks().AddConfigDirector();
+```
+
+Reports `Degraded` rather than `Unhealthy` while no config state has arrived -- the application
+still answers every request, so taking an instance out of rotation is the wrong response to
+ConfigDirector being unreachable. Pass a failure status to say otherwise. A client that has been
+closed always reports unhealthy, since it cannot be reopened.
 
 ## Documentation
 

@@ -12,5 +12,5 @@ GET {{host}}/configs?id=user-3&tags=beta&tags=vip
 ### The hydration payload a client SDK would receive
 GET {{host}}/configs/all?id=user-123&plan=pro
 
-### Readiness
+### Readiness, as a health check: Healthy once config state has arrived, Degraded until then
 GET {{host}}/health
