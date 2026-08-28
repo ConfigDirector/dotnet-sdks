@@ -8,9 +8,16 @@ namespace ConfigDirector;
 internal static class EvaluationReasons
 {
     private static readonly Dictionary<EvaluationReason, string> ByReason =
-        Enum.GetValues(typeof(EvaluationReason))
-            .Cast<EvaluationReason>()
-            .ToDictionary(reason => reason, reason => ToKebabCase(reason.ToString()));
+        Values().ToDictionary(reason => reason, reason => ToKebabCase(reason.ToString()));
+
+    // The generic overload is the one AOT can honour; the non-generic has to build the array at
+    // runtime, which a trimmed application may not be able to do.
+    private static EvaluationReason[] Values() =>
+#if NET8_0_OR_GREATER
+        Enum.GetValues<EvaluationReason>();
+#else
+        ((EvaluationReason[])Enum.GetValues(typeof(EvaluationReason)));
+#endif
 
     internal static string WireName(EvaluationReason reason) =>
         ByReason.TryGetValue(reason, out var name) ? name : ToKebabCase(reason.ToString());

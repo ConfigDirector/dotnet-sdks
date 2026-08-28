@@ -1,0 +1,11 @@
+<Project>
+
+  <!-- Native AOT on macOS links against OpenSSL and Brotli, which Homebrew installs outside the
+       linker's default search path. Pass this with -p:CustomAfterMicrosoftCommonTargets to publish
+       locally; CI runs on Linux, where the apt packages land where the linker already looks. -->
+  <ItemGroup>
+    <LinkerArg Include="-L/opt/homebrew/opt/openssl@3/lib" Condition="Exists('/opt/homebrew/opt/openssl@3/lib')" />
+    <LinkerArg Include="-L/opt/homebrew/opt/brotli/lib" Condition="Exists('/opt/homebrew/opt/brotli/lib')" />
+  </ItemGroup>
+
+</Project>

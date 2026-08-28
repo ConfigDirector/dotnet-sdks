@@ -161,7 +161,7 @@ public class EvaluatedConfigEventTests
         EvaluatedConfigEvent.Create(key, defaultValue, value, usedDefault, reason, contextId, configType, valueId);
 
     private static string Serialize(EvaluatedConfigEvent built) =>
-        JsonSerializer.Serialize(built, TelemetryWire.Options);
+        JsonSerializer.Serialize(built, TelemetryWire.Event);
 
     private static JsonElement Parse(string json) => JsonDocument.Parse(json).RootElement.Clone();
 }

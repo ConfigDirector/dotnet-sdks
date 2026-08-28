@@ -1,7 +1,9 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using ConfigDirector.Value;
 
 namespace ConfigDirector.Telemetry;
@@ -17,6 +19,15 @@ internal static class TelemetryJson
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
+
+    // Escaping a string is the one thing here the serializer still does, and the metadata for it is
+    // source generated so no reflection is involved. Its own options instance, deliberately: a
+    // context takes ownership of the options it is given, which would leave the reflective default
+    // below resolving through a context that only knows about strings.
+    private static readonly TelemetryTextContext Text = new(new JsonSerializerOptions
+    {
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    });
 
     internal static string Serialize<T>(T value)
     {
@@ -48,9 +59,28 @@ internal static class TelemetryJson
             case JsonElement element:
                 return Write(element);
             default:
-                return Write(JsonSerializer.SerializeToElement(value, Options));
+                return Reflectively(value);
         }
     }
+
+    // Every evaluation is reported, so this class is reached for every type the SDK can return --
+    // but each of those has a case of its own above, and only a type the caller named itself falls
+    // through to here. That type can only have come from GetJsonValue or WatchJson: the chain is
+    // ConfigDirectorClient.Report -> TelemetryCollector.Record -> EvaluatedConfigEvent.Create ->
+    // TelemetryValue.From, generic in the caller's T the whole way, and Report is reached only from
+    // Evaluate. Both of those members are annotated as needing reflection, which is what warns
+    // their callers. TrimmingContractTests fails if a getter is added for a type the switch above
+    // does not name, which is what would make this false.
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2026:RequiresUnreferencedCode",
+        Justification = "Unreachable except for a type the caller passed to GetJsonValue or WatchJson, both annotated.")]
+    [UnconditionalSuppressMessage(
+        "AOT",
+        "IL3050:RequiresDynamicCode",
+        Justification = "Unreachable except for a type the caller passed to GetJsonValue or WatchJson, both annotated.")]
+    private static string Reflectively<T>(T value) =>
+        Write(JsonSerializer.SerializeToElement(value, Options));
 
     private static string Write(JsonElement element)
     {
@@ -140,5 +170,8 @@ internal static class TelemetryJson
             : "null";
     }
 
-    private static string Quote(string text) => JsonSerializer.Serialize(text, Options);
+    private static string Quote(string text) => JsonSerializer.Serialize(text, Text.String);
 }
+
+[JsonSerializable(typeof(string))]
+internal sealed partial class TelemetryTextContext : JsonSerializerContext;

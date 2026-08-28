@@ -154,7 +154,7 @@ internal sealed class HttpEventReporter : IAsyncDisposable
         json.WriteString("endTime", Timestamp(aggregated.EndTime));
         json.WriteNumber("count", aggregated.Count);
         json.WritePropertyName("event");
-        JsonSerializer.Serialize(json, aggregated.Event, TelemetryWire.Options);
+        JsonSerializer.Serialize(json, aggregated.Event, TelemetryWire.Event);
         json.WriteEndObject();
     }
 

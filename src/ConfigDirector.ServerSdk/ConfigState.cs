@@ -11,7 +11,7 @@ public sealed record ConfigState
 
     /// <summary>
     /// The type the config was declared with, or null for a type this SDK version does not
-    /// recognise. A type added to ConfigDirector after this SDK was released must not break an
+    /// recognize. A type added to ConfigDirector after this SDK was released must not break an
     /// evaluation.
     /// </summary>
     public ConfigType? Type { get; init; }

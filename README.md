@@ -29,6 +29,13 @@ dotnet run --project samples/ConfigDirector.Samples.MinimalApi
 dotnet run --project samples/ConfigDirector.Samples.Mvc
 ```
 
+[`ConfigDirector.Samples.NativeAot`](samples/ConfigDirector.Samples.NativeAot/), a console
+application published to native code:
+
+```bash
+dotnet run --project samples/ConfigDirector.Samples.NativeAot
+```
+
 ## Getting Help
 
 Reach out to us via https://www.configdirector.com/support

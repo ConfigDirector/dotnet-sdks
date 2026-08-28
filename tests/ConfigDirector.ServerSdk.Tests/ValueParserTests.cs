@@ -122,7 +122,7 @@ public class ValueParserTests
     [Fact]
     public void ParsesJsonIntoTheShapeTheDefaultAsksFor()
     {
-        var result = Parse("""{"name": "checkout", "retries": 3}""", new Settings());
+        var result = Bind("""{"name": "checkout", "retries": 3}""", new Settings());
 
         result.Value.Name.ShouldBe("checkout");
         result.Value.Retries.ShouldBe(3);
@@ -132,7 +132,7 @@ public class ValueParserTests
     [Fact]
     public void MatchesJsonPropertiesRegardlessOfCase()
     {
-        var result = Parse("""{"Name": "checkout", "RETRIES": 3}""", new Settings());
+        var result = Bind("""{"Name": "checkout", "RETRIES": 3}""", new Settings());
 
         result.Value.Name.ShouldBe("checkout");
         result.Value.Retries.ShouldBe(3);
@@ -141,8 +141,8 @@ public class ValueParserTests
     [Fact]
     public void ParsesJsonCollections()
     {
-        Parse("[1, 2, 3]", new List<int>()).Value.ShouldBe([1, 2, 3]);
-        Parse("""{"a": 1}""", new Dictionary<string, int>()).Value["a"].ShouldBe(1);
+        Bind("[1, 2, 3]", new List<int>()).Value.ShouldBe([1, 2, 3]);
+        Bind("""{"a": 1}""", new Dictionary<string, int>()).Value["a"].ShouldBe(1);
     }
 
     [Theory]
@@ -155,7 +155,7 @@ public class ValueParserTests
     {
         var fallback = new Settings { Name = "fallback" };
 
-        var result = Parse(raw, fallback);
+        var result = Bind(raw, fallback);
 
         result.Value.ShouldBeSameAs(fallback);
         result.Reason.ShouldBe(EvaluationReason.InvalidJson);
@@ -179,4 +179,7 @@ public class ValueParserTests
 
     private static ParseResult<T> Parse<T>(string? raw, T defaultValue) =>
         ValueParser.Parse(new ConfigState { Key = "the-key", Value = raw }, defaultValue);
+
+    private static ParseResult<T> Bind<T>(string? raw, T defaultValue) =>
+        ValueParser.Bind(new ConfigState { Key = "the-key", Value = raw }, defaultValue);
 }

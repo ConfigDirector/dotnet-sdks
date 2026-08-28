@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -22,6 +23,8 @@ internal static class ValueParser
     };
 
     // The caller has asked for binding explicitly, so System.Text.Json's rules are theirs to own.
+    [RequiresUnreferencedCode(Reflective.BindingNeedsReflection)]
+    [RequiresDynamicCode(Reflective.BindingNeedsReflection)]
     internal static ParseResult<T> Bind<T>(ConfigState state, T defaultValue) =>
         string.IsNullOrEmpty(state.Value)
             ? UsedDefault(defaultValue, EvaluationReason.ValueMissing)
@@ -57,7 +60,14 @@ internal static class ValueParser
             return ParseNumber(raw!, state, defaultValue);
         }
 
-        return ParseJson(raw!, state, defaultValue);
+        if (typeof(T) == typeof(JsonElement))
+        {
+            return ParseElement(raw!, state, defaultValue);
+        }
+
+        // Every type the getters can be called with is handled above. Binding to a type of the
+        // caller's own is what Bind is for, and it is reached only through GetJsonValue.
+        return UsedDefault(defaultValue, EvaluationReason.InvalidJson);
     }
 
     private static bool TryParseBoolean(string raw, out bool parsed)
@@ -142,6 +152,23 @@ internal static class ValueParser
         && !double.IsNaN(parsed)
         && !double.IsInfinity(parsed);
 
+    // JsonDocument rather than the serializer, so reading a config as JsonElement stays available to
+    // a trimmed or AOT-compiled application.
+    private static ParseResult<T> ParseElement<T>(string raw, ConfigState state, T defaultValue)
+    {
+        try
+        {
+            var element = JsonDocument.Parse(raw).RootElement.Clone();
+            return Matched((T)(object)element, state);
+        }
+        catch (JsonException)
+        {
+            return UsedDefault(defaultValue, EvaluationReason.InvalidJson);
+        }
+    }
+
+    [RequiresUnreferencedCode(Reflective.BindingNeedsReflection)]
+    [RequiresDynamicCode(Reflective.BindingNeedsReflection)]
     private static ParseResult<T> ParseJson<T>(string raw, ConfigState state, T defaultValue)
     {
         try

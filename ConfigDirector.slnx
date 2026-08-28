@@ -5,6 +5,7 @@
   <Folder Name="/samples/">
     <Project Path="samples/ConfigDirector.Samples.MinimalApi/ConfigDirector.Samples.MinimalApi.csproj" />
     <Project Path="samples/ConfigDirector.Samples.Mvc/ConfigDirector.Samples.Mvc.csproj" />
+    <Project Path="samples/ConfigDirector.Samples.NativeAot/ConfigDirector.Samples.NativeAot.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/ConfigDirector.ServerSdk.Tests/ConfigDirector.ServerSdk.Tests.csproj" />

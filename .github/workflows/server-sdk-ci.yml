@@ -72,6 +72,28 @@ jobs:
 
       - run: dotnet test -c "$CONFIGURATION"
 
+  native-aot:
+    name: Native AOT
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/setup-dotnet
+
+      # The prerequisites for compiling to native code, which the runner image does not carry.
+      - run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+
+      # ILC analyses the whole program, so it sees through the SDK's dependencies in a way the
+      # per-assembly analyzer on the ordinary build cannot. TreatWarningsAsErrors turns anything it
+      # finds into a failure here.
+      - run: |
+          dotnet publish samples/ConfigDirector.Samples.NativeAot \
+            -c "$CONFIGURATION" -r linux-x64 -o aot
+
+      # Publishing clean is not the same as working: metadata the trimmer drops fails at runtime.
+      - run: scripts/verify-native-aot.sh aot/ConfigDirector.Samples.NativeAot
+
   pack:
     name: Pack
     runs-on: ubuntu-latest

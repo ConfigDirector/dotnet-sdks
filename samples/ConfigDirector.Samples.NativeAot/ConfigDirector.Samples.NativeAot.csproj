@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>ConfigDirector.Samples.NativeAot</RootNamespace>
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- One line per finding rather than a single "there were warnings" summary, so a regression
+         names the member that caused it. -->
+    <TrimmerSingleWarn>false</TrimmerSingleWarn>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(UseLocalSdk)' == 'true'">
+    <ProjectReference Include="../../src/ConfigDirector.ServerSdk/ConfigDirector.ServerSdk.csproj" SetTargetFramework="TargetFramework=net8.0" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(UseLocalSdk)' != 'true'">
+    <PackageReference Include="ConfigDirector.ServerSdk" />
+  </ItemGroup>
+
+</Project>

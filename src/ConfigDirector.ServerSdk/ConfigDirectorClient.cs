@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using ConfigDirector.Evaluation;
 using ConfigDirector.Telemetry;
@@ -131,42 +132,44 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
 
     /// <inheritdoc/>
     public int GetValue(string configKey, int defaultValue, Context? context = null)
-        => Read(configKey, defaultValue, context, bind: false);
+        => Read(configKey, defaultValue, context, ValueParser.Parse);
 
     /// <inheritdoc/>
     public long GetValue(string configKey, long defaultValue, Context? context = null)
-        => Read(configKey, defaultValue, context, bind: false);
+        => Read(configKey, defaultValue, context, ValueParser.Parse);
 
     /// <inheritdoc/>
     public double GetValue(string configKey, double defaultValue, Context? context = null)
-        => Read(configKey, defaultValue, context, bind: false);
+        => Read(configKey, defaultValue, context, ValueParser.Parse);
 
     /// <inheritdoc/>
     public float GetValue(string configKey, float defaultValue, Context? context = null)
-        => Read(configKey, defaultValue, context, bind: false);
+        => Read(configKey, defaultValue, context, ValueParser.Parse);
 
     /// <inheritdoc/>
     public decimal GetValue(string configKey, decimal defaultValue, Context? context = null)
-        => Read(configKey, defaultValue, context, bind: false);
+        => Read(configKey, defaultValue, context, ValueParser.Parse);
 
     /// <inheritdoc/>
     public bool GetValue(string configKey, bool defaultValue, Context? context = null)
-        => Read(configKey, defaultValue, context, bind: false);
+        => Read(configKey, defaultValue, context, ValueParser.Parse);
 
     /// <inheritdoc/>
     public string GetValue(string configKey, string defaultValue, Context? context = null)
-        => Read(configKey, defaultValue, context, bind: false);
+        => Read(configKey, defaultValue, context, ValueParser.Parse);
 
     /// <inheritdoc/>
     public JsonElement GetValue(string configKey, JsonElement defaultValue, Context? context = null)
-        => Read(configKey, defaultValue, context, bind: false);
+        => Read(configKey, defaultValue, context, ValueParser.Parse);
 
     /// <inheritdoc/>
+    [RequiresUnreferencedCode(Reflective.BindingNeedsReflection)]
+    [RequiresDynamicCode(Reflective.BindingNeedsReflection)]
     public T GetJsonValue<T>(string configKey, T defaultValue, Context? context = null)
         where T : notnull =>
-        Read(configKey, defaultValue, context, bind: true);
+        Read(configKey, defaultValue, context, ValueParser.Bind);
 
-    private T Read<T>(string configKey, T defaultValue, Context? context, bool bind)
+    private T Read<T>(string configKey, T defaultValue, Context? context, ValueReader<T> parse)
     {
         ValidateKey(configKey);
         if (defaultValue is null)
@@ -178,12 +181,12 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
         Config? definition = null;
         configs?.TryGetValue(configKey, out definition);
 
-        return Evaluate(configKey, definition, defaultValue, context, bind);
+        return Evaluate(configKey, definition, defaultValue, context, parse);
     }
 
     // Shared by the getter and by a watch being notified: for a watch the definition comes from
     // the update that carried it, so the two only differ in where the definition was found.
-    private T Evaluate<T>(string configKey, Config? definition, T defaultValue, Context? context, bool bind)
+    private T Evaluate<T>(string configKey, Config? definition, T defaultValue, Context? context, ValueReader<T> parse)
     {
         if (definition is null)
         {
@@ -194,7 +197,7 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
         }
 
         var state = _evaluator.Evaluate(definition, context, _metadata);
-        var result = bind ? ValueParser.Bind(state, defaultValue) : ValueParser.Parse(state, defaultValue);
+        var result = parse(state, defaultValue);
         Report(
             configKey,
             defaultValue,
@@ -271,47 +274,49 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
 
     /// <inheritdoc/>
     public IDisposable Watch(string configKey, int defaultValue, Action<int> onChange, Context? context = null)
-        => Observe(configKey, defaultValue, onChange, context, bind: false);
+        => Observe(configKey, defaultValue, onChange, context, ValueParser.Parse);
 
     /// <inheritdoc/>
     public IDisposable Watch(string configKey, long defaultValue, Action<long> onChange, Context? context = null)
-        => Observe(configKey, defaultValue, onChange, context, bind: false);
+        => Observe(configKey, defaultValue, onChange, context, ValueParser.Parse);
 
     /// <inheritdoc/>
     public IDisposable Watch(string configKey, double defaultValue, Action<double> onChange, Context? context = null)
-        => Observe(configKey, defaultValue, onChange, context, bind: false);
+        => Observe(configKey, defaultValue, onChange, context, ValueParser.Parse);
 
     /// <inheritdoc/>
     public IDisposable Watch(string configKey, float defaultValue, Action<float> onChange, Context? context = null)
-        => Observe(configKey, defaultValue, onChange, context, bind: false);
+        => Observe(configKey, defaultValue, onChange, context, ValueParser.Parse);
 
     /// <inheritdoc/>
     public IDisposable Watch(string configKey, decimal defaultValue, Action<decimal> onChange, Context? context = null)
-        => Observe(configKey, defaultValue, onChange, context, bind: false);
+        => Observe(configKey, defaultValue, onChange, context, ValueParser.Parse);
 
     /// <inheritdoc/>
     public IDisposable Watch(string configKey, bool defaultValue, Action<bool> onChange, Context? context = null)
-        => Observe(configKey, defaultValue, onChange, context, bind: false);
+        => Observe(configKey, defaultValue, onChange, context, ValueParser.Parse);
 
     /// <inheritdoc/>
     public IDisposable Watch(string configKey, string defaultValue, Action<string> onChange, Context? context = null)
-        => Observe(configKey, defaultValue, onChange, context, bind: false);
+        => Observe(configKey, defaultValue, onChange, context, ValueParser.Parse);
 
     /// <inheritdoc/>
     public IDisposable Watch(string configKey, JsonElement defaultValue, Action<JsonElement> onChange, Context? context = null)
-        => Observe(configKey, defaultValue, onChange, context, bind: false);
+        => Observe(configKey, defaultValue, onChange, context, ValueParser.Parse);
 
     /// <inheritdoc/>
+    [RequiresUnreferencedCode(Reflective.BindingNeedsReflection)]
+    [RequiresDynamicCode(Reflective.BindingNeedsReflection)]
     public IDisposable WatchJson<T>(string configKey, T defaultValue, Action<T> onChange, Context? context = null)
         where T : notnull =>
-        Observe(configKey, defaultValue, onChange, context, bind: true);
+        Observe(configKey, defaultValue, onChange, context, ValueParser.Bind);
 
     private Cancellation Observe<T>(
         string configKey,
         T defaultValue,
         Action<T> onChange,
         Context? context,
-        bool bind)
+        ValueReader<T> parse)
     {
         ValidateKey(configKey);
         if (defaultValue is null)
@@ -325,7 +330,7 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
         }
 
         var watcher = new Watcher(definition =>
-            onChange(Evaluate(configKey, definition, defaultValue, context, bind)));
+            onChange(Evaluate(configKey, definition, defaultValue, context, parse)));
 
         lock (_watchLock)
         {

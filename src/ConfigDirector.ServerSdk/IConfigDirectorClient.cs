@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 
 namespace ConfigDirector;
@@ -143,6 +144,8 @@ public interface IConfigDirectorClient : IDisposable, IAsyncDisposable
     /// <exception cref="ArgumentNullException">
     /// <paramref name="configKey"/> or <paramref name="defaultValue"/> is null.
     /// </exception>
+    [RequiresUnreferencedCode(Reflective.BindingNeedsReflection)]
+    [RequiresDynamicCode(Reflective.BindingNeedsReflection)]
     T GetJsonValue<T>(string configKey, T defaultValue, Context? context = null)
         where T : notnull;
 
@@ -262,6 +265,8 @@ public interface IConfigDirectorClient : IDisposable, IAsyncDisposable
     /// <returns>A handle that cancels this watch. Disposing it twice is harmless.</returns>
     /// <exception cref="ArgumentException"><paramref name="configKey"/> is empty or whitespace.</exception>
     /// <exception cref="ArgumentNullException">An argument other than <paramref name="context"/> is null.</exception>
+    [RequiresUnreferencedCode(Reflective.BindingNeedsReflection)]
+    [RequiresDynamicCode(Reflective.BindingNeedsReflection)]
     IDisposable WatchJson<T>(string configKey, T defaultValue, Action<T> onChange, Context? context = null)
         where T : notnull;
 
