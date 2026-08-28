@@ -8,6 +8,13 @@ namespace ConfigDirector.Tests.EventSource;
 
 public class SseClientTests
 {
+    // A stream that stays alive has to survive a machine that stalls. The gap is seven times
+    // inside the timeout so a stretched schedule cannot trip it, and the frames together run well
+    // past the timeout so a timer that never reset would still be caught.
+    private static readonly TimeSpan TrickleGap = TimeSpan.FromMilliseconds(100);
+    private static readonly TimeSpan IdleTimeout = TimeSpan.FromMilliseconds(700);
+    private const int EventCount = 12;
+
     private static readonly Uri Endpoint = new("https://stream.example.com/configs");
 
     [Fact]
@@ -205,21 +212,22 @@ public class SseClientTests
     [Fact]
     public async Task StaysOnAStreamThatKeepsDeliveringSlowly()
     {
-        // Three events, each arriving inside the idle timeout but together outstripping it, so a
-        // timer that is armed once and never reset would tear this stream down mid-read.
-        var handler = new ScriptedHandler(() => ScriptedHandler.Trickle(
-            TimeSpan.FromMilliseconds(200),
-            "data: a\n\n",
-            "data: b\n\n",
-            "data: c\n\n",
-            "data: d\n\n"));
+        // Events arriving well inside the idle timeout but together outlasting it, so a timer that
+        // is armed once and never reset tears this stream down mid-read. The gap is a fraction of
+        // the timeout rather than close to it: a loaded machine stretches every gap, and a margin
+        // that only just held would make a healthy stream look like a timed-out one.
+        var frames = Enumerable.Range(0, EventCount)
+            .Select(index => $"data: event-{index}\n\n")
+            .ToArray();
+        var handler = new ScriptedHandler(() => ScriptedHandler.Trickle(TrickleGap, frames));
 
-        var items = await ReadAsync(handler, 4, options => options with
+        var items = await ReadAsync(handler, frames.Length, options => options with
         {
-            IdleTimeout = TimeSpan.FromMilliseconds(500),
+            IdleTimeout = IdleTimeout,
         });
 
-        items.Select(item => item.Data).ShouldBe(["a", "b", "c", "d"]);
+        items.Select(item => item.Data)
+            .ShouldBe(Enumerable.Range(0, EventCount).Select(index => $"event-{index}"));
         handler.Requests.Count.ShouldBe(1);
     }
 
@@ -246,17 +254,16 @@ public class SseClientTests
     [Fact]
     public async Task StaysOnAStreamThatSendsOnlyKeepaliveComments()
     {
-        var handler = new ScriptedHandler(() => ScriptedHandler.Trickle(
-            TimeSpan.FromMilliseconds(200),
-            "data: first\n\n",
-            ": keepalive\n\n",
-            ": keepalive\n\n",
-            ": keepalive\n\n",
-            "data: second\n\n"));
+        // Nothing but comments for longer than the idle timeout. The parser never surfaces them,
+        // so only a timer measured on bytes keeps this connection up.
+        var frames = new List<string> { "data: first\n\n" };
+        frames.AddRange(Enumerable.Repeat(": keepalive\n\n", EventCount - 2));
+        frames.Add("data: second\n\n");
+        var handler = new ScriptedHandler(() => ScriptedHandler.Trickle(TrickleGap, [.. frames]));
 
         var items = await ReadAsync(handler, 2, options => options with
         {
-            IdleTimeout = TimeSpan.FromMilliseconds(500),
+            IdleTimeout = IdleTimeout,
         });
 
         items.Select(item => item.Data).ShouldBe(["first", "second"]);
