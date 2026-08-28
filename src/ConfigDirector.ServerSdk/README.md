@@ -1,94 +1,39 @@
 # ConfigDirector .NET Server SDK
 
-Remote configuration and feature flags for .NET server applications.
+The .NET server SDK for [ConfigDirector](https://www.configdirector.com), published to NuGet as
+`ConfigDirector.ServerSdk`. It targets `net8.0` and `netstandard2.0`.
 
-The client keeps config state in memory and evaluates targeting rules locally, so reading a config
-is an in-process lookup rather than a network call.
+This is one of several ConfigDirector packages for .NET published from
+[this repository](https://github.com/ConfigDirector/dotnet-sdks), each in a project of its own.
 
-## Install
+## Installation
 
 ```bash
 dotnet add package ConfigDirector.ServerSdk
 ```
 
-Targets `net8.0` and `netstandard2.0`.
+Or as a package reference:
 
-## Use
-
-Build one client for the lifetime of the application and share it. Initializing connects and waits
-for the first config state.
-
-```csharp
-await using var client = new ConfigDirectorClient("your-server-sdk-key");
-await client.InitializeAsync();
-
-var context = new Context
-{
-    Id = "user-1",
-    Traits = { ["plan"] = "pro" },
-};
-
-if (client.GetValue("temporary-feature-flag", false, context))
-{
-    // ...
-}
-
-var retries = client.GetValue("max-retries", 3);
-var greeting = client.GetValue("welcome-message", "Hello");
+```xml
+<PackageReference Include="ConfigDirector.ServerSdk" Version="0.1.0" />
 ```
 
-The type you read is the overload you call, not how the config was declared in the dashboard. A
-value that will not read as the type you asked for gives you your default back.
+## Documentation
 
-### Failing to connect is not an error
+Refer to the [official documentation for the .NET SDK](https://docs.configdirector.com/sdks/server/dotnet).
 
-`InitializeAsync` does not throw when ConfigDirector cannot be reached. The application still
-starts and every config returns its default; `IsReady` says whether config state arrived, and in
-the default streaming mode the client keeps retrying in the background.
+There is also [a quickstart guide for ConfigDirector and any of our SDKs](https://docs.configdirector.com/getting-started/quickstart).
 
-### Reacting to changes
+## Sample apps
 
-```csharp
-using var watch = client.Watch("welcome-message", "Hello", message =>
-{
-    Console.WriteLine($"now: {message}");
-});
+[`samples/`](https://github.com/ConfigDirector/dotnet-sdks/tree/main/samples) holds small, runnable
+applications built on this SDK. Start with
+[`ConfigDirector.Samples.AspNetCore`](https://github.com/ConfigDirector/dotnet-sdks/tree/main/samples/ConfigDirector.Samples.AspNetCore):
+
+```bash
+dotnet run --project samples/ConfigDirector.Samples.AspNetCore
 ```
 
-### JSON configs
+## Getting Help
 
-```csharp
-using System.Text.Json;
-
-var raw = client.GetValue("json-value-config", default(JsonElement));
-var bound = client.GetJsonValue("json-value-config", new WeatherOptions());
-```
-
-### Options
-
-```csharp
-var client = new ConfigDirectorClient(key, new ConfigDirectorClientOptions
-{
-    Metadata = new Metadata { AppName = "checkout", AppVersion = "1.2.3" },
-    LoggerFactory = loggerFactory,
-    Connection =
-    {
-        Mode = ConnectionMode.Polling,
-        PollingInterval = TimeSpan.FromSeconds(30),
-    },
-});
-```
-
-`ConnectionMode.Streaming` is the default and keeps a connection open for updates.
-`ConnectionMode.Polling` fetches on an interval, and `ConnectionMode.OneTime` fetches once.
-
-## Telemetry
-
-The SDK reports which configs were evaluated, what they returned and the contexts they were
-evaluated against. ConfigDirector uses this to power config usage and insights in the dashboard.
-Reports are batched and sent on an interval; `TelemetryOptions` tunes the interval and the queue
-size. Disposing the client sends whatever is left.
-
-## License
-
-MIT.
+Reach out to us via https://www.configdirector.com/support
