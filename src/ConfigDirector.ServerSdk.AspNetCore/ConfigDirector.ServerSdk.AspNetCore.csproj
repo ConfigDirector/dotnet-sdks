@@ -6,6 +6,8 @@
          onwards. -->
     <TargetFrameworks>net8.0</TargetFrameworks>
     <RootNamespace>ConfigDirector</RootNamespace>
+    <!-- What a local build stamps. The release workflow overrides it from the tag. -->
+    <VersionPrefix>0.1.0</VersionPrefix>
     <Description>ASP.NET Core integration for the ConfigDirector server SDK: dependency injection, configuration binding and startup initialization.</Description>
     <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
@@ -19,6 +21,10 @@
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <!-- The packed dependency on ConfigDirector.ServerSdk takes that project's own version, so
+         this package always declares the version it was built against. That is why the release
+         workflow checks the tag against the version in the project rather than passing one in:
+         a -p:Version override flows across this reference and would record the wrong dependency. -->
     <ProjectReference Include="../ConfigDirector.ServerSdk/ConfigDirector.ServerSdk.csproj" />
   </ItemGroup>
 

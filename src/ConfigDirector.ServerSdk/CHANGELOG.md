@@ -4,8 +4,8 @@ All notable changes to `ConfigDirector.ServerSdk` are recorded here. Every other
 repository keeps its own changelog beside it, covering that package alone.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the package uses
-[semantic versioning](https://semver.org/spec/v2.0.0.html). The `v*` tags this changelog links to
-are releases of this package.
+[semantic versioning](https://semver.org/spec/v2.0.0.html). Releases are tagged
+`ConfigDirector.ServerSdk-v<version>`; 1.0.0 predates that scheme and is tagged `v1.0.0`.
 
 ## [Unreleased]
 

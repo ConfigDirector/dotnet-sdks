@@ -49,14 +49,35 @@ dotnet test tests/ConfigDirector.ServerSdk.SlowTests/ConfigDirector.ServerSdk.Sl
 
 ## Releasing
 
-Tagging publishes. The tag carries the version, so nothing in the repository is edited to cut a
-release:
+Tagging publishes. The tag names the package and carries the version, so nothing in the repository
+is edited to cut a release:
 
 ```bash
-git tag v1.2.3
-git push origin v1.2.3
+git tag ConfigDirector.ServerSdk.AspNetCore-v0.1.0
+git push origin ConfigDirector.ServerSdk.AspNetCore-v0.1.0
 ```
 
-That builds, tests and packs, and publishes to nuget.org if all of it passes. A published version
-is permanent and can only be delisted, so rehearse with `workflow_dispatch` on the same workflow
-first: it packs a given version and uploads the artifact without publishing anything.
+Every package is tagged and versioned on its own, as `<PackageId>-v<version>`.
+[release.yml](.github/workflows/release.yml) derives the project from the id, so a package living
+in `src/<PackageId>/<PackageId>.csproj` needs no workflow of its own. Releases cut before this
+scheme were tagged `v1.2.3`, which the workflow no longer matches.
+
+That builds and tests the whole solution, packs the one package, and publishes to nuget.org if all
+of it passes. A published version is permanent and can only be delisted, so rehearse with
+`workflow_dispatch` on the same workflow first: it packs a given package and version and uploads
+the artifact without publishing anything.
+
+The version lives in the package's project file, as `VersionPrefix` plus `VersionSuffix` for a
+prerelease. Bump it in a commit, then tag that commit: the workflow checks the tag against the
+project and refuses a release where the two disagree. It is deliberately not passed in on the
+command line -- `-p:Version` is a global MSBuild property, so it flows across a `ProjectReference`
+and would stamp the wrong dependency version on a package that depends on another one here.
+
+That also fixes the order when several packages move together: a package is published after
+everything it depends on, since it declares a dependency on the version it was built against. Two
+tags pushed at once run in parallel and in no particular order, so the workflow checks before
+publishing that every dependency on another package here is already on nuget.org, and fails rather
+than publishing a package nobody could restore. Re-run the job once the dependency has indexed.
+
+A package published for the first time needs a trusted publishing policy for its id on nuget.org,
+matching this repository and `release.yml`.

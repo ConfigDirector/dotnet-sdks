@@ -2,6 +2,8 @@
 
   <PropertyGroup>
     <RootNamespace>ConfigDirector</RootNamespace>
+    <!-- What a local build stamps. The release workflow overrides it from the tag. -->
+    <VersionPrefix>1.1.0</VersionPrefix>
     <Description>Server SDK for ConfigDirector, a remote configuration and feature flag service.</Description>
   </PropertyGroup>
 

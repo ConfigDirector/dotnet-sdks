@@ -4,7 +4,8 @@ All notable changes to `ConfigDirector.ServerSdk.AspNetCore` are recorded here. 
 in this repository keeps its own changelog beside it, covering that package alone.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the package uses
-[semantic versioning](https://semver.org/spec/v2.0.0.html).
+[semantic versioning](https://semver.org/spec/v2.0.0.html). Releases are tagged
+`ConfigDirector.ServerSdk.AspNetCore-v<version>`.
 
 ## [Unreleased]
 
@@ -38,3 +39,5 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   always reports unhealthy, since it cannot be reopened.
 - Configuration binding runs through the source-generated binder, so the package adds no trimming
   or AOT warnings to a consuming application.
+
+[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/commits/main/src/ConfigDirector.ServerSdk.AspNetCore

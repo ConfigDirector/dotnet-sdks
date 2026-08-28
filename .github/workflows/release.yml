@@ -1,0 +1,169 @@
+name: release
+
+# Tagging is what publishes. The tag names the package and the version it is releasing:
+#
+#   ConfigDirector.ServerSdk-v1.1.0
+#   ConfigDirector.ServerSdk.AspNetCore-v0.1.0
+#
+# The version itself lives in the project, and this workflow checks the tag against it rather than
+# passing one in. A -p:Version override is a global MSBuild property: it flows across a
+# ProjectReference, so packing one package would stamp the wrong dependency version on the package
+# it depends on.
+#
+# One workflow serves every package, since a package's project path follows its id. Releases before
+# this scheme were tagged v1.0.0, which this workflow deliberately no longer matches.
+on:
+  push:
+    tags:
+      - "*-v*"
+  workflow_dispatch:
+    inputs:
+      package:
+        description: "Package id to rehearse, e.g. ConfigDirector.ServerSdk. Packs and uploads at the version in the project, and publishes nothing."
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  CONFIGURATION: Release
+  # The build that gates a release checks the samples against the code being released, not against
+  # whatever version is already on nuget.org.
+  UseLocalSdk: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  pack:
+    name: Pack
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      package: ${{ steps.release.outputs.package }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/setup-dotnet
+
+      - name: Resolve the package
+        id: release
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            package="${{ inputs.package }}"
+            tagged=""
+          else
+            tag="$GITHUB_REF_NAME"
+
+            # Split at the last "-v". Two parameter expansions rather than one pattern: a package
+            # id carries dots and may carry hyphens, and each half is checked on its own below.
+            package="${tag%-v*}"
+            tagged="${tag##*-v}"
+
+            if [ "$package" = "$tag" ]; then
+              echo "::error::'$tag' is not a release tag. Tag releases as <PackageId>-v1.2.3."
+              exit 1
+            fi
+
+            # A malformed version would otherwise publish a package nobody can refer to.
+            if ! printf '%s' "$tagged" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+              echo "::error::'$tagged' is not a semantic version. Tag releases as <PackageId>-v1.2.3 or <PackageId>-v1.2.3-beta.1."
+              exit 1
+            fi
+          fi
+
+          # Also what keeps the package id out of the path below.
+          if ! printf '%s' "$package" | grep -Eq '^[A-Za-z0-9._-]+$'; then
+            echo "::error::'$package' is not a package id."
+            exit 1
+          fi
+
+          project="src/$package/$package.csproj"
+          if [ ! -f "$project" ]; then
+            echo "::error::'$package' names no package in this repository: $project does not exist."
+            exit 1
+          fi
+
+          echo "package=$package" >> "$GITHUB_OUTPUT"
+          echo "tagged=$tagged" >> "$GITHUB_OUTPUT"
+          echo "project=$project" >> "$GITHUB_OUTPUT"
+
+      # A release is never published from code that does not build clean or pass. The whole
+      # solution, not just the package being released: a package here can depend on another.
+      - run: dotnet build -c "$CONFIGURATION"
+
+      # After the build, so the project has restored before it is evaluated. The version comes
+      # from the project; a tag that disagrees with it is the tag being wrong.
+      - name: Resolve the version
+        id: version
+        run: |
+          project="${{ steps.release.outputs.project }}"
+          tagged="${{ steps.release.outputs.tagged }}"
+          declared="$(dotnet msbuild "$project" -getProperty:Version -nologo)"
+
+          if [ -n "$tagged" ] && [ "$tagged" != "$declared" ]; then
+            echo "::error::'$GITHUB_REF_NAME' releases $tagged but $project declares $declared. Bump VersionPrefix, and VersionSuffix for a prerelease, in a commit and tag that commit."
+            exit 1
+          fi
+
+          echo "version=$declared" >> "$GITHUB_OUTPUT"
+
+      - run: dotnet test -c "$CONFIGURATION" --no-build
+
+      - run: dotnet pack "${{ steps.release.outputs.project }}" -c "$CONFIGURATION" -o artifacts
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: nupkg
+          path: |
+            artifacts/*.nupkg
+            artifacts/*.snupkg
+
+  publish:
+    name: Publish
+    needs: pack
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      # id-token lets nuget.org verify this workflow through OIDC and hand back a short-lived key,
+      # so no long-lived credential is stored anywhere. contents is for the GitHub release.
+      id-token: write
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/setup-dotnet
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: nupkg
+          path: artifacts
+
+      # Before the credential is fetched, so an out-of-order release fails having published
+      # nothing. Two release tags pushed together run in parallel and in no particular order.
+      - run: scripts/verify-dependencies-published.sh artifacts/*.nupkg
+
+      # Exchanges this run's OIDC token for a key that expires within the hour. The trusted
+      # publishing policy on nuget.org decides whether to issue one, matching on this repository,
+      # this workflow file, and the tag it was triggered by. Each package id needs its own policy.
+      - uses: NuGet/login@v1
+        id: nuget-login
+        with:
+          user: ${{ vars.NUGET_USER }}
+
+      # The symbol package next to it is pushed with it.
+      - run: |
+          dotnet nuget push "artifacts/*.nupkg" \
+            --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
+
+      - run: |
+          gh release create "$GITHUB_REF_NAME" artifacts/*.nupkg \
+            --title "${{ needs.pack.outputs.package }} ${{ needs.pack.outputs.version }}" \
+            --generate-notes --verify-tag
+        env:
+          GH_TOKEN: ${{ github.token }}

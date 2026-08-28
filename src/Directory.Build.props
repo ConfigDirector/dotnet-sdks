@@ -8,9 +8,10 @@
     <IsPackable>true</IsPackable>
   </PropertyGroup>
 
-  <!-- Overridden by the release workflow, which takes the version from the tag it builds. -->
+  <!-- VersionPrefix belongs to each package, since each is tagged and released on its own; a new
+       package that leaves it unset silently builds as 1.0.0. The release workflow overrides it
+       with the version from the tag it builds. -->
   <PropertyGroup>
-    <VersionPrefix>0.1.0</VersionPrefix>
     <VersionSuffix Condition="'$(VersionSuffix)' == '' And '$(CI)' != 'true'">dev</VersionSuffix>
   </PropertyGroup>
 
