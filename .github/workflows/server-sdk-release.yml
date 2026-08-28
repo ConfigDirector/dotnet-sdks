@@ -17,6 +17,9 @@ permissions:
 
 env:
   CONFIGURATION: Release
+  # The build that gates a release checks the samples against the code being released, not against
+  # whatever version is already on nuget.org.
+  UseLocalSdk: true
 
 defaults:
   run:

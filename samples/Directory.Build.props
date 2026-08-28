@@ -7,4 +7,11 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 
+  <!-- Samples consume the published package, so they read the way a consuming application would.
+       CI and the pre-push hook set UseLocalSdk, which swaps in the projects from this checkout so
+       a breaking API change fails the build here rather than after it ships. -->
+  <PropertyGroup Condition="'$(UseLocalSdk)' == ''">
+    <UseLocalSdk>false</UseLocalSdk>
+  </PropertyGroup>
+
 </Project>

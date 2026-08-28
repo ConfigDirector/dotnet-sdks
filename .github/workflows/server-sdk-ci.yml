@@ -20,6 +20,10 @@ defaults:
 env:
   # Release is what gets packed and published, so it is what CI builds and tests.
   CONFIGURATION: Release
+  # MSBuild reads the environment as properties, so every dotnet command below sees this and the
+  # samples build against the SDK in this checkout instead of the published package. Restore and
+  # build have to agree on it, which is why it is set here rather than passed to one command.
+  UseLocalSdk: true
 
 jobs:
   build:

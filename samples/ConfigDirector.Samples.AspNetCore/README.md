@@ -16,6 +16,19 @@ Without a usable key it still starts. Initialization does not throw on a connect
 the application comes up, logs a warning, and every config resolves to the default the calling
 code supplied, which is the behavior to design for in production.
 
+## Which SDK it builds against
+
+By default the sample references the published `ConfigDirector.ServerSdk` package, so it reads the
+way a real consuming application does. CI and the pre-push hook set `UseLocalSdk`, which swaps in
+the project from this checkout instead:
+
+```bash
+UseLocalSdk=true dotnet build samples/ConfigDirector.Samples.AspNetCore
+```
+
+That is what catches a breaking API change here rather than after it ships. The package version is
+pinned in [Directory.Packages.props](../../Directory.Packages.props).
+
 ## Endpoints
 
 | Endpoint           | What it shows                                                                       |

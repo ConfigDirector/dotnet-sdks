@@ -14,6 +14,11 @@ set -eu
 
 CONFIGURATION=Release
 
+# Matches CI: the samples build against the SDK in this checkout, so a breaking API change is
+# caught here instead of passing the hook and failing the build on the server.
+UseLocalSdk=true
+export UseLocalSdk
+
 # --- skip when the push only deletes remote refs -----------------------------------------
 # git feeds "<local ref> <local sha> <remote ref> <remote sha>" per ref on stdin. A deletion
 # has an all-zero local sha and nothing to check. Skip the read entirely when run from a

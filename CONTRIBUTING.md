@@ -21,6 +21,16 @@ git config core.hooksPath .githooks
 It checks the working tree rather than the commits being pushed, so uncommitted changes are
 included. Bypass it for a single push with `git push --no-verify`.
 
+### Samples
+
+Samples reference the published package by default, so they read the way a consuming application
+does. CI and the pre-push hook set `UseLocalSdk`, which swaps in the SDK from this checkout so a
+breaking API change fails the build before it ships. Set it by hand to reproduce what they check:
+
+```bash
+UseLocalSdk=true dotnet build -c Release
+```
+
 ### Slow tests
 
 [tests/ConfigDirector.ServerSdk.SlowTests](tests/ConfigDirector.ServerSdk.SlowTests) covers
