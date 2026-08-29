@@ -2,6 +2,10 @@ name: server-sdk-ci
 
 on:
   push:
+    # Every branch, but not tags: a release tag runs release.yml, which builds and tests the
+    # same commit before it publishes anything.
+    branches:
+      - "**"
   pull_request:
   workflow_dispatch:
 
