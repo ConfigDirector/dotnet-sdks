@@ -21,11 +21,17 @@ is the behavior to design for in production.
 
 ## Which SDK it builds against
 
-This sample references
-[`ConfigDirector.ServerSdk.AspNetCore`](../../src/ConfigDirector.ServerSdk.AspNetCore/) from this
-checkout directly, because that package is not published yet. `UseLocalSdk` — which the other
-samples use to swap the published package for the projects here — does not apply to it. The server
-SDK arrives transitively, which is how a consuming application gets both from one install.
+By default the sample references the published `ConfigDirector.ServerSdk.AspNetCore` package, so
+it reads the way a real consuming application does. CI and the pre-push hook set `UseLocalSdk`,
+which swaps in the projects from this checkout instead:
+
+```bash
+UseLocalSdk=true dotnet build samples/ConfigDirector.Samples.Mvc
+```
+
+Either way it references only the ASP.NET Core package. The server SDK arrives transitively, which
+is how a consuming application gets both from one install. The package version is pinned in
+[Directory.Packages.props](../../Directory.Packages.props).
 
 ## Endpoints
 
