@@ -40,7 +40,7 @@ UseLocalSdk=true dotnet build -c Release
 ### Slow tests
 
 [tests/ConfigDirector.ServerSdk.SlowTests](tests/ConfigDirector.ServerSdk.SlowTests) covers
-behaviours whose only symptom is elapsed time. It is deliberately outside the solution so the
+behaviors whose only symptom is elapsed time. It is deliberately outside the solution so the
 commands above stay quick, and runs nightly in CI.
 
 ```bash
@@ -49,12 +49,11 @@ dotnet test tests/ConfigDirector.ServerSdk.SlowTests/ConfigDirector.ServerSdk.Sl
 
 ## Releasing
 
-Tagging publishes. The tag names the package and carries the version, so nothing in the repository
-is edited to cut a release:
+Tagging publishes. The tag names the package and the version it releases:
 
 ```bash
-git tag ConfigDirector.ServerSdk.AspNetCore-v0.1.0
-git push origin ConfigDirector.ServerSdk.AspNetCore-v0.1.0
+git tag ConfigDirector.ServerSdk.AspNetCore-v1.0.0
+git push origin ConfigDirector.ServerSdk.AspNetCore-v1.0.0
 ```
 
 Every package is tagged and versioned on its own, as `<PackageId>-v<version>`.

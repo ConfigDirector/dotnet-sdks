@@ -9,6 +9,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-08-28
+
 ### Added
 
 - `ConfigDirectorClientOptions.Connection` and `Telemetry` can now be assigned as well as populated
@@ -61,5 +63,6 @@ Initial release. Targets `net8.0` and `netstandard2.0`.
   telemetry is queued.
 - Source Link, deterministic builds, and a symbol package.
 
-[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.1.0...HEAD
+[1.1.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/v1.0.0...ConfigDirector.ServerSdk-v1.1.0
 [1.0.0]: https://github.com/ConfigDirector/dotnet-sdks/releases/tag/v1.0.0

@@ -3,7 +3,7 @@ name: release
 # Tagging is what publishes. The tag names the package and the version it is releasing:
 #
 #   ConfigDirector.ServerSdk-v1.1.0
-#   ConfigDirector.ServerSdk.AspNetCore-v0.1.0
+#   ConfigDirector.ServerSdk.AspNetCore-v1.0.0
 #
 # The version itself lives in the project, and this workflow checks the tag against it rather than
 # passing one in. A -p:Version override is a global MSBuild property: it flows across a
