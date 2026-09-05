@@ -41,6 +41,9 @@ internal sealed record SseClientOptions
     // Raised once each time the stream opens, including after a reconnect.
     internal Action? Connected { get; init; }
 
+    // Raised when an open stream drops, before any reconnect attempt.
+    internal Action? Disconnected { get; init; }
+
     // The server's own retry interval when it sent one, otherwise a doubling backoff capped at
     // 30 seconds.
     private static TimeSpan DefaultDelay(SseReconnect reconnect) =>

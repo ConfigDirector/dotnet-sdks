@@ -84,6 +84,20 @@ internal static class Transports
         return buffer.ToArray();
     }
 
+    internal static byte[] HeartbeatPayload(string serverSdkKey, string sessionId)
+    {
+        using var buffer = new MemoryStream();
+        using (var json = new Utf8JsonWriter(buffer))
+        {
+            json.WriteStartObject();
+            json.WriteString("serverSdkKey", serverSdkKey);
+            json.WriteString("sessionId", sessionId);
+            json.WriteEndObject();
+        }
+
+        return buffer.ToArray();
+    }
+
     internal static IReadOnlyDictionary<string, string> RequestHeaders { get; } =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {

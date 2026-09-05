@@ -74,6 +74,8 @@ internal sealed class SseClient
 
                     serverInterval = ServerInterval(parser);
                 }
+
+                _options.Disconnected?.Invoke();
             }
 
             attempt++;
