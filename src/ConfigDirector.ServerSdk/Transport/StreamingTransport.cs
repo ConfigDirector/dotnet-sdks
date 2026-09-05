@@ -28,6 +28,7 @@ internal sealed class StreamingTransport : ITransport
         new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     private Task _reading = Task.CompletedTask;
+    private volatile string? _sessionId;
 
     internal StreamingTransport(TransportOptions options)
     {
@@ -40,13 +41,22 @@ internal sealed class StreamingTransport : ITransport
             {
                 Method = HttpMethod.Post,
                 Headers = Transports.RequestHeaders,
-                Body = () => Transports.JsonBody(Transports.RequestPayload(options, null)),
+                Body = () => Transports.JsonBody(BuildRequestPayload()),
                 IdleTimeout = ReadTimeout,
                 IsFatalStatus = Transports.IsFatalStatus,
                 ReconnectDelay = ReconnectDelay,
                 Connected = () => Log.Connected(_logger, null),
             },
             _logger);
+    }
+
+    internal string? SessionId => _sessionId;
+
+    private byte[] BuildRequestPayload()
+    {
+        var sessionId = Guid.NewGuid().ToString();
+        _sessionId = sessionId;
+        return Transports.RequestPayload(_options, null, sessionId);
     }
 
     public Task ConnectAsync(CancellationToken cancellationToken)

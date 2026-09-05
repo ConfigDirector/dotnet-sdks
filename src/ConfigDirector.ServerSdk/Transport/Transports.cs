@@ -61,7 +61,7 @@ internal static class Transports
             status);
     }
 
-    internal static byte[] RequestPayload(TransportOptions options, string? lastUpdateTimestamp)
+    internal static byte[] RequestPayload(TransportOptions options, string? lastUpdateTimestamp, string sessionId)
     {
         using var buffer = new MemoryStream();
         using (var json = new Utf8JsonWriter(buffer))
@@ -77,6 +77,7 @@ internal static class Transports
             json.WriteEndObject();
 
             WriteIfPresent(json, "lastUpdateTimestamp", lastUpdateTimestamp);
+            json.WriteString("sessionId", sessionId);
             json.WriteEndObject();
         }
 

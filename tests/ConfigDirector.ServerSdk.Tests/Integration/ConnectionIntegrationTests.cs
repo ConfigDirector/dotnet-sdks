@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Net;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 
 namespace ConfigDirector.Tests.Integration;
@@ -61,6 +62,61 @@ public sealed class ConnectionIntegrationTests : IDisposable
         _server.Bodies[0].ShouldContain("\"serverSdkKey\":\"server-sdk-key\"");
         _server.Bodies[0].ShouldContain("\"sdkName\":\"dotnet-server-sdk\"");
         _server.UserAgents[0].ShouldStartWith("dotnet-server-sdk/");
+    }
+
+    [Fact]
+    public async Task SendsAUuidSessionIdWhenPolling()
+    {
+        await using var client = Client(Polling());
+
+        await client.InitializeAsync(TestContext.Current.CancellationToken);
+
+        Guid.TryParseExact(SessionIdOf(_server.Bodies[0]), "D", out _).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task SendsTheSameSessionIdOnEveryPoll()
+    {
+        await using var client = Client(Polling());
+
+        await client.InitializeAsync(TestContext.Current.CancellationToken);
+        await WaitAsync(() => _server.Bodies.Count >= 2);
+
+        SessionIdOf(_server.Bodies[1]).ShouldBe(SessionIdOf(_server.Bodies[0]));
+    }
+
+    [Fact]
+    public async Task SendsAUuidSessionIdWhenStreaming()
+    {
+        await using var client = Client();
+
+        await client.InitializeAsync(TestContext.Current.CancellationToken);
+
+        Guid.TryParseExact(SessionIdOf(_server.Bodies[0]), "D", out _).ShouldBeTrue();
+    }
+
+    [Fact(Timeout = 30_000)]
+    public async Task ReconnectsTheStreamWithAFreshSessionId()
+    {
+        // Long enough to outlast one backoff, which starts at a second and is half jittered.
+        var options = new ConfigDirectorClientOptions
+        {
+            Connection = { Timeout = TimeSpan.FromSeconds(10) },
+        };
+        _server.Replies(HttpStatusCode.BadGateway, "try again");
+        await using var client = Client(options);
+
+        await client.InitializeAsync(TestContext.Current.CancellationToken);
+        await WaitAsync(() => _server.Bodies.Count >= 2);
+
+        SessionIdOf(_server.Bodies[1]).ShouldNotBe(SessionIdOf(_server.Bodies[0]));
+    }
+
+    private static string SessionIdOf(string body)
+    {
+        var match = Regex.Match(body, "\"sessionId\":\"([^\"]*)\"");
+        match.Success.ShouldBeTrue($"expected a sessionId in: {body}");
+        return match.Groups[1].Value;
     }
 
     [Fact]

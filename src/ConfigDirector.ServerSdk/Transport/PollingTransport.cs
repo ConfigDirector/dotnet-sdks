@@ -18,6 +18,8 @@ internal class PollingTransport : ITransport
     private readonly HttpClient _http = Transports.BuildHttpClient();
 
     private string? _lastUpdateTimestamp;
+
+    internal string SessionId { get; } = Guid.NewGuid().ToString();
     private Task _polling = Task.CompletedTask;
     private volatile bool _fatal;
 
@@ -129,7 +131,7 @@ internal class PollingTransport : ITransport
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, _url)
         {
-            Content = Transports.JsonBody(Transports.RequestPayload(_options, _lastUpdateTimestamp)),
+            Content = Transports.JsonBody(Transports.RequestPayload(_options, _lastUpdateTimestamp, SessionId)),
         };
 
         foreach (var header in Transports.RequestHeaders)
