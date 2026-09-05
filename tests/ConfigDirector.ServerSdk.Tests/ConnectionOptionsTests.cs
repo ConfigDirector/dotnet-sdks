@@ -9,8 +9,33 @@ public class ConnectionOptionsTests
 
         options.Mode.ShouldBe(ConnectionMode.Streaming);
         options.Timeout.ShouldBe(TimeSpan.FromSeconds(3));
-        options.PollingInterval.ShouldBe(TimeSpan.FromSeconds(60));
+        options.PollingInterval.ShouldBe(TimeSpan.FromMinutes(5));
         options.Url.ShouldBeNull();
+    }
+
+    [Fact]
+    public void PollsEveryFiveMinutesWhenNoIntervalIsGiven() =>
+        ConnectionOptions.DefaultPollingInterval.ShouldBe(TimeSpan.FromMinutes(5));
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(59)]
+    public void RejectsAPollingIntervalShorterThanAMinute(int seconds) =>
+        Should.Throw<ArgumentOutOfRangeException>(
+            () => new ConnectionOptions { PollingInterval = TimeSpan.FromSeconds(seconds) });
+
+    [Fact]
+    public void RejectsAPollingIntervalJustUnderAMinute() =>
+        Should.Throw<ArgumentOutOfRangeException>(
+            () => new ConnectionOptions { PollingInterval = TimeSpan.FromMinutes(1) - TimeSpan.FromTicks(1) });
+
+    [Fact]
+    public void AcceptsAPollingIntervalOfExactlyAMinute()
+    {
+        var minute = TimeSpan.FromMinutes(1);
+
+        new ConnectionOptions { PollingInterval = minute }.PollingInterval.ShouldBe(minute);
+        ConnectionOptions.MinPollingInterval.ShouldBe(minute);
     }
 
     [Theory]

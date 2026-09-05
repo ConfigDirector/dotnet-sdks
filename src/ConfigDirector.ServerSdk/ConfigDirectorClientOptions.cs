@@ -15,7 +15,7 @@ namespace ConfigDirector;
 ///     Connection =
 ///     {
 ///         Mode = ConnectionMode.Polling,
-///         PollingInterval = TimeSpan.FromSeconds(30),
+///         PollingInterval = TimeSpan.FromMinutes(1),
 ///     },
 /// })
 /// </code>

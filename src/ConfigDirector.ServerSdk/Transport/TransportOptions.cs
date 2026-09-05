@@ -26,7 +26,7 @@ internal sealed record TransportOptions
 
     internal Metadata? Metadata { get; init; }
 
-    internal TimeSpan PollingInterval { get; init; } = TimeSpan.FromSeconds(60);
+    internal TimeSpan PollingInterval { get; init; } = ConnectionOptions.DefaultPollingInterval;
 
     // Bounds a single request, since the HttpClient underneath carries no timeout of its own.
     internal TimeSpan RequestTimeout { get; init; } = TimeSpan.FromSeconds(3);

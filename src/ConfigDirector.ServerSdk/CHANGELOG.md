@@ -9,6 +9,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Changed
+
+- `ConnectionOptions.PollingInterval` now defaults to 5 minutes rather than 60 seconds, and
+  rejects anything shorter than 1 minute. Both bounds are published as
+  `ConnectionOptions.DefaultPollingInterval` and `ConnectionOptions.MinPollingInterval`. An
+  application that set a shorter interval will now get an `ArgumentOutOfRangeException` where it
+  is assigned, including when bound from configuration.
+
 ## [1.1.0] - 2026-08-28
 
 ### Added

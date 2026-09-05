@@ -12,7 +12,7 @@ namespace ConfigDirector;
 /// <code>
 /// "ConfigDirector": {
 ///   "ServerSdkKey": "...",
-///   "Connection": { "Mode": "Polling", "PollingInterval": "00:00:30" }
+///   "Connection": { "Mode": "Polling", "PollingInterval": "00:01:00" }
 /// }
 /// </code>
 /// <para>

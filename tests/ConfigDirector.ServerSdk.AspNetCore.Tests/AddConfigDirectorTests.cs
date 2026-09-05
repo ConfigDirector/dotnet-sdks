@@ -19,7 +19,7 @@ public class AddConfigDirectorTests
             ("ConfigDirector:ServerSdkKey", "a-key"),
             ("ConfigDirector:AppVersion", "1.2.3"),
             ("ConfigDirector:Connection:Mode", "Polling"),
-            ("ConfigDirector:Connection:PollingInterval", "00:00:30"),
+            ("ConfigDirector:Connection:PollingInterval", "00:02:00"),
             ("ConfigDirector:Connection:Timeout", "00:00:05"),
             ("ConfigDirector:Connection:Url", "https://proxy.example/"),
             ("ConfigDirector:Telemetry:FlushInterval", "00:00:10"),
@@ -28,7 +28,7 @@ public class AddConfigDirectorTests
         settings.ServerSdkKey.ShouldBe("a-key");
         settings.AppVersion.ShouldBe("1.2.3");
         settings.Connection.Mode.ShouldBe(ConnectionMode.Polling);
-        settings.Connection.PollingInterval.ShouldBe(TimeSpan.FromSeconds(30));
+        settings.Connection.PollingInterval.ShouldBe(TimeSpan.FromMinutes(2));
         settings.Connection.Timeout.ShouldBe(TimeSpan.FromSeconds(5));
         settings.Connection.Url.ShouldBe(new Uri("https://proxy.example/"));
         settings.Telemetry.FlushInterval.ShouldBe(TimeSpan.FromSeconds(10));

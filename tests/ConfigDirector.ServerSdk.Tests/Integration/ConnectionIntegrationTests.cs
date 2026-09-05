@@ -471,15 +471,12 @@ public sealed class ConnectionIntegrationTests : IDisposable
 
     public void Dispose() => _server.Dispose();
 
-    private static ConfigDirectorClientOptions Polling() =>
-        new()
-        {
-            Connection =
-            {
-                Mode = ConnectionMode.Polling,
-                PollingInterval = TimeSpan.FromMilliseconds(50),
-            },
-        };
+    private static ConfigDirectorClientOptions Polling()
+    {
+        var options = new ConfigDirectorClientOptions { Connection = { Mode = ConnectionMode.Polling } };
+        options.Connection.PollEvery(TimeSpan.FromMilliseconds(50));
+        return options;
+    }
 
     private ConfigDirectorClient Client(ConfigDirectorClientOptions? options = null, Uri? url = null)
     {

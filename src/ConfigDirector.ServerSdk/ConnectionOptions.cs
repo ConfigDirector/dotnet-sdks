@@ -14,9 +14,15 @@ public sealed class ConnectionOptions
     private static readonly TimeSpan LongestDuration = TimeSpan.FromMilliseconds(int.MaxValue);
 
     private ConnectionMode _mode = ConnectionMode.Streaming;
-    private TimeSpan _pollingInterval = TimeSpan.FromSeconds(60);
+    private TimeSpan _pollingInterval = DefaultPollingInterval;
     private TimeSpan _timeout = TimeSpan.FromSeconds(3);
     private Uri? _url;
+
+    /// <summary>How often the client polls when no interval is set.</summary>
+    public static TimeSpan DefaultPollingInterval { get; } = TimeSpan.FromMinutes(5);
+
+    /// <summary>The shortest polling interval accepted.</summary>
+    public static TimeSpan MinPollingInterval { get; } = TimeSpan.FromMinutes(1);
 
     /// <summary>
     /// How the client keeps its config state current. Defaults to
@@ -32,12 +38,18 @@ public sealed class ConnectionOptions
 
     /// <summary>
     /// How long to wait between polls. Used only in <see cref="ConnectionMode.Polling"/>; defaults
-    /// to 60 seconds. Must be positive: a client that polls needs an interval to poll on.
+    /// to <see cref="DefaultPollingInterval"/>, and must be at least
+    /// <see cref="MinPollingInterval"/>.
     /// </summary>
     public TimeSpan PollingInterval
     {
         get => _pollingInterval;
-        set => _pollingInterval = Usable(value, nameof(PollingInterval));
+        set => _pollingInterval = value >= MinPollingInterval
+            ? Usable(value, nameof(PollingInterval))
+            : throw new ArgumentOutOfRangeException(
+                nameof(PollingInterval),
+                value,
+                $"The {nameof(PollingInterval)} must be at least {MinPollingInterval}.");
     }
 
     /// <summary>
@@ -66,6 +78,9 @@ public sealed class ConnectionOptions
             ? value
             : throw new ArgumentException($"The connection URL '{value}' must be absolute.", nameof(value));
     }
+
+    internal void PollEvery(TimeSpan interval) =>
+        _pollingInterval = Usable(interval, nameof(PollingInterval));
 
     private static TimeSpan Usable(TimeSpan value, string name)
     {
