@@ -9,8 +9,8 @@
   </PropertyGroup>
 
   <!-- VersionPrefix belongs to each package, since each is tagged and released on its own; a new
-       package that leaves it unset silently builds as 1.0.0. The release workflow overrides it
-       with the version from the tag it builds. -->
+       package that leaves it unset silently builds as 1.0.0. The release workflow checks the tag
+       against it rather than overriding it. -->
   <PropertyGroup>
     <VersionSuffix Condition="'$(VersionSuffix)' == '' And '$(CI)' != 'true'">dev</VersionSuffix>
   </PropertyGroup>

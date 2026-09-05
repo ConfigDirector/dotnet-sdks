@@ -7,7 +7,7 @@
     <TargetFrameworks>net8.0</TargetFrameworks>
     <RootNamespace>ConfigDirector</RootNamespace>
     <!-- The version this package releases at. The release workflow checks the tag against it. -->
-    <VersionPrefix>1.0.0</VersionPrefix>
+    <VersionPrefix>1.2.0</VersionPrefix>
     <Description>ASP.NET Core integration for the ConfigDirector server SDK: dependency injection, configuration binding and startup initialization.</Description>
     <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>

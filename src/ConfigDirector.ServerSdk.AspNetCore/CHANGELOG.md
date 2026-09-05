@@ -9,6 +9,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-05
+
+### Changed
+
+- Requires [`ConfigDirector.ServerSdk`](https://www.nuget.org/packages/ConfigDirector.ServerSdk)
+  1.2.0 or later. That brings the new polling default: `Connection.PollingInterval` now defaults
+  to 5 minutes rather than 60 seconds and rejects anything shorter than 1 minute, so a
+  configuration section that sets a shorter interval now fails to bind with an
+  `ArgumentOutOfRangeException`.
+
 ## [1.0.0] - 2026-08-28
 
 Initial release. Targets `net8.0`, and requires
@@ -46,5 +56,6 @@ later.
 - Configuration binding runs through the source-generated binder, so the package adds no trimming
   or AOT warnings to a consuming application.
 
-[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.0.0...HEAD
+[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.2.0...HEAD
+[1.2.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.0.0...ConfigDirector.ServerSdk.AspNetCore-v1.2.0
 [1.0.0]: https://github.com/ConfigDirector/dotnet-sdks/releases/tag/ConfigDirector.ServerSdk.AspNetCore-v1.0.0
