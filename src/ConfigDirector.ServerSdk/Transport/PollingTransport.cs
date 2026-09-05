@@ -3,8 +3,7 @@ using Microsoft.Extensions.Logging;
 
 namespace ConfigDirector.Transport;
 
-// Fetches config state once, then again on every interval. A zero interval fetches once and stops,
-// which is what one-time mode is.
+// Fetches config state once, then again on every interval. A zero interval fetches once and stops.
 internal class PollingTransport : ITransport
 {
     private const string Path = "server/polling/v1";

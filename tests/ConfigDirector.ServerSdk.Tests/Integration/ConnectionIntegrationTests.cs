@@ -133,19 +133,6 @@ public sealed class ConnectionIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task FetchesOnceAndStopsInOneTimeMode()
-    {
-        var options = new ConfigDirectorClientOptions { Connection = { Mode = ConnectionMode.OneTime } };
-        await using var client = Client(options);
-
-        await client.InitializeAsync(TestContext.Current.CancellationToken);
-        await Task.Delay(150, TestContext.Current.CancellationToken);
-
-        client.IsReady.ShouldBeTrue();
-        _server.Paths.ShouldBe(["/server/polling/v1"]);
-    }
-
-    [Fact]
     public async Task EchoesTheTimestampBackSoTheServerCanAnswerWithADelta()
     {
         await using var client = Client(Polling());

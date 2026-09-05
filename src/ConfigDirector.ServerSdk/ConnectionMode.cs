@@ -11,7 +11,4 @@ public enum ConnectionMode
     /// <see cref="ConnectionOptions.PollingInterval"/>.
     /// </summary>
     Polling,
-
-    /// <summary>Config state is fetched during initialization only, and never refreshed.</summary>
-    OneTime,
 }

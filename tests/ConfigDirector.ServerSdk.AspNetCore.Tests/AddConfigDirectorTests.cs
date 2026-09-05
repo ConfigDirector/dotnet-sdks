@@ -54,12 +54,12 @@ public class AddConfigDirectorTests
         using var host = BuildHost(
             builder => builder.Services.AddConfigDirector(builder.Configuration.GetSection("Flags")),
             ("Flags:ServerSdkKey", "a-key"),
-            ("Flags:Connection:Mode", "OneTime"));
+            ("Flags:Connection:Mode", "Polling"));
 
         var settings = host.Services.GetRequiredService<IOptions<ConfigDirectorOptions>>().Value;
 
         settings.ServerSdkKey.ShouldBe("a-key");
-        settings.Connection.Mode.ShouldBe(ConnectionMode.OneTime);
+        settings.Connection.Mode.ShouldBe(ConnectionMode.Polling);
     }
 
     [Fact]

@@ -140,7 +140,7 @@ public sealed class InitializationTests : IDisposable
             ["ConfigDirector:ServerSdkKey"] = "a-key",
             ["ConfigDirector:RequireReadyOnStartup"] = requireReady ? "true" : "false",
             ["ConfigDirector:Connection:Url"] = (url ?? _server.BaseUrl).ToString(),
-            ["ConfigDirector:Connection:Mode"] = "OneTime",
+            ["ConfigDirector:Connection:Mode"] = "Polling",
             ["ConfigDirector:Connection:Timeout"] = "00:00:05",
             ["ConfigDirector:Telemetry:FlushInterval"] = "00:05:00",
             ["ConfigDirector:Telemetry:EventQueueLimit"] =

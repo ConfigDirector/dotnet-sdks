@@ -91,7 +91,7 @@ public sealed class HealthCheckTests : IDisposable
         {
             ["ConfigDirector:ServerSdkKey"] = "a-key",
             ["ConfigDirector:Connection:Url"] = (url ?? _server.BaseUrl).ToString(),
-            ["ConfigDirector:Connection:Mode"] = "OneTime",
+            ["ConfigDirector:Connection:Mode"] = "Polling",
             ["ConfigDirector:Connection:Timeout"] = "00:00:05",
         });
 

@@ -6,7 +6,6 @@ internal static class TransportFactory
         mode switch
         {
             ConnectionMode.Polling => new PollingTransport(options),
-            ConnectionMode.OneTime => new OneTimeTransport(options),
             _ => new StreamingTransport(options),
         };
 }

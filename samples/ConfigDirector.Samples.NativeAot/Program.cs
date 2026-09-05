@@ -11,7 +11,7 @@ await using var client = new ConfigDirectorClient(key, new ConfigDirectorClientO
     Metadata = new Metadata { AppName = "native-aot-sample", AppVersion = "1.0.0" },
     Connection =
     {
-        Mode = ConnectionMode.OneTime,
+        Mode = ConnectionMode.Polling,
         Timeout = TimeSpan.FromSeconds(3),
         Url = url is null ? null : new Uri(url),
     },

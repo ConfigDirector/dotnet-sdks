@@ -32,8 +32,7 @@ public sealed class ConnectionOptions
 
     /// <summary>
     /// How long to wait between polls. Used only in <see cref="ConnectionMode.Polling"/>; defaults
-    /// to 60 seconds. Must be positive: a client that polls needs an interval to poll on, and
-    /// <see cref="ConnectionMode.OneTime"/> is how to ask for a single fetch instead.
+    /// to 60 seconds. Must be positive: a client that polls needs an interval to poll on.
     /// </summary>
     public TimeSpan PollingInterval
     {
