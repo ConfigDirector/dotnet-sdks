@@ -43,7 +43,7 @@ internal static class Transports
 #endif
     }
 
-    internal static bool IsFatalStatus(int status) => status is >= 400 and < 500;
+    internal static bool IsFatalStatus(int status) => status is >= 400 and < 500 and not 429;
 
     internal static Uri Resolve(Uri baseUrl, string path)
     {

@@ -352,6 +352,19 @@ public sealed class ConnectionIntegrationTests : IDisposable
     }
 
     [Fact]
+    public async Task KeepsPollingAfterBeingRateLimited()
+    {
+        await using var client = Client(Polling());
+        await client.InitializeAsync(TestContext.Current.CancellationToken);
+
+        _server.Replies(HttpStatusCode.TooManyRequests, "slow down");
+        var attempted = _server.Requests;
+        await WaitAsync(() => _server.Requests > attempted + 1);
+
+        client.GetValue("integer-config", 0).ShouldBe(25);
+    }
+
+    [Fact]
     public async Task StaysUnreadyWhenTheServerCannotBeReachedAtAll()
     {
         var loggerFactory = new CapturingLoggerFactory();

@@ -169,6 +169,21 @@ public sealed class HttpEventReporterTests : IDisposable
     }
 
     [Fact]
+    public async Task KeepsReportingAfterBeingRateLimited()
+    {
+        _server.Replies(HttpStatusCode.TooManyRequests);
+        await using var reporter = Reporter();
+
+        var limited = await reporter.ReportAsync(Report(), TestContext.Current.CancellationToken);
+        var afterwards = await reporter.ReportAsync(Report(), TestContext.Current.CancellationToken);
+
+        limited.Success.ShouldBeFalse();
+        limited.Fatal.ShouldBeFalse();
+        afterwards.Success.ShouldBeTrue();
+        _server.Paths.Count.ShouldBe(2);
+    }
+
+    [Fact]
     public async Task ReportsAFailureToReachTheServerWithoutThrowing()
     {
         await using var reporter = Reporter(SdkServer.UnreachableUrl);

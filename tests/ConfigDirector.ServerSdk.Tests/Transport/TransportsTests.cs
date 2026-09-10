@@ -58,6 +58,7 @@ public class TransportsTests
     [Theory]
     [InlineData(400, true)]
     [InlineData(401, true)]
+    [InlineData(429, false)]
     [InlineData(499, true)]
     [InlineData(500, false)]
     [InlineData(503, false)]

@@ -98,6 +98,18 @@ public class SseClientTests
     }
 
     [Fact]
+    public async Task RetriesAStatusThatIsOnlyRateLimiting()
+    {
+        var handler = new ScriptedHandler(
+            () => ScriptedHandler.Status(HttpStatusCode.TooManyRequests),
+            () => ScriptedHandler.Sse("data: recovered\n\n"));
+
+        var items = await ReadAsync(handler, 1);
+
+        items[0].Data.ShouldBe("recovered");
+    }
+
+    [Fact]
     public async Task RetriesAConnectionThatNeverAnswered()
     {
         var handler = new ScriptedHandler(

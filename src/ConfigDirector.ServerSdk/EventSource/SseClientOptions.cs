@@ -34,7 +34,7 @@ internal sealed record SseClientOptions
     internal TimeSpan ConnectTimeout { get; init; } = DefaultConnectTimeout;
 
     // A status the stream cannot recover from, which ends the read rather than retrying it.
-    internal Func<int, bool> IsFatalStatus { get; init; } = status => status is >= 400 and < 500;
+    internal Func<int, bool> IsFatalStatus { get; init; } = status => status is >= 400 and < 500 and not 429;
 
     internal Func<SseReconnect, TimeSpan> ReconnectDelay { get; init; } = DefaultDelay;
 
