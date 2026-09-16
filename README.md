@@ -1,10 +1,8 @@
 # ConfigDirector .NET SDKs
 
-[![Actions Status][ci-badge]][ci]
+[![CI][ci-badge]][ci] [![NuGet ServerSdk][nuget-badge]][nuget] [![NuGet AspNetCore][nuget-aspnet-badge]][nuget-aspnet]
 
-This is the .NET server SDK for [ConfigDirector](https://www.configdirector.com), in
-[`src/ConfigDirector.ServerSdk/`](src/ConfigDirector.ServerSdk/). More ConfigDirector packages for
-.NET will be published from this repository over time, each in a project of its own.
+.NET server SDK for [ConfigDirector](https://www.configdirector.com), remote config and feature flags with typed values, JSON Schema validation, and safe renames of live flags. Start free, no card required.
 
 Each package carries its own README and changelog:
 
@@ -12,6 +10,28 @@ Each package carries its own README and changelog:
   [changelog](src/ConfigDirector.ServerSdk/CHANGELOG.md)
 - [`ConfigDirector.ServerSdk.AspNetCore`](src/ConfigDirector.ServerSdk.AspNetCore/) --
   [changelog](src/ConfigDirector.ServerSdk.AspNetCore/CHANGELOG.md)
+
+## Install
+
+```bash
+dotnet add package ConfigDirector.ServerSdk
+```
+
+In an ASP.NET Core application, add `ConfigDirector.ServerSdk.AspNetCore` instead; it registers the client, binds its settings from configuration, connects before the server starts listening, and disposes it on shutdown.
+
+## Retrieve a value
+
+```csharp
+using ConfigDirector;
+
+// The server SDK key is a secret. Do not commit it to your source code.
+await using var client = new ConfigDirectorClient("YOUR-SERVER-SDK-KEY");
+await client.InitializeAsync();
+
+var newCheckout = client.GetValue("new-checkout", false);
+```
+
+Full details are in the [official documentation](https://docs.configdirector.com/sdks/server/dotnet).
 
 ## Documentation
 
@@ -46,8 +66,13 @@ dotnet run --project samples/ConfigDirector.Samples.NativeAot
 
 ## Getting Help
 
-Reach out to us via https://www.configdirector.com/support
+- [Ask a question in Discussions](https://github.com/orgs/ConfigDirector/discussions)
+- [Contact support](https://www.configdirector.com/support)
 
 [//]: # "links"
 [ci-badge]: https://github.com/ConfigDirector/dotnet-sdks/actions/workflows/server-sdk-ci.yml/badge.svg
 [ci]: https://github.com/ConfigDirector/dotnet-sdks/actions/workflows/server-sdk-ci.yml
+[nuget-badge]: https://img.shields.io/nuget/v/ConfigDirector.ServerSdk?label=ConfigDirector.ServerSdk
+[nuget]: https://www.nuget.org/packages/ConfigDirector.ServerSdk
+[nuget-aspnet-badge]: https://img.shields.io/nuget/v/ConfigDirector.ServerSdk.AspNetCore?label=ConfigDirector.ServerSdk.AspNetCore
+[nuget-aspnet]: https://www.nuget.org/packages/ConfigDirector.ServerSdk.AspNetCore
