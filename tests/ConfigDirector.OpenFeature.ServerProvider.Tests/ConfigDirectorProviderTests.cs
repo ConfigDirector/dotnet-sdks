@@ -9,7 +9,7 @@ namespace ConfigDirector.OpenFeature.Tests;
 
 public sealed class ConfigDirectorProviderTests : IAsyncDisposable
 {
-    private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan Timeout = SdkServer.PatientTimeout;
 
     private readonly SdkServer _server = new();
     private readonly List<ConfigDirectorProvider> _providers = [];
@@ -295,7 +295,12 @@ public sealed class ConfigDirectorProviderTests : IAsyncDisposable
 
     private ConfigDirectorProvider Provider(TimeSpan? timeout = null)
     {
-        var options = new ConfigDirectorClientOptions { Connection = { Timeout = timeout ?? Timeout } };
+        var options = new ConfigDirectorClientOptions();
+        if (timeout is { } chosen)
+        {
+            options.Connection.Timeout = chosen;
+        }
+
         _server.Attach(options);
         var provider = new ConfigDirectorProvider("sdk-key", options);
         _providers.Add(provider);

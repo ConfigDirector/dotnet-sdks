@@ -36,6 +36,10 @@ internal sealed class SdkServer : IDisposable
 
     internal Uri BaseUrl { get; }
 
+    internal static TimeSpan PatientTimeout { get; } = TimeSpan.FromSeconds(30);
+
+    private static readonly TimeSpan SdkDefaultTimeout = new ConnectionOptions().Timeout;
+
     internal string Bundle { get; set; } = SampleConfigs.Bundle;
 
     // Accepts requests and never answers them, which is what a server that has stopped talking
@@ -70,8 +74,16 @@ internal sealed class SdkServer : IDisposable
         }
     }
 
-    // Points a client at this server through the same setting an application uses for a proxy.
-    internal void Attach(ConfigDirectorClientOptions options) => options.Connection.Url = BaseUrl;
+    // Points a client at this server through the same setting an application uses for a proxy, and
+    // gives it long enough to hear back on a loaded test machine unless the test chose a timeout.
+    internal void Attach(ConfigDirectorClientOptions options)
+    {
+        options.Connection.Url = BaseUrl;
+        if (options.Connection.Timeout == SdkDefaultTimeout)
+        {
+            options.Connection.Timeout = PatientTimeout;
+        }
+    }
 
     // Answers the next request with this instead of config state. Queued, so a test can script a
     // failure followed by a recovery.

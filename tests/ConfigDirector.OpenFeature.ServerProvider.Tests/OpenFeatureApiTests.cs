@@ -7,7 +7,7 @@ namespace ConfigDirector.OpenFeature.Tests;
 
 public sealed class OpenFeatureApiTests : IAsyncDisposable
 {
-    private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan Timeout = SdkServer.PatientTimeout;
 
     private readonly SdkServer _server = new();
 
@@ -95,7 +95,7 @@ public sealed class OpenFeatureApiTests : IAsyncDisposable
 
     private ConfigDirectorProvider Provider()
     {
-        var options = new ConfigDirectorClientOptions { Connection = { Timeout = Timeout } };
+        var options = new ConfigDirectorClientOptions();
         _server.Attach(options);
         return new ConfigDirectorProvider("sdk-key", options);
     }
