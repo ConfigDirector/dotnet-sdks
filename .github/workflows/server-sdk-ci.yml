@@ -98,6 +98,16 @@ jobs:
       # Publishing clean is not the same as working: metadata the trimmer drops fails at runtime.
       - run: scripts/verify-native-aot.sh aot/ConfigDirector.Samples.NativeAot
 
+      # The same again for the OpenFeature provider, which pulls the OpenFeature SDK into the
+      # trimmed binary alongside the server SDK.
+      - run: |
+          dotnet publish samples/ConfigDirector.Samples.OpenFeature.NativeAot \
+            -c "$CONFIGURATION" -r linux-x64 -o aot-openfeature
+
+      - run: |
+          scripts/verify-native-aot.sh aot-openfeature/ConfigDirector.Samples.OpenFeature.NativeAot \
+            "ready=True" "temporary-feature-flag=True" "reason=TARGETING_MATCH variant=on"
+
   pack:
     name: Pack
     runs-on: ubuntu-latest

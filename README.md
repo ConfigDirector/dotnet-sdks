@@ -83,6 +83,21 @@ application published to native code:
 dotnet run --project samples/ConfigDirector.Samples.NativeAot
 ```
 
+[`ConfigDirector.Samples.OpenFeature`](samples/ConfigDirector.Samples.OpenFeature/), the same app
+reading every value through an OpenFeature client, with the
+`ConfigDirector.OpenFeature.ServerProvider` package registered through `OpenFeature.Hosting`:
+
+```bash
+dotnet run --project samples/ConfigDirector.Samples.OpenFeature
+```
+
+[`ConfigDirector.Samples.OpenFeature.NativeAot`](samples/ConfigDirector.Samples.OpenFeature.NativeAot/),
+the OpenFeature provider in a console application published to native code:
+
+```bash
+dotnet run --project samples/ConfigDirector.Samples.OpenFeature.NativeAot
+```
+
 ## Getting Help
 
 - [Ask a question in Discussions](https://github.com/orgs/ConfigDirector/discussions)

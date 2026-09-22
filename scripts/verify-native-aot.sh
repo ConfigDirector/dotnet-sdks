@@ -6,9 +6,18 @@
 # cannot show that the published binary still works: metadata dropped by the trimmer fails at
 # runtime, not at build time. That is what this checks.
 #
+# The lines the binary must print can be passed after it; without them the server SDK sample's are
+# expected.
+#
 #   scripts/verify-native-aot.sh path/to/published/binary
+#   scripts/verify-native-aot.sh path/to/published/binary "ready=True" "temporary-feature-flag=True"
 set -euo pipefail
 BIN="$1"
+shift
+EXPECTED=("$@")
+if [ "${#EXPECTED[@]}" -eq 0 ]; then
+  EXPECTED=("ready=True" "temporary-feature-flag=True" "configs=1")
+fi
 
 cat > /tmp/cd-bundle.json <<'JSON'
 {
@@ -85,9 +94,9 @@ check() {
   if printf '%s' "$OUT" | grep -qx "$1"; then echo "  ok   $1"; else echo "  FAIL expected line: $1"; fail=1; fi
 }
 echo "--- assertions"
-check "ready=True"
-check "temporary-feature-flag=True"
-check "configs=1"
+for line in "${EXPECTED[@]}"; do
+  check "$line"
+done
 
 if [ -f /tmp/cd-telemetry.json ]; then
   echo "  ok   telemetry reported"

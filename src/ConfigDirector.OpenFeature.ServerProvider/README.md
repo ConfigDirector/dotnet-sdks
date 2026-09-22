@@ -87,11 +87,13 @@ With the `OpenFeature.Hosting` package, register the provider through the OpenFe
 
 ```csharp
 builder.Services.AddOpenFeature(openFeature =>
-{
-    openFeature.AddHostedFeatureLifecycle();
-    openFeature.AddProvider(_ => new ConfigDirectorProvider(serverSdkKey));
-});
+    openFeature.AddProvider(_ => new ConfigDirectorProvider(serverSdkKey)));
 ```
+
+The hosted lifecycle that `AddOpenFeature` registers initializes the provider as the host starts,
+which connects the client before the server listens, and shuts it down as the host stops. Take
+`IFeatureClient`, and `Api` if you need it, from the container: `AddOpenFeature` drives its own
+`Api` instance, so the static `Api.Instance` is not the one your provider is registered with.
 
 ## Documentation
 
