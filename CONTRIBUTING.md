@@ -138,9 +138,9 @@ step with nothing pushed.
 
 ### A package that depends on another package here
 
-`ConfigDirector.ServerSdk.AspNetCore` takes `ConfigDirector.ServerSdk` as a `ProjectReference`.
-When it is packed, that becomes a NuGet dependency whose version is whatever the ServerSdk project
-declared at that commit, and NuGet reads a bare dependency version as a floor: `1.1.0` means
+`ConfigDirector.ServerSdk.AspNetCore` and `ConfigDirector.OpenFeature.ServerProvider` each take
+`ConfigDirector.ServerSdk` as a `ProjectReference`. When such a package is packed, that becomes a
+NuGet dependency whose version is whatever the ServerSdk project declared at that commit, and NuGet reads a bare dependency version as a floor: `1.1.0` means
 "1.1.0 or newer". NuGet also resolves the *lowest* version that satisfies every floor. So a
 consumer that references only `ConfigDirector.ServerSdk.AspNetCore` 1.0.0 restores
 `ConfigDirector.ServerSdk` 1.1.0, and keeps restoring 1.1.0 after 1.2.0 ships, unless it adds a
@@ -203,3 +203,23 @@ version whose only difference is the floor it declares:
 
 The reverse case needs nothing special. A change to the AspNetCore package alone is released on
 its own, and declares whatever SDK version the project holds at that commit.
+
+### The OpenFeature provider and the SDK's internals
+
+`ConfigDirector.OpenFeature.ServerProvider` identifies itself to ConfigDirector under its own SDK
+name and version. The server SDK exposes that only to assemblies it names in `InternalsVisibleTo`,
+so the public API offers no way for an application to claim an arbitrary identity. The provider
+therefore compiles against internal members of `ConfigDirector.ServerSdk`: `SdkIdentity`, the
+internal `ConfigDirectorClient` constructor that takes one, and `EvaluationReasons`.
+
+That binding is by signature, and NuGet lets a consumer restore a newer SDK than the provider was
+built against. A released provider must keep working against every later SDK within the same major
+version, so those members are a compatibility contract:
+
+- Do not change or remove them in a minor or patch release of the SDK. Add a new overload and leave
+  the existing one in place.
+- When one of them does change in a major release, bump the provider in the same commit and
+  release it right after the SDK, as described above for the AspNetCore package. Its changelog
+  should say it requires the new SDK.
+- A wrapper that is new to the repository needs its assembly name added to the SDK's
+  `InternalsVisibleTo` list before it can build.
