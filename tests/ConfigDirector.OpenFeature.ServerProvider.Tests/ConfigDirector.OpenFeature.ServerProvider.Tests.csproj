@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>ConfigDirector.OpenFeature.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/ConfigDirector.OpenFeature.ServerProvider/ConfigDirector.OpenFeature.ServerProvider.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="../ConfigDirector.ServerSdk.Tests/Integration/SdkServer.cs" Link="Shared/SdkServer.cs" />
+    <Compile Include="../ConfigDirector.ServerSdk.Tests/Integration/SampleConfigs.cs" Link="Shared/SampleConfigs.cs" />
+  </ItemGroup>
+
+</Project>
