@@ -2,7 +2,7 @@
 #
 # Runs the same build, test, and format checks CI runs, before allowing a push.
 #
-#   dotnet build -> dotnet test -> dotnet format --verify-no-changes
+#   dotnet build -> dotnet test --timeout 5m -> dotnet format --verify-no-changes
 #
 # Install it with:  git config core.hooksPath .githooks
 # Bypass it for a single push with:  git push --no-verify
@@ -79,7 +79,7 @@ run() {
 }
 
 run "dotnet build" dotnet build -c "$CONFIGURATION"
-run "dotnet test" dotnet test -c "$CONFIGURATION" --no-build
+run "dotnet test" dotnet test -c "$CONFIGURATION" --no-build --timeout 5m
 run "dotnet format" dotnet format --verify-no-changes
 
 printf '\n%spre-push checks passed%s\n' "$green" "$reset"

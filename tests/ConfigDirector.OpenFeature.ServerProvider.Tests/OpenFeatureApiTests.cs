@@ -42,7 +42,7 @@ public sealed class OpenFeatureApiTests : IAsyncDisposable
     [Fact]
     public async Task RaisesConfigurationChangedHandlersWhenAnUpdateArrives()
     {
-        var changed = new TaskCompletionSource<ProviderEventPayload>();
+        var changed = new TaskCompletionSource<ProviderEventPayload>(TaskCreationOptions.RunContinuationsAsynchronously);
         void Handler(ProviderEventPayload? payload) => changed.TrySetResult(payload!);
         Api.Instance.AddHandler(ProviderEventTypes.ProviderConfigurationChanged, Handler);
         try

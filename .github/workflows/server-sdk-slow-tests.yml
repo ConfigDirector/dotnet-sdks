@@ -29,4 +29,4 @@ jobs:
 
       - run: |
           dotnet test tests/ConfigDirector.ServerSdk.SlowTests/ConfigDirector.ServerSdk.SlowTests.csproj \
-            -c "$CONFIGURATION"
+            -c "$CONFIGURATION" --timeout 15m

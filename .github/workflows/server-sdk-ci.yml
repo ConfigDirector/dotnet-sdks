@@ -42,7 +42,7 @@ jobs:
       # TreatWarningsAsErrors is on, so an analyzer or code-style violation fails here.
       - run: dotnet build -c "$CONFIGURATION"
 
-      - run: dotnet test -c "$CONFIGURATION" --no-build
+      - run: dotnet test -c "$CONFIGURATION" --no-build --timeout 5m
 
       # Outside the solution, so building it here is what stops it rotting between nightly runs.
       - run: |
@@ -74,7 +74,7 @@ jobs:
 
       - uses: ./.github/actions/setup-dotnet
 
-      - run: dotnet test -c "$CONFIGURATION"
+      - run: dotnet test -c "$CONFIGURATION" --timeout 5m
 
   native-aot:
     name: Native AOT

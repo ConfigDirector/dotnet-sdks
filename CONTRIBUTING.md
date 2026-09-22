@@ -13,8 +13,16 @@ which overwrites the one already there and leaves a `dotnet` that macOS refuses 
 
 ```bash
 dotnet build -c Release
-dotnet test -c Release --no-build
+dotnet test -c Release --no-build --timeout 5m
 dotnet format --verify-no-changes
+```
+
+The timeout bounds each test project's run, so a hung test fails the run within minutes rather than
+holding the job until its own limit. `dotnet test` does not show which test hung; to find it, run
+the test assembly directly, where xunit names any test still running after 30 seconds:
+
+```bash
+dotnet tests/ConfigDirector.ServerSdk.Tests/bin/Release/net10.0/ConfigDirector.ServerSdk.Tests.dll
 ```
 
 Those three are what CI runs, and what the shared `pre-push` hook runs. Wire the hook up once
@@ -44,7 +52,7 @@ behaviors whose only symptom is elapsed time. It is deliberately outside the sol
 commands above stay quick, and runs nightly in CI.
 
 ```bash
-dotnet test tests/ConfigDirector.ServerSdk.SlowTests/ConfigDirector.ServerSdk.SlowTests.csproj
+dotnet test tests/ConfigDirector.ServerSdk.SlowTests/ConfigDirector.ServerSdk.SlowTests.csproj --timeout 15m
 ```
 
 ## Releasing
