@@ -19,6 +19,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   offers no way for an application to claim an arbitrary identity. Nothing changes for an
   application using the SDK directly.
 
+### Fixed
+
+- HTTP 429 response codes from the SDK server are no longer treated as a fatal error. These need to be handled as transient errors so the client continues to retry and reconnects once the rate limit is cleared.
+
 ## [1.2.0] - 2026-09-05
 
 ### Changed

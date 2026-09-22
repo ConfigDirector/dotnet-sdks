@@ -9,6 +9,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-09-22
+
+### Changed
+
+- Requires [`ConfigDirector.ServerSdk`](https://www.nuget.org/packages/ConfigDirector.ServerSdk)
+  1.3.0 or later. That brings the fix for HTTP 429 responses from the SDK server, which are no
+  longer treated as fatal: the client keeps retrying and reconnects once the rate limit clears,
+  rather than giving up for the life of the process.
+
 ## [1.2.0] - 2026-09-05
 
 ### Changed
@@ -56,6 +65,7 @@ later.
 - Configuration binding runs through the source-generated binder, so the package adds no trimming
   or AOT warnings to a consuming application.
 
-[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.2.0...HEAD
+[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.3.0...HEAD
+[1.3.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.2.0...ConfigDirector.ServerSdk.AspNetCore-v1.3.0
 [1.2.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.0.0...ConfigDirector.ServerSdk.AspNetCore-v1.2.0
 [1.0.0]: https://github.com/ConfigDirector/dotnet-sdks/releases/tag/ConfigDirector.ServerSdk.AspNetCore-v1.0.0
