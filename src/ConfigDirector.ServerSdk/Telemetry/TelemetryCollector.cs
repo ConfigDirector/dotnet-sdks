@@ -34,7 +34,7 @@ internal sealed class TelemetryCollector : IAsyncDisposable
     {
         _logger = options.LoggerFactory.CreateLogger<TelemetryCollector>();
         _flushInterval = options.FlushInterval;
-        _reporter = new HttpEventReporter(options.ServerSdkKey, options.BaseUrl, options.LoggerFactory);
+        _reporter = new HttpEventReporter(options.ServerSdkKey, options.BaseUrl, options.Identity, options.LoggerFactory);
 
         var evaluationLimit = options.EventQueueLimit * EvaluationShare / 10;
         _events = new EventQueue(evaluationLimit);

@@ -146,6 +146,21 @@ public sealed class TelemetryIntegrationTests : IDisposable
             .ShouldBe("dotnet-server-sdk");
     }
 
+    [Fact]
+    public async Task ReportsUnderAWrappersIdentityWhenBuiltForOne()
+    {
+        var wrapper = SdkIdentity.For("dotnet-test-wrapper", typeof(TelemetryIntegrationTests).Assembly);
+        await using var client = Client(identity: wrapper);
+        await client.InitializeAsync(TestContext.Current.CancellationToken);
+
+        client.GetValue("integer-config", 0);
+        await FlushAsync(client);
+
+        var metaContext = Payload().GetProperty("metaContext");
+        metaContext.GetProperty("sdkName").GetString().ShouldBe("dotnet-test-wrapper");
+        metaContext.GetProperty("sdkVersion").GetString().ShouldBe(wrapper.Version);
+    }
+
     // Nothing closes the client here: the report has to arrive because the interval came round.
     [Fact]
     public async Task ReportsOnTheIntervalWithoutWaitingToBeClosed()
@@ -238,7 +253,8 @@ public sealed class TelemetryIntegrationTests : IDisposable
     private ConfigDirectorClient Client(
         TimeSpan? flushInterval = null,
         int eventQueueLimit = TelemetryOptions.DefaultEventQueueLimit,
-        CapturingLoggerFactory? loggerFactory = null)
+        CapturingLoggerFactory? loggerFactory = null,
+        SdkIdentity? identity = null)
     {
         var options = new ConfigDirectorClientOptions();
         _server.Attach(options);
@@ -249,7 +265,7 @@ public sealed class TelemetryIntegrationTests : IDisposable
 
         options.Telemetry.FlushInterval = flushInterval ?? TimeSpan.FromMinutes(5);
         options.Telemetry.EventQueueLimit = eventQueueLimit;
-        return new ConfigDirectorClient("sdk-key", options);
+        return new ConfigDirectorClient("sdk-key", options, identity ?? SdkIdentity.ServerSdk);
     }
 
     // Closing reports whatever is left, which is how a test asks for a report without waiting on

@@ -21,6 +21,7 @@ internal sealed class StreamingTransport : ITransport
     private static readonly TimeSpan ReadTimeout = TimeSpan.FromSeconds(45);
 
     private readonly TransportOptions _options;
+    private readonly IReadOnlyDictionary<string, string> _headers;
     private readonly ILogger _logger;
     private readonly SseClient _stream;
     private readonly CancellationTokenSource _stop = new();
@@ -50,6 +51,7 @@ internal sealed class StreamingTransport : ITransport
     internal StreamingTransport(TransportOptions options, TimeSpan heartbeatInterval)
     {
         _options = options;
+        _headers = Transports.RequestHeaders(options.Identity);
         _logger = options.LoggerFactory.CreateLogger<StreamingTransport>();
         _heartbeatUrl = Transports.Resolve(options.BaseUrl, HeartbeatPath);
         _heartbeatInterval = heartbeatInterval;
@@ -59,7 +61,7 @@ internal sealed class StreamingTransport : ITransport
             new SseClientOptions(Transports.Resolve(options.BaseUrl, Path))
             {
                 Method = HttpMethod.Post,
-                Headers = Transports.RequestHeaders,
+                Headers = _headers,
                 Body = () => Transports.JsonBody(BuildRequestPayload()),
                 IdleTimeout = ReadTimeout,
                 IsFatalStatus = Transports.IsFatalStatus,
@@ -146,7 +148,7 @@ internal sealed class StreamingTransport : ITransport
             Content = Transports.JsonBody(Transports.HeartbeatPayload(_options.ServerSdkKey, sessionId)),
         };
 
-        foreach (var header in Transports.RequestHeaders)
+        foreach (var header in _headers)
         {
             request.Headers.TryAddWithoutValidation(header.Key, header.Value);
         }

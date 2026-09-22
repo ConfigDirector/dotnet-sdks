@@ -28,4 +28,8 @@
     <InternalsVisibleTo Include="ConfigDirector.ServerSdk.SlowTests" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="ConfigDirector.OpenFeature.ServerProvider" />
+  </ItemGroup>
+
 </Project>

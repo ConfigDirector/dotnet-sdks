@@ -202,7 +202,7 @@ public sealed class TelemetryCollectorTests : IDisposable
     private TelemetryCollector Collector(
         TimeSpan? flushInterval = null, int eventQueueLimit = 5_000, Uri? url = null) =>
         new(new TelemetryCollectorOptions(
-            "sdk-key", url ?? _server.BaseUrl, _loggerFactory)
+            "sdk-key", url ?? _server.BaseUrl, SdkIdentity.ServerSdk, _loggerFactory)
         {
             FlushInterval = flushInterval ?? TimeSpan.FromMinutes(5),
             EventQueueLimit = eventQueueLimit,

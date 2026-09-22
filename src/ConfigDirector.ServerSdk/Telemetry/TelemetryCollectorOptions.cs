@@ -6,16 +6,20 @@ namespace ConfigDirector.Telemetry;
 // ToString, and the server SDK key is a secret that must not reach a log or a debugger view.
 internal sealed record TelemetryCollectorOptions
 {
-    internal TelemetryCollectorOptions(string serverSdkKey, Uri baseUrl, ILoggerFactory loggerFactory)
+    internal TelemetryCollectorOptions(
+        string serverSdkKey, Uri baseUrl, SdkIdentity identity, ILoggerFactory loggerFactory)
     {
         ServerSdkKey = serverSdkKey;
         BaseUrl = baseUrl;
+        Identity = identity;
         LoggerFactory = loggerFactory;
     }
 
     internal string ServerSdkKey { get; }
 
     internal Uri BaseUrl { get; }
+
+    internal SdkIdentity Identity { get; }
 
     internal ILoggerFactory LoggerFactory { get; }
 

@@ -49,7 +49,7 @@ public sealed class StreamingTransportHeartbeatTests : IDisposable
     }
 
     private TransportOptions Options() =>
-        new("server-sdk-key", _server.BaseUrl, _ => { }, NullLoggerFactory.Instance);
+        new("server-sdk-key", _server.BaseUrl, _ => { }, SdkIdentity.ServerSdk, NullLoggerFactory.Instance);
 
     private List<string> HeartbeatBodies() => BodiesFor("/server/heartbeat/v1");
 

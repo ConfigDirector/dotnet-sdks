@@ -65,6 +65,32 @@ public sealed class ConnectionIntegrationTests : IDisposable
     }
 
     [Fact]
+    public async Task IdentifiesAWrapperByItsOwnNameAndVersionWhenPolling()
+    {
+        var wrapper = SdkIdentity.For("dotnet-test-wrapper", typeof(ConnectionIntegrationTests).Assembly);
+        await using var client = Client(Polling(), identity: wrapper);
+
+        await client.InitializeAsync(TestContext.Current.CancellationToken);
+
+        _server.Bodies[0].ShouldContain("\"sdkName\":\"dotnet-test-wrapper\"");
+        _server.Bodies[0].ShouldContain($"\"sdkVersion\":\"{wrapper.Version}\"");
+        _server.UserAgents[0].ShouldBe(wrapper.UserAgent);
+    }
+
+    [Fact]
+    public async Task IdentifiesAWrapperByItsOwnNameAndVersionWhenStreaming()
+    {
+        var wrapper = SdkIdentity.For("dotnet-test-wrapper", typeof(ConnectionIntegrationTests).Assembly);
+        await using var client = Client(identity: wrapper);
+
+        await client.InitializeAsync(TestContext.Current.CancellationToken);
+
+        _server.Bodies[0].ShouldContain("\"sdkName\":\"dotnet-test-wrapper\"");
+        _server.Bodies[0].ShouldContain($"\"sdkVersion\":\"{wrapper.Version}\"");
+        _server.UserAgents[0].ShouldBe(wrapper.UserAgent);
+    }
+
+    [Fact]
     public async Task SendsAUuidSessionIdWhenPolling()
     {
         await using var client = Client(Polling());
@@ -491,7 +517,8 @@ public sealed class ConnectionIntegrationTests : IDisposable
         return options;
     }
 
-    private ConfigDirectorClient Client(ConfigDirectorClientOptions? options = null, Uri? url = null)
+    private ConfigDirectorClient Client(
+        ConfigDirectorClientOptions? options = null, Uri? url = null, SdkIdentity? identity = null)
     {
         var settings = options ?? new ConfigDirectorClientOptions();
         _server.Attach(settings);
@@ -500,7 +527,7 @@ public sealed class ConnectionIntegrationTests : IDisposable
             settings.Connection.Url = url;
         }
 
-        return new ConfigDirectorClient("server-sdk-key", settings);
+        return new ConfigDirectorClient("server-sdk-key", settings, identity ?? SdkIdentity.ServerSdk);
     }
 
     private static async Task WaitAsync(Func<bool> until)

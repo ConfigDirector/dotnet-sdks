@@ -8,17 +8,21 @@ internal sealed record TransportOptions
         string serverSdkKey,
         Uri baseUrl,
         Action<ConfigBundle> onBundle,
+        SdkIdentity identity,
         ILoggerFactory loggerFactory)
     {
         ServerSdkKey = serverSdkKey;
         BaseUrl = baseUrl;
         OnBundle = onBundle;
+        Identity = identity;
         LoggerFactory = loggerFactory;
     }
 
     internal string ServerSdkKey { get; }
 
     internal Uri BaseUrl { get; }
+
+    internal SdkIdentity Identity { get; }
 
     internal Action<ConfigBundle> OnBundle { get; }
 

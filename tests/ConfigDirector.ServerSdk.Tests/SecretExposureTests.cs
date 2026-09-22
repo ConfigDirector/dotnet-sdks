@@ -12,11 +12,11 @@ public class SecretExposureTests
 
     [Fact]
     public void TransportOptionsDoNotPrintTheServerSdkKey() =>
-        new TransportOptions(Key, new Uri("https://example.test"), _ => { }, NullLoggerFactory.Instance)
+        new TransportOptions(Key, new Uri("https://example.test"), _ => { }, SdkIdentity.ServerSdk, NullLoggerFactory.Instance)
             .ToString().ShouldNotContain(Key);
 
     [Fact]
     public void TelemetryOptionsDoNotPrintTheServerSdkKey() =>
-        new TelemetryCollectorOptions(Key, new Uri("https://example.test"), NullLoggerFactory.Instance)
+        new TelemetryCollectorOptions(Key, new Uri("https://example.test"), SdkIdentity.ServerSdk, NullLoggerFactory.Instance)
             .ToString().ShouldNotContain(Key);
 }

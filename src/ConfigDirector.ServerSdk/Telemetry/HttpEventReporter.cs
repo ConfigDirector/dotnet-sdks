@@ -21,15 +21,19 @@ internal sealed class HttpEventReporter : IAsyncDisposable
 
     private readonly string _serverSdkKey;
     private readonly Uri _url;
+    private readonly SdkIdentity _identity;
+    private readonly IReadOnlyDictionary<string, string> _headers;
     private readonly ILogger _logger;
     private readonly HttpClient _http = Transports.BuildHttpClient(RequestTimeout);
 
     private bool _sendRequests = true;
 
-    internal HttpEventReporter(string serverSdkKey, Uri baseUrl, ILoggerFactory loggerFactory)
+    internal HttpEventReporter(string serverSdkKey, Uri baseUrl, SdkIdentity identity, ILoggerFactory loggerFactory)
     {
         _serverSdkKey = serverSdkKey;
         _url = Transports.Resolve(baseUrl, Path);
+        _identity = identity;
+        _headers = Transports.RequestHeaders(identity);
         _logger = loggerFactory.CreateLogger<HttpEventReporter>();
     }
 
@@ -69,7 +73,7 @@ internal sealed class HttpEventReporter : IAsyncDisposable
                 Content = Transports.JsonBody(body),
             };
 
-            foreach (var header in Transports.RequestHeaders)
+            foreach (var header in _headers)
             {
                 request.Headers.TryAddWithoutValidation(header.Key, header.Value);
             }
@@ -112,8 +116,8 @@ internal sealed class HttpEventReporter : IAsyncDisposable
             json.WriteString("serverSdkKey", _serverSdkKey);
 
             json.WriteStartObject("metaContext");
-            json.WriteString("sdkName", SdkIdentity.Name);
-            json.WriteString("sdkVersion", SdkIdentity.Version);
+            json.WriteString("sdkName", _identity.Name);
+            json.WriteString("sdkVersion", _identity.Version);
             json.WriteEndObject();
 
             json.WriteStartObject("discreteEvents");

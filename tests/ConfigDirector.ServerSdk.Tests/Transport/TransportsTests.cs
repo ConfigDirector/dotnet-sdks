@@ -72,6 +72,7 @@ public class TransportsTests
             "sdk-key",
             new Uri("https://server-sdk-api.example.com/"),
             _ => { },
+            SdkIdentity.ServerSdk,
             NullLoggerFactory.Instance)
             .RequestTimeout.ShouldBe(TimeSpan.FromSeconds(3));
 }

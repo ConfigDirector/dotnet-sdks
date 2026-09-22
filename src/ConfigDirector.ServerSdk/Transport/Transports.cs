@@ -70,8 +70,8 @@ internal static class Transports
             json.WriteString("serverSdkKey", options.ServerSdkKey);
 
             json.WriteStartObject("metaContext");
-            json.WriteString("sdkName", SdkIdentity.Name);
-            json.WriteString("sdkVersion", SdkIdentity.Version);
+            json.WriteString("sdkName", options.Identity.Name);
+            json.WriteString("sdkVersion", options.Identity.Version);
             WriteIfPresent(json, "appName", options.Metadata?.AppName);
             WriteIfPresent(json, "appVersion", options.Metadata?.AppVersion);
             json.WriteEndObject();
@@ -98,13 +98,13 @@ internal static class Transports
         return buffer.ToArray();
     }
 
-    internal static IReadOnlyDictionary<string, string> RequestHeaders { get; } =
+    internal static IReadOnlyDictionary<string, string> RequestHeaders(SdkIdentity identity) =>
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             // Left to itself HttpClient sends no user agent at all, and bot-protection layers in
             // front of the API reject that before the request reaches the origin -- surfacing as a
             // 403 that looks exactly like a rejected SDK key.
-            ["User-Agent"] = SdkIdentity.UserAgent,
+            ["User-Agent"] = identity.UserAgent,
         };
 
     internal static TimeSpan BackoffDelay(int attempt, Random random)

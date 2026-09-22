@@ -9,6 +9,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Changed
+
+- A wrapper built on this SDK, such as an OpenFeature provider, can now identify itself to
+  ConfigDirector under its own SDK name and version rather than as `dotnet-server-sdk`. The
+  identity is internal to the SDK and only assemblies it names can supply one, so the public API
+  offers no way for an application to claim an arbitrary identity. Nothing changes for an
+  application using the SDK directly.
+
 ## [1.2.0] - 2026-09-05
 
 ### Changed

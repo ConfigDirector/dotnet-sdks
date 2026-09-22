@@ -48,7 +48,17 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
     /// <exception cref="ArgumentNullException"><paramref name="serverSdkKey"/> is null.</exception>
     /// <exception cref="ArgumentException"><paramref name="serverSdkKey"/> is empty or whitespace.</exception>
     public ConfigDirectorClient(string serverSdkKey, ConfigDirectorClientOptions? options = null)
+        : this(serverSdkKey, options, SdkIdentity.ServerSdk)
     {
+    }
+
+    internal ConfigDirectorClient(string serverSdkKey, ConfigDirectorClientOptions? options, SdkIdentity identity)
+    {
+        if (identity is null)
+        {
+            throw new ArgumentNullException(nameof(identity));
+        }
+
         if (serverSdkKey is null)
         {
             throw new ArgumentNullException(nameof(serverSdkKey));
@@ -70,7 +80,7 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
         var baseUrl = connection.Url ?? Transports.DefaultBaseUrl;
 
         _telemetry = new TelemetryCollector(
-            new TelemetryCollectorOptions(serverSdkKey, baseUrl, settings.LoggerFactory)
+            new TelemetryCollectorOptions(serverSdkKey, baseUrl, identity, settings.LoggerFactory)
             {
                 EventQueueLimit = settings.Telemetry.EventQueueLimit,
                 FlushInterval = settings.Telemetry.FlushInterval,
@@ -78,7 +88,7 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
 
         _transport = TransportFactory.Create(
             connection.Mode,
-            new TransportOptions(serverSdkKey, baseUrl, OnBundle, settings.LoggerFactory)
+            new TransportOptions(serverSdkKey, baseUrl, OnBundle, identity, settings.LoggerFactory)
             {
                 Metadata = settings.Metadata,
                 PollingInterval = connection.PollingInterval,

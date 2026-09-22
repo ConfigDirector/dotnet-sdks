@@ -2,21 +2,45 @@ using System.Reflection;
 
 namespace ConfigDirector;
 
-// Identifies this SDK to the server. The version is read from the assembly so it cannot drift from
-// what was actually published; a development build says so.
-internal static class SdkIdentity
+// Identifies the SDK, or the wrapper built on it, to the server. The version is read from the
+// assembly so it cannot drift from what was actually published; a development build says so.
+internal sealed class SdkIdentity
 {
-    internal const string Name = "dotnet-server-sdk";
-
     private const string DevelopmentVersion = "0.0.0-dev";
 
-    internal static string Version { get; } = ReadVersion();
-
-    internal static string UserAgent { get; } = Name + "/" + Version;
-
-    private static string ReadVersion()
+    private SdkIdentity(string name, string version)
     {
-        var informational = typeof(SdkIdentity).Assembly
+        Name = name;
+        Version = version;
+        UserAgent = name + "/" + version;
+    }
+
+    internal static SdkIdentity ServerSdk { get; } = For("dotnet-server-sdk", typeof(SdkIdentity).Assembly);
+
+    internal string Name { get; }
+
+    internal string Version { get; }
+
+    internal string UserAgent { get; }
+
+    internal static SdkIdentity For(string name, Assembly assembly)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new ArgumentException("The SDK identity needs a name.", nameof(name));
+        }
+
+        if (assembly is null)
+        {
+            throw new ArgumentNullException(nameof(assembly));
+        }
+
+        return new SdkIdentity(name, ReadVersion(assembly));
+    }
+
+    private static string ReadVersion(Assembly assembly)
+    {
+        var informational = assembly
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
 
         if (string.IsNullOrEmpty(informational))

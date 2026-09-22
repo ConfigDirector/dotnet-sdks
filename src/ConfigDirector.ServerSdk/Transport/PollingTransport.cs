@@ -9,6 +9,7 @@ internal class PollingTransport : ITransport
     private const string Path = "server/polling/v1";
 
     private readonly TransportOptions _options;
+    private readonly IReadOnlyDictionary<string, string> _headers;
     private readonly ILogger _logger;
     private readonly Uri _url;
     private readonly TimeSpan _interval;
@@ -25,6 +26,7 @@ internal class PollingTransport : ITransport
     internal PollingTransport(TransportOptions options, TimeSpan interval)
     {
         _options = options;
+        _headers = Transports.RequestHeaders(options.Identity);
         _logger = options.LoggerFactory.CreateLogger<PollingTransport>();
         _url = Transports.Resolve(options.BaseUrl, Path);
         _interval = interval > TimeSpan.Zero ? interval : TimeSpan.Zero;
@@ -133,7 +135,7 @@ internal class PollingTransport : ITransport
             Content = Transports.JsonBody(Transports.RequestPayload(_options, _lastUpdateTimestamp, SessionId)),
         };
 
-        foreach (var header in Transports.RequestHeaders)
+        foreach (var header in _headers)
         {
             request.Headers.TryAddWithoutValidation(header.Key, header.Value);
         }

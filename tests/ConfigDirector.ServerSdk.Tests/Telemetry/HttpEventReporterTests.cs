@@ -137,6 +137,20 @@ public sealed class HttpEventReporterTests : IDisposable
     }
 
     [Fact]
+    public async Task ReportsUnderTheIdentityItWasBuiltFor()
+    {
+        var wrapper = SdkIdentity.For("dotnet-test-wrapper", typeof(HttpEventReporterTests).Assembly);
+        await using var reporter = Reporter(identity: wrapper);
+
+        await reporter.ReportAsync(Report(), TestContext.Current.CancellationToken);
+
+        var metaContext = Payload().GetProperty("metaContext");
+        metaContext.GetProperty("sdkName").GetString().ShouldBe("dotnet-test-wrapper");
+        metaContext.GetProperty("sdkVersion").GetString().ShouldBe(wrapper.Version);
+        _server.UserAgents[0].ShouldBe(wrapper.UserAgent);
+    }
+
+    [Fact]
     public async Task StopsReportingAfterAStatusThatWillNotPass()
     {
         _server.Replies(HttpStatusCode.Forbidden);
@@ -196,8 +210,8 @@ public sealed class HttpEventReporterTests : IDisposable
 
     public void Dispose() => _server.Dispose();
 
-    private HttpEventReporter Reporter(Uri? url = null) =>
-        new("sdk-key", url ?? _server.BaseUrl, _loggerFactory);
+    private HttpEventReporter Reporter(Uri? url = null, SdkIdentity? identity = null) =>
+        new("sdk-key", url ?? _server.BaseUrl, identity ?? SdkIdentity.ServerSdk, _loggerFactory);
 
     private static EventReport Report(
         IReadOnlyList<Context>? contexts = null,
