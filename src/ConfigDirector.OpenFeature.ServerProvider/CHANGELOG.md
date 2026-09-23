@@ -9,6 +9,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-09-22
+
+### Fixed
+
+- The package no longer declares the server SDK's own dependencies as its own. Version 1.0.0
+  listed `Microsoft.Extensions.Logging.Abstractions` 8.0.3 directly, which made restoring it into
+  a .NET 9 or .NET 10 application fail with a package downgrade error (`NU1605`), because the
+  OpenFeature SDK's asset for those runtimes needs a newer version of that assembly. The package
+  now depends only on `ConfigDirector.ServerSdk` and `OpenFeature`, and restores on every runtime
+  they support.
+
 ## [1.0.0] - 2026-09-22
 
 Initial release. Targets `netstandard2.0` and `net8.0`, and requires

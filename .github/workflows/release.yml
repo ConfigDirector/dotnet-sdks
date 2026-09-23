@@ -113,6 +113,12 @@ jobs:
 
       - run: dotnet test -c "$CONFIGURATION" --no-build --timeout 5m
 
+      # Every package, not just the one being released, so a package that depends on another one
+      # here is restored against the sibling it was built with rather than what nuget.org has.
+      - run: dotnet pack -c "$CONFIGURATION" -o restore-check
+
+      - run: scripts/verify-packages-restore.sh restore-check/*.nupkg
+
       - run: dotnet pack "${{ steps.release.outputs.project }}" -c "$CONFIGURATION" -o artifacts
 
       - uses: actions/upload-artifact@v7

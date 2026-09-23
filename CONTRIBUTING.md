@@ -123,7 +123,10 @@ The same steps apply to every package; `ConfigDirector.ServerSdk` stands in for 
    git push origin ConfigDirector.ServerSdk-v1.2.0
    ```
 
-8. **Watch the run.** The `Pack` job rejects a tag whose version disagrees with the project. The
+8. **Watch the run.** The `Pack` job rejects a tag whose version disagrees with the project, and
+   it restores every packed package into a throwaway consumer project on each supported runtime
+   (`scripts/verify-packages-restore.sh`), so a `.nuspec` that declares a dependency graph NuGet
+   rejects, such as a downgrade, fails here rather than in a user's build. The
    `Publish` job checks that every dependency on another package here is already on nuget.org,
    pushes the package and its symbols, and creates a GitHub release named after the tag with
    generated notes. If `Pack` fails, fix the cause, delete the tag, and start again from step 5. If

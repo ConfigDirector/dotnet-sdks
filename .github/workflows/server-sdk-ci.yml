@@ -119,6 +119,10 @@ jobs:
 
       - run: dotnet pack -c "$CONFIGURATION" -o artifacts
 
+      # A package can build clean and still be one no application can restore: what the .nuspec
+      # declares is only tested by restoring it the way a consumer would.
+      - run: scripts/verify-packages-restore.sh artifacts/*.nupkg
+
       - uses: actions/upload-artifact@v7
         with:
           name: nupkg

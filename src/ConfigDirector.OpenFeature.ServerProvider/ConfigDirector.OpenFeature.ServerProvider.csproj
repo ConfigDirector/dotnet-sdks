@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <RootNamespace>ConfigDirector.OpenFeature</RootNamespace>
-    <VersionPrefix>1.0.0</VersionPrefix>
+    <VersionPrefix>1.0.1</VersionPrefix>
     <Description>OpenFeature server provider for ConfigDirector, a remote configuration and feature flag service.</Description>
     <PackageTags>$(PackageTags);openfeature;openfeature-provider</PackageTags>
   </PropertyGroup>

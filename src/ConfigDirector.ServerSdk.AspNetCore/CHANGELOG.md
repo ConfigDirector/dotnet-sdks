@@ -9,6 +9,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- The package no longer declares the server SDK's own dependencies as its own. Earlier versions
+  listed `Microsoft.Extensions.Logging.Abstractions` and `System.Net.ServerSentEvents` directly at
+  the versions the SDK was built against, which could turn into a package downgrade error
+  (`NU1605`) in an application whose other packages need newer versions of those assemblies. The
+  package now depends only on `ConfigDirector.ServerSdk`.
+
 ## [1.3.0] - 2026-09-22
 
 ### Changed
