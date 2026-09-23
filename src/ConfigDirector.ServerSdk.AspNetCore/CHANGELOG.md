@@ -9,6 +9,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-09-22
+
 ### Fixed
 
 - The package no longer declares the server SDK's own dependencies as its own. Earlier versions
