@@ -9,6 +9,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-09-23
+
+### Fixed
+
+- Depends on ConfigDirector.ServerSdk 1.4.0 to pick up the conditional rule evaluation fix: multiple conditions in a rule are now ANDed rather than ORed.
+
 ## [1.3.1] - 2026-09-22
 
 ### Fixed

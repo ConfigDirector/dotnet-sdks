@@ -3,7 +3,7 @@
   <PropertyGroup>
     <RootNamespace>ConfigDirector</RootNamespace>
     <!-- The version this package releases at. The release workflow checks the tag against it. -->
-    <VersionPrefix>1.3.0</VersionPrefix>
+    <VersionPrefix>1.4.0</VersionPrefix>
     <Description>Server SDK for ConfigDirector, a remote configuration and feature flag service.</Description>
   </PropertyGroup>
 

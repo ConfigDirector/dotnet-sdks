@@ -86,19 +86,56 @@ public class ConfigEvaluatorTests
     public void SkipsARuleWhoseConditionsDoNotMatch() =>
         Evaluate(Config(NotMatching("never"))).Value.ShouldBe("the default");
 
-    // SEMANTICS.md 7 -- a conditional rule applies when any of its conditions match.
+    // SEMANTICS.md 7 -- a conditional rule applies only when every one of its conditions matches.
     [Fact]
-    public void MatchesAConditionalRuleOnAnyOfItsConditions()
+    public void MatchesARuleWhenEveryConditionMatches()
     {
-        var rule = new ConditionalRule
-        {
-            Id = "r",
-            Order = 1,
-            Value = "matched",
-            Conditions = [Condition("identifier", "never"), Condition("identifier", "user-1")],
-        };
+        var config = Config(Requiring(Condition("identifier", "user-1"), TraitCondition("/plan", "pro")));
 
-        Evaluate(Config(rule)).Value.ShouldBe("matched");
+        Evaluate(config, ContextWith("user-1", plan: "pro")).Value.ShouldBe("matched");
+    }
+
+    [Fact]
+    public void DoesNotMatchARuleWhenOnlyTheFirstConditionMatches()
+    {
+        var config = Config(Requiring(Condition("identifier", "user-1"), TraitCondition("/plan", "pro")));
+
+        Evaluate(config, ContextWith("user-1", plan: "free")).Value.ShouldBe("the default");
+    }
+
+    [Fact]
+    public void DoesNotMatchARuleWhenOnlyTheSecondConditionMatches()
+    {
+        var config = Config(Requiring(Condition("identifier", "user-1"), TraitCondition("/plan", "pro")));
+
+        Evaluate(config, ContextWith("user-2", plan: "pro")).Value.ShouldBe("the default");
+    }
+
+    [Fact]
+    public void DoesNotMatchARuleWhenNoConditionMatches()
+    {
+        var config = Config(Requiring(Condition("identifier", "user-1"), TraitCondition("/plan", "pro")));
+
+        Evaluate(config, ContextWith("user-2", plan: "free")).Value.ShouldBe("the default");
+    }
+
+    // SEMANTICS.md 7 -- with nothing to check, every condition holds.
+    [Fact]
+    public void AppliesARuleWithNoConditionsToEveryContext()
+    {
+        var config = Config(Requiring());
+
+        Evaluate(config, ContextWith("user-2", plan: "free")).Value.ShouldBe("matched");
+        Evaluate(config, new Context()).Value.ShouldBe("matched");
+    }
+
+    [Fact]
+    public void NeverMatchesARuleWhoseConditionsCannotAllHold()
+    {
+        var config = Config(Requiring(Condition("identifier", "never"), Condition("identifier", "user-1")));
+
+        Evaluate(config, ContextWith("user-1", plan: "pro")).Value.ShouldBe("the default");
+        Evaluate(config, ContextWith("never", plan: "pro")).Value.ShouldBe("the default");
     }
 
     [Fact]
@@ -319,6 +356,28 @@ public class ConfigEvaluatorTests
             Value = value,
             Conditions = [Condition("identifier", "somebody-else")],
         };
+
+    private static ConditionalRule Requiring(params Condition[] conditions) =>
+        new()
+        {
+            Id = "r",
+            Order = 1,
+            Value = "matched",
+            Conditions = conditions,
+        };
+
+    private static Condition TraitCondition(string trait, string target) =>
+        new()
+        {
+            Attribute = "traits",
+            Trait = trait,
+            Operator = "=",
+            TargetType = "text",
+            TargetValues = [target],
+        };
+
+    private static Context ContextWith(string id, string plan) =>
+        new() { Id = id, Traits = { ["plan"] = plan } };
 
     private static Condition Condition(string attribute, string target) =>
         new()

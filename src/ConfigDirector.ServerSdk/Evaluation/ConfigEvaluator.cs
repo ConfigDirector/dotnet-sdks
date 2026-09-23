@@ -4,7 +4,6 @@ namespace ConfigDirector.Evaluation;
 
 internal sealed class ConfigEvaluator
 {
-    // SEMANTICS.md 7 -- rules with no order evaluate last, keeping the order the server sent them.
     private const int Last = int.MaxValue;
 
     private static readonly Action<ILogger, string, string, Exception?> ReportDisregardedRule =
@@ -32,15 +31,11 @@ internal sealed class ConfigEvaluator
         };
     }
 
-    // The value and the server's id for it travel together: which rule produced the value is the
-    // only thing that says which id belongs to it.
     private Selection SelectValue(Config config, Context? context, Metadata? metadata)
     {
-        // OrderBy is a stable sort, which is what keeps rules sharing an order in the order the
-        // server sent them.
         foreach (var rule in config.Target.Rules.OrderBy(rule => rule.Order ?? Last))
         {
-            var selected = Apply(rule, config, context, metadata);
+            var selected = EvaluateRule(rule, config, context, metadata);
             if (selected.Matched)
             {
                 return selected;
@@ -50,14 +45,14 @@ internal sealed class ConfigEvaluator
         return Selection.From(config.Target.DefaultValue, config.Target.DefaultValueId);
     }
 
-    private Selection Apply(Rule rule, Config config, Context? context, Metadata? metadata)
+    private Selection EvaluateRule(Rule rule, Config config, Context? context, Metadata? metadata)
     {
         try
         {
             return rule switch
             {
-                PercentageRule percentage => SelectBucket(percentage.Percentages, config, context),
-                ConditionalRule conditional => Apply(conditional, config, context, metadata),
+                PercentageRule percentageRule => SelectBucket(percentageRule.Percentages, config, context),
+                ConditionalRule conditionalRule => EvaluateConditionals(conditionalRule, config, context, metadata),
                 _ => Selection.None,
             };
         }
@@ -70,9 +65,9 @@ internal sealed class ConfigEvaluator
         }
     }
 
-    private static Selection Apply(ConditionalRule rule, Config config, Context? context, Metadata? metadata)
+    private static Selection EvaluateConditionals(ConditionalRule rule, Config config, Context? context, Metadata? metadata)
     {
-        if (!Matches(rule, context, metadata))
+        if (!ConditionsMet(rule, context, metadata))
         {
             return Selection.None;
         }
@@ -85,28 +80,24 @@ internal sealed class ConfigEvaluator
         return rule.Target == "value" ? Selection.From(rule.Value, rule.ValueId) : Selection.None;
     }
 
-    private static bool Matches(ConditionalRule rule, Context? context, Metadata? metadata)
+    private static bool ConditionsMet(ConditionalRule rule, Context? context, Metadata? metadata)
     {
         foreach (var condition in rule.Conditions)
         {
-            if (ConditionEvaluator.Evaluate(condition, context, metadata))
+            if (!ConditionEvaluator.Evaluate(condition, context, metadata))
             {
-                return true;
+                return false;
             }
         }
 
-        return false;
+        return true;
     }
 
-    // SEMANTICS.md 7.1 -- a bucket spans [total, total + width). The comparison is strict, so a
-    // context landing exactly on a boundary belongs to the bucket that starts there, which is what
-    // keeps a 0% bucket unreachable and each bucket's share exact.
     private static Selection SelectBucket(
         IReadOnlyList<PercentageBucket> buckets,
         Config config,
         Context? context)
     {
-        // A caller with no identifier still gets a bucket, just not a stable one.
         var identifier = context?.Id ?? Guid.NewGuid().ToString();
         var assigned = PercentHashing.AssignPercentage(config.Id, identifier);
 
