@@ -9,6 +9,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-09-25
+
+### Changed
+
+- Requires [`ConfigDirector.ServerSdk`](https://www.nuget.org/packages/ConfigDirector.ServerSdk)
+  1.5.0 or later. A boolean, integer, or float config requested as a `string` now evaluates to the
+  default value with the new `EvaluationReason.TypeMismatch` reason, instead of the value's text
+  with `FoundMatch`. Reading a JSON config as a `string` still returns its raw document.
+
 ## [1.4.0] - 2026-09-23
 
 ### Fixed
@@ -81,7 +90,10 @@ later.
 - Configuration binding runs through the source-generated binder, so the package adds no trimming
   or AOT warnings to a consuming application.
 
-[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.3.0...HEAD
+[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.5.0...HEAD
+[1.5.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.4.0...ConfigDirector.ServerSdk.AspNetCore-v1.5.0
+[1.4.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.3.1...ConfigDirector.ServerSdk.AspNetCore-v1.4.0
+[1.3.1]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.3.0...ConfigDirector.ServerSdk.AspNetCore-v1.3.1
 [1.3.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.2.0...ConfigDirector.ServerSdk.AspNetCore-v1.3.0
 [1.2.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.0.0...ConfigDirector.ServerSdk.AspNetCore-v1.2.0
 [1.0.0]: https://github.com/ConfigDirector/dotnet-sdks/releases/tag/ConfigDirector.ServerSdk.AspNetCore-v1.0.0

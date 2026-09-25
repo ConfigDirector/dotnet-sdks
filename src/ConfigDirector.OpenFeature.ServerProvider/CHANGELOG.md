@@ -9,6 +9,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-25
+
+### Changed
+
+- Requires [`ConfigDirector.ServerSdk`](https://www.nuget.org/packages/ConfigDirector.ServerSdk)
+  1.5.0 or later. A boolean, integer, or float flag resolved as a string now returns the default
+  value with the `TypeMismatch` error, as resolving a string flag as a number already did, instead
+  of the value's text as a targeting match. Resolving a JSON flag as a string still returns its raw
+  document.
+
 ## [1.1.0] - 2026-09-23
 
 ### Fixed
@@ -48,5 +58,8 @@ later and [`OpenFeature`](https://www.nuget.org/packages/OpenFeature) 2.14.1 or 
 - The provider identifies itself to ConfigDirector as `dotnet-openfeature-server-provider` with its
   own version.
 
-[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.0.0...HEAD
+[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.2.0...HEAD
+[1.2.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.1.0...ConfigDirector.OpenFeature.ServerProvider-v1.2.0
+[1.1.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.0.1...ConfigDirector.OpenFeature.ServerProvider-v1.1.0
+[1.0.1]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.0.0...ConfigDirector.OpenFeature.ServerProvider-v1.0.1
 [1.0.0]: https://github.com/ConfigDirector/dotnet-sdks/releases/tag/ConfigDirector.OpenFeature.ServerProvider-v1.0.0
