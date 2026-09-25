@@ -9,6 +9,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-09-25
+
+### Added
+
+- `EvaluationReason.TypeMismatch`, reported when a config holds a type the default did not ask
+  for. It is spelled `type-mismatch` on the wire, as the other SDKs already spell it.
+
+### Changed
+
+- A boolean, integer, or float config requested as a `string` now evaluates to the default value
+  with the `TypeMismatch` reason, instead of the value's text with `FoundMatch`. Reading a JSON
+  config as a `string` still returns its raw document.
+
 ## [1.4.0] - 2026-09-23
 
 ### Fixed

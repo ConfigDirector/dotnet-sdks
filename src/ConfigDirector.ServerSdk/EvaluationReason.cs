@@ -23,4 +23,7 @@ public enum EvaluationReason
 
     /// <summary>The value is neither <c>true</c> nor <c>false</c>.</summary>
     InvalidBoolean,
+
+    /// <summary>The config holds a type the default did not ask for, so the default was returned.</summary>
+    TypeMismatch,
 }

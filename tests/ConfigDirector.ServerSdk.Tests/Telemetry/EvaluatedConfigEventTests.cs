@@ -142,6 +142,7 @@ public class EvaluatedConfigEventTests
     [InlineData(EvaluationReason.ConfigStateMissing, "config-state-missing")]
     [InlineData(EvaluationReason.ClientNotReady, "client-not-ready")]
     [InlineData(EvaluationReason.InvalidBoolean, "invalid-boolean")]
+    [InlineData(EvaluationReason.TypeMismatch, "type-mismatch")]
     public void SpellsTheReasonTheWayTheServerReadsIt(EvaluationReason reason, string expected) =>
         Serialize(Event(reason: reason).Compacted()).ShouldContain($"\"evaluationReason\":\"{expected}\"");
 

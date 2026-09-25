@@ -40,7 +40,9 @@ internal static class ValueParser
 
         if (typeof(T) == typeof(string))
         {
-            return Matched((T)(object)raw!, state);
+            return IsReadableAsString(state.Type)
+                ? Matched((T)(object)raw!, state)
+                : UsedDefault(defaultValue, EvaluationReason.TypeMismatch);
         }
 
         if (typeof(T) == typeof(bool))
@@ -69,6 +71,9 @@ internal static class ValueParser
         // caller's own is what Bind is for, and it is reached only through GetJsonValue.
         return UsedDefault(defaultValue, EvaluationReason.InvalidJson);
     }
+
+    private static bool IsReadableAsString(ConfigType? type) =>
+        type is not (ConfigType.Boolean or ConfigType.Integer or ConfigType.Float);
 
     private static bool TryParseBoolean(string raw, out bool parsed)
     {

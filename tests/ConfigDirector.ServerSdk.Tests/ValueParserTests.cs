@@ -40,15 +40,35 @@ public class ValueParserTests
         result.Reason.ShouldBe(EvaluationReason.InvalidBoolean);
     }
 
-    // The requested type comes from the default, not from how the config was declared: a caller
-    // asking for text gets the raw value, whatever it looks like.
     [Theory]
-    [InlineData("plain")]
-    [InlineData("true")]
-    [InlineData("26")]
-    [InlineData("{\"a\": 1}")]
-    [InlineData("null")]
-    public void TakesAnyValueAsText(string raw) => Parse(raw, "fallback").Value.ShouldBe(raw);
+    [InlineData(ConfigType.String)]
+    [InlineData(ConfigType.Enum)]
+    [InlineData(ConfigType.Url)]
+    [InlineData(ConfigType.Custom)]
+    [InlineData(ConfigType.Json)]
+    [InlineData(null)]
+    public void TakesTheValueOfATextConfigAsText(ConfigType? type)
+    {
+        var result = Parse("true", "fallback", type);
+
+        result.Value.ShouldBe("true");
+        result.UsedDefault.ShouldBeFalse();
+        result.Reason.ShouldBe(EvaluationReason.FoundMatch);
+    }
+
+    [Theory]
+    [InlineData(ConfigType.Boolean, "true")]
+    [InlineData(ConfigType.Integer, "26")]
+    [InlineData(ConfigType.Float, "3.5")]
+    public void RefusesABooleanOrNumericConfigAsText(ConfigType type, string raw)
+    {
+        var result = Parse(raw, "fallback", type);
+
+        result.Value.ShouldBe("fallback");
+        result.UsedDefault.ShouldBeTrue();
+        result.Reason.ShouldBe(EvaluationReason.TypeMismatch);
+        result.ValueId.ShouldBeNull();
+    }
 
     [Theory]
     [InlineData("26", 26)]
@@ -177,8 +197,8 @@ public class ValueParserTests
         public int Retries { get; init; }
     }
 
-    private static ParseResult<T> Parse<T>(string? raw, T defaultValue) =>
-        ValueParser.Parse(new ConfigState { Key = "the-key", Value = raw }, defaultValue);
+    private static ParseResult<T> Parse<T>(string? raw, T defaultValue, ConfigType? type = null) =>
+        ValueParser.Parse(new ConfigState { Key = "the-key", Type = type, Value = raw, ValueId = "value-id" }, defaultValue);
 
     private static ParseResult<T> Bind<T>(string? raw, T defaultValue) =>
         ValueParser.Bind(new ConfigState { Key = "the-key", Value = raw }, defaultValue);
