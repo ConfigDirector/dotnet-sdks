@@ -147,6 +147,34 @@ public sealed class TelemetryIntegrationTests : IDisposable
     }
 
     [Fact]
+    public async Task ReportsTheApplicationNameAndVersionItWasBuiltWith()
+    {
+        await using var client = Client(metadata: new Metadata { AppName = "checkout", AppVersion = "1.2.3" });
+        await client.InitializeAsync(TestContext.Current.CancellationToken);
+
+        client.GetValue("integer-config", 0);
+        await FlushAsync(client);
+
+        var metaContext = Payload().GetProperty("metaContext");
+        metaContext.GetProperty("appName").GetString().ShouldBe("checkout");
+        metaContext.GetProperty("appVersion").GetString().ShouldBe("1.2.3");
+    }
+
+    [Fact]
+    public async Task LeavesOutTheApplicationNameAndVersionWhenNotBuiltWithAny()
+    {
+        await using var client = Client();
+        await client.InitializeAsync(TestContext.Current.CancellationToken);
+
+        client.GetValue("integer-config", 0);
+        await FlushAsync(client);
+
+        var metaContext = Payload().GetProperty("metaContext");
+        metaContext.TryGetProperty("appName", out _).ShouldBeFalse();
+        metaContext.TryGetProperty("appVersion", out _).ShouldBeFalse();
+    }
+
+    [Fact]
     public async Task ReportsUnderAWrappersIdentityWhenBuiltForOne()
     {
         var wrapper = SdkIdentity.For("dotnet-test-wrapper", typeof(TelemetryIntegrationTests).Assembly);
@@ -254,9 +282,10 @@ public sealed class TelemetryIntegrationTests : IDisposable
         TimeSpan? flushInterval = null,
         int eventQueueLimit = TelemetryOptions.DefaultEventQueueLimit,
         CapturingLoggerFactory? loggerFactory = null,
-        SdkIdentity? identity = null)
+        SdkIdentity? identity = null,
+        Metadata? metadata = null)
     {
-        var options = new ConfigDirectorClientOptions();
+        var options = new ConfigDirectorClientOptions { Metadata = metadata };
         _server.Attach(options);
         if (loggerFactory is not null)
         {

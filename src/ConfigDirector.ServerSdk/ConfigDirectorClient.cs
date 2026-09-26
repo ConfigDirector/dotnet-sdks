@@ -82,6 +82,7 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
         _telemetry = new TelemetryCollector(
             new TelemetryCollectorOptions(serverSdkKey, baseUrl, identity, settings.LoggerFactory)
             {
+                Metadata = settings.Metadata,
                 EventQueueLimit = settings.Telemetry.EventQueueLimit,
                 FlushInterval = settings.Telemetry.FlushInterval,
             });

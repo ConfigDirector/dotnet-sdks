@@ -151,6 +151,30 @@ public sealed class HttpEventReporterTests : IDisposable
     }
 
     [Fact]
+    public async Task ReportsTheApplicationNameAndVersionItWasBuiltWith()
+    {
+        await using var reporter = Reporter(metadata: new Metadata { AppName = "checkout", AppVersion = "1.2.3" });
+
+        await reporter.ReportAsync(Report(), TestContext.Current.CancellationToken);
+
+        var metaContext = Payload().GetProperty("metaContext");
+        metaContext.GetProperty("appName").GetString().ShouldBe("checkout");
+        metaContext.GetProperty("appVersion").GetString().ShouldBe("1.2.3");
+    }
+
+    [Fact]
+    public async Task LeavesOutTheApplicationNameAndVersionWhenNotBuiltWithAny()
+    {
+        await using var reporter = Reporter();
+
+        await reporter.ReportAsync(Report(), TestContext.Current.CancellationToken);
+
+        var metaContext = Payload().GetProperty("metaContext");
+        metaContext.TryGetProperty("appName", out _).ShouldBeFalse();
+        metaContext.TryGetProperty("appVersion", out _).ShouldBeFalse();
+    }
+
+    [Fact]
     public async Task StopsReportingAfterAStatusThatWillNotPass()
     {
         _server.Replies(HttpStatusCode.Forbidden);
@@ -210,8 +234,8 @@ public sealed class HttpEventReporterTests : IDisposable
 
     public void Dispose() => _server.Dispose();
 
-    private HttpEventReporter Reporter(Uri? url = null, SdkIdentity? identity = null) =>
-        new("sdk-key", url ?? _server.BaseUrl, identity ?? SdkIdentity.ServerSdk, _loggerFactory);
+    private HttpEventReporter Reporter(Uri? url = null, SdkIdentity? identity = null, Metadata? metadata = null) =>
+        new("sdk-key", url ?? _server.BaseUrl, identity ?? SdkIdentity.ServerSdk, metadata, _loggerFactory);
 
     private static EventReport Report(
         IReadOnlyList<Context>? contexts = null,

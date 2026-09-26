@@ -23,6 +23,8 @@ internal sealed record TelemetryCollectorOptions
 
     internal ILoggerFactory LoggerFactory { get; }
 
+    internal Metadata? Metadata { get; init; }
+
     internal int EventQueueLimit { get; init; } = TelemetryOptions.DefaultEventQueueLimit;
 
     internal TimeSpan FlushInterval { get; init; } = TelemetryOptions.DefaultFlushInterval;

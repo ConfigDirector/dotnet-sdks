@@ -68,20 +68,23 @@ internal static class Transports
         {
             json.WriteStartObject();
             json.WriteString("serverSdkKey", options.ServerSdkKey);
-
-            json.WriteStartObject("metaContext");
-            json.WriteString("sdkName", options.Identity.Name);
-            json.WriteString("sdkVersion", options.Identity.Version);
-            WriteIfPresent(json, "appName", options.Metadata?.AppName);
-            WriteIfPresent(json, "appVersion", options.Metadata?.AppVersion);
-            json.WriteEndObject();
-
+            WriteMetaContext(json, options.Identity, options.Metadata);
             WriteIfPresent(json, "lastUpdateTimestamp", lastUpdateTimestamp);
             json.WriteString("sessionId", sessionId);
             json.WriteEndObject();
         }
 
         return buffer.ToArray();
+    }
+
+    internal static void WriteMetaContext(Utf8JsonWriter json, SdkIdentity identity, Metadata? metadata)
+    {
+        json.WriteStartObject("metaContext");
+        json.WriteString("sdkName", identity.Name);
+        json.WriteString("sdkVersion", identity.Version);
+        WriteIfPresent(json, "appName", metadata?.AppName);
+        WriteIfPresent(json, "appVersion", metadata?.AppVersion);
+        json.WriteEndObject();
     }
 
     internal static byte[] HeartbeatPayload(string serverSdkKey, string sessionId)

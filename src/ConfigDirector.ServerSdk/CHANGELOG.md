@@ -9,6 +9,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-09-26
+
+### Fixed
+
+- The telemetry report now carries the application name and version given in `Metadata`, as the
+  config requests already did, so the dashboard can show activity graphs per app.
+
 ## [1.5.0] - 2026-09-25
 
 ### Added
@@ -106,7 +113,8 @@ Initial release. Targets `net8.0` and `netstandard2.0`.
   telemetry is queued.
 - Source Link, deterministic builds, and a symbol package.
 
-[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.5.0...HEAD
+[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.5.1...HEAD
+[1.5.1]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.5.0...ConfigDirector.ServerSdk-v1.5.1
 [1.5.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.4.0...ConfigDirector.ServerSdk-v1.5.0
 [1.4.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.3.0...ConfigDirector.ServerSdk-v1.4.0
 [1.3.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.2.0...ConfigDirector.ServerSdk-v1.3.0
