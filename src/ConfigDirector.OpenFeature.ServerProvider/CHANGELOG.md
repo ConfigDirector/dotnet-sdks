@@ -9,6 +9,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-09-26
+
+### Changed
+
+- Requires [`ConfigDirector.ServerSdk`](https://www.nuget.org/packages/ConfigDirector.ServerSdk)
+  1.5.1 or later. Telemetry reports now include the app name and version.
+
 ## [1.2.0] - 2026-09-25
 
 ### Changed
