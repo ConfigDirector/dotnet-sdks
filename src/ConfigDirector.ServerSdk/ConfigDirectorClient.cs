@@ -53,6 +53,15 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
     }
 
     internal ConfigDirectorClient(string serverSdkKey, ConfigDirectorClientOptions? options, SdkIdentity identity)
+        : this(serverSdkKey, options, identity, TransportFactory.Create)
+    {
+    }
+
+    internal ConfigDirectorClient(
+        string serverSdkKey,
+        ConfigDirectorClientOptions? options,
+        SdkIdentity identity,
+        Func<ConnectionMode, TransportOptions, ITransport> buildTransport)
     {
         if (identity is null)
         {
@@ -87,12 +96,12 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
                 FlushInterval = settings.Telemetry.FlushInterval,
             });
 
-        _transport = TransportFactory.Create(
+        _transport = buildTransport(
             connection.Mode,
             new TransportOptions(serverSdkKey, baseUrl, OnBundle, identity, settings.LoggerFactory)
             {
                 Metadata = settings.Metadata,
-                PollingInterval = connection.PollingInterval,
+                PollingInterval = ResolvePollingInterval(connection),
                 RequestTimeout = connection.Timeout,
             });
     }
@@ -577,8 +586,29 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
         public void Dispose() => cancel();
     }
 
+    private TimeSpan ResolvePollingInterval(ConnectionOptions connection)
+    {
+        var configuredInterval = connection.PollingInterval;
+        if (connection.Mode != ConnectionMode.Polling
+            || configuredInterval >= ConnectionOptions.MinPollingInterval)
+        {
+            return configuredInterval;
+        }
+
+        Log.PollingIntervalRaised(
+            _logger, configuredInterval, ConnectionOptions.MinPollingInterval, ConnectionOptions.MinPollingInterval, null);
+        return ConnectionOptions.MinPollingInterval;
+    }
+
     private static class Log
     {
+        internal static readonly Action<ILogger, TimeSpan, TimeSpan, TimeSpan, Exception?> PollingIntervalRaised =
+            LoggerMessage.Define<TimeSpan, TimeSpan, TimeSpan>(
+                LogLevel.Warning,
+                new EventId(7, "PollingIntervalRaised"),
+                "PollingInterval of {ConfiguredInterval} is below the minimum of {MinPollingInterval}. "
+                    + "Using {RaisedInterval}.");
+
         internal static readonly Action<ILogger, TimeSpan, Exception?> InitializationTimedOut =
             LoggerMessage.Define<TimeSpan>(
                 LogLevel.Warning,

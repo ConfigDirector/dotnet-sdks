@@ -18,16 +18,24 @@ public class ConnectionOptionsTests
         ConnectionOptions.DefaultPollingInterval.ShouldBe(TimeSpan.FromMinutes(5));
 
     [Theory]
-    [InlineData(1)]
+    [InlineData(10)]
     [InlineData(59)]
-    public void RejectsAPollingIntervalShorterThanAMinute(int seconds) =>
-        Should.Throw<ArgumentOutOfRangeException>(
-            () => new ConnectionOptions { PollingInterval = TimeSpan.FromSeconds(seconds) });
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void KeepsAPollingIntervalBelowTheMinimumAsConfigured(int seconds)
+    {
+        var configured = TimeSpan.FromSeconds(seconds);
+
+        new ConnectionOptions { PollingInterval = configured }.PollingInterval.ShouldBe(configured);
+    }
 
     [Fact]
-    public void RejectsAPollingIntervalJustUnderAMinute() =>
-        Should.Throw<ArgumentOutOfRangeException>(
-            () => new ConnectionOptions { PollingInterval = TimeSpan.FromMinutes(1) - TimeSpan.FromTicks(1) });
+    public void KeepsAPollingIntervalJustUnderAMinuteAsConfigured()
+    {
+        var configured = TimeSpan.FromMinutes(1) - TimeSpan.FromTicks(1);
+
+        new ConnectionOptions { PollingInterval = configured }.PollingInterval.ShouldBe(configured);
+    }
 
     [Fact]
     public void AcceptsAPollingIntervalOfExactlyAMinute()
@@ -45,13 +53,6 @@ public class ConnectionOptionsTests
         Should.Throw<ArgumentOutOfRangeException>(
             () => new ConnectionOptions { Timeout = TimeSpan.FromSeconds(seconds) });
 
-    [Theory]
-    [InlineData(0)]
-    [InlineData(-1)]
-    public void RejectsAPollingIntervalThatIsNotPositive(int seconds) =>
-        Should.Throw<ArgumentOutOfRangeException>(
-            () => new ConnectionOptions { PollingInterval = TimeSpan.FromSeconds(seconds) });
-
     [Fact]
     public void RejectsATimeoutLongerThanTheSdkCanWaitOut() =>
         Should.Throw<ArgumentOutOfRangeException>(
@@ -68,6 +69,7 @@ public class ConnectionOptionsTests
         var longest = TimeSpan.FromMilliseconds(int.MaxValue);
 
         new ConnectionOptions { Timeout = longest }.Timeout.ShouldBe(longest);
+        new ConnectionOptions { PollingInterval = longest }.PollingInterval.ShouldBe(longest);
     }
 
     [Fact]

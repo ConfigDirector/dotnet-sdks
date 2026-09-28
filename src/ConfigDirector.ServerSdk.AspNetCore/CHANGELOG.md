@@ -9,6 +9,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Changed
+
+- Requires the [`ConfigDirector.ServerSdk`](https://www.nuget.org/packages/ConfigDirector.ServerSdk)
+  release that carries the polling interval change. A `Connection:PollingInterval` below 1 minute
+  no longer fails to bind with an `ArgumentOutOfRangeException`: the configured value binds as
+  written, and the client raises it to the 1 minute minimum with one warning. The default stays
+  5 minutes.
+
 ## [1.5.1] - 2026-09-26
 
 ### Fixed

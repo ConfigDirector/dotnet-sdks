@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Net;
 using System.Text.RegularExpressions;
+using ConfigDirector.Transport;
 using Microsoft.Extensions.Logging;
 
 namespace ConfigDirector.Tests.Integration;
@@ -510,12 +511,8 @@ public sealed class ConnectionIntegrationTests : IDisposable
 
     public void Dispose() => _server.Dispose();
 
-    private static ConfigDirectorClientOptions Polling()
-    {
-        var options = new ConfigDirectorClientOptions { Connection = { Mode = ConnectionMode.Polling } };
-        options.Connection.PollEvery(TimeSpan.FromMilliseconds(50));
-        return options;
-    }
+    private static ConfigDirectorClientOptions Polling() =>
+        new() { Connection = { Mode = ConnectionMode.Polling } };
 
     private ConfigDirectorClient Client(
         ConfigDirectorClientOptions? options = null, Uri? url = null, SdkIdentity? identity = null)
@@ -527,8 +524,14 @@ public sealed class ConnectionIntegrationTests : IDisposable
             settings.Connection.Url = url;
         }
 
-        return new ConfigDirectorClient("server-sdk-key", settings, identity ?? SdkIdentity.ServerSdk);
+        return new ConfigDirectorClient(
+            "server-sdk-key", settings, identity ?? SdkIdentity.ServerSdk, FastPollingTransport);
     }
+
+    private static ITransport FastPollingTransport(ConnectionMode mode, TransportOptions options) =>
+        mode == ConnectionMode.Polling
+            ? new PollingTransport(options, TimeSpan.FromMilliseconds(50))
+            : TransportFactory.Create(mode, options);
 
     private static async Task WaitAsync(Func<bool> until)
     {

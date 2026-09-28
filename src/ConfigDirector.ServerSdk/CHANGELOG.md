@@ -9,6 +9,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Changed
+
+- `ConnectionOptions.PollingInterval` no longer throws for a value below the minimum. The default
+  stays 5 minutes (`ConnectionOptions.DefaultPollingInterval`) and the minimum stays 1 minute
+  (`ConnectionOptions.MinPollingInterval`), but a shorter interval, zero and negative included,
+  is now kept on the options as written and raised to the minimum when the client is built, with
+  one warning logged through the client's logger. In `ConnectionMode.Streaming` the interval has
+  no effect and nothing is logged.
+
 ## [1.5.1] - 2026-09-26
 
 ### Fixed

@@ -36,6 +36,18 @@ public class AddConfigDirectorTests
     }
 
     [Fact]
+    public void BindsAPollingIntervalBelowTheMinimumAsConfigured()
+    {
+        var settings = Settings(
+            services => services.AddConfigDirector(),
+            ("ConfigDirector:ServerSdkKey", "a-key"),
+            ("ConfigDirector:Connection:Mode", "Polling"),
+            ("ConfigDirector:Connection:PollingInterval", "00:00:10"));
+
+        settings.Connection.PollingInterval.ShouldBe(TimeSpan.FromSeconds(10));
+    }
+
+    [Fact]
     public void LeavesUnconfiguredSettingsAtTheSdkDefaults()
     {
         var settings = Settings(

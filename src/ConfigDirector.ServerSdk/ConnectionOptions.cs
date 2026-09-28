@@ -5,7 +5,9 @@ namespace ConfigDirector;
 /// </summary>
 /// <remarks>
 /// Every setting is checked as it is assigned, so an unusable one is reported where it was written
-/// rather than as a client that quietly never updates.
+/// rather than as a client that quietly never updates. The one exception is a
+/// <see cref="PollingInterval"/> below <see cref="MinPollingInterval"/>: it is kept as written, and
+/// the client raises it to the minimum with a warning.
 /// </remarks>
 public sealed class ConnectionOptions
 {
@@ -18,10 +20,13 @@ public sealed class ConnectionOptions
     private TimeSpan _timeout = TimeSpan.FromSeconds(3);
     private Uri? _url;
 
-    /// <summary>How often the client polls when no interval is set.</summary>
+    /// <summary>How often the client polls when no interval is set: 5 minutes.</summary>
     public static TimeSpan DefaultPollingInterval { get; } = TimeSpan.FromMinutes(5);
 
-    /// <summary>The shortest polling interval accepted.</summary>
+    /// <summary>
+    /// The shortest interval the client polls on: 1 minute. A <see cref="PollingInterval"/> below
+    /// it is raised to it.
+    /// </summary>
     public static TimeSpan MinPollingInterval { get; } = TimeSpan.FromMinutes(1);
 
     /// <summary>
@@ -37,19 +42,15 @@ public sealed class ConnectionOptions
     }
 
     /// <summary>
-    /// How long to wait between polls. Used only in <see cref="ConnectionMode.Polling"/>; defaults
-    /// to <see cref="DefaultPollingInterval"/>, and must be at least
-    /// <see cref="MinPollingInterval"/>.
+    /// How long to wait between polls. Used only in <see cref="ConnectionMode.Polling"/>. Defaults
+    /// to <see cref="DefaultPollingInterval"/>, 5 minutes; the minimum is
+    /// <see cref="MinPollingInterval"/>, 1 minute. A value below the minimum is raised to the
+    /// minimum and a warning is logged when the client is built.
     /// </summary>
     public TimeSpan PollingInterval
     {
         get => _pollingInterval;
-        set => _pollingInterval = value >= MinPollingInterval
-            ? Usable(value, nameof(PollingInterval))
-            : throw new ArgumentOutOfRangeException(
-                nameof(PollingInterval),
-                value,
-                $"The {nameof(PollingInterval)} must be at least {MinPollingInterval}.");
+        set => _pollingInterval = NoLongerThanTheSdkCanWait(value, nameof(PollingInterval));
     }
 
     /// <summary>
@@ -79,9 +80,6 @@ public sealed class ConnectionOptions
             : throw new ArgumentException($"The connection URL '{value}' must be absolute.", nameof(value));
     }
 
-    internal void PollEvery(TimeSpan interval) =>
-        _pollingInterval = Usable(interval, nameof(PollingInterval));
-
     private static TimeSpan Usable(TimeSpan value, string name)
     {
         if (value <= TimeSpan.Zero)
@@ -89,6 +87,11 @@ public sealed class ConnectionOptions
             throw new ArgumentOutOfRangeException(name, value, $"The {name} must be a positive duration.");
         }
 
+        return NoLongerThanTheSdkCanWait(value, name);
+    }
+
+    private static TimeSpan NoLongerThanTheSdkCanWait(TimeSpan value, string name)
+    {
         if (value > LongestDuration)
         {
             throw new ArgumentOutOfRangeException(
