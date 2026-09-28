@@ -257,24 +257,27 @@ public class ConfigEvaluatorTests
         Evaluate(config).Value.ShouldBe("the default");
     }
 
-    // SEMANTICS.md 7.1 -- a context with no id is assigned a random identifier, so it still lands
-    // in a bucket, just not a stable one.
     [Fact]
-    public void AssignsAnUnstableBucketWithoutAnIdentifier()
+    public void AlwaysAssignsTheFirstNonEmptyBucketWithoutAnIdentifier()
     {
         var config = Config("config-1", new PercentageRule
         {
             Id = "r",
             Order = 1,
-            Percentages = [Bucket(50, "under"), Bucket(50, "over")],
+            Percentages = [Bucket(0, "never"), Bucket(50, "first"), Bucket(50, "second")],
         });
 
-        var served = Enumerable.Range(0, 200)
-            .Select(_ => Evaluate(config, new Context()).Value)
+        var evaluator = new ConfigEvaluator(NullLogger.Instance);
+        var served = Enumerable.Range(0, 50)
+            .SelectMany(_ => new[]
+            {
+                evaluator.Evaluate(config, new Context(), null).Value,
+                evaluator.Evaluate(config, null, null).Value,
+            })
             .Distinct()
             .ToList();
 
-        served.ShouldBe(["under", "over"], ignoreOrder: true);
+        served.ShouldBe(["first"]);
     }
 
     // SEMANTICS.md 7 -- a rule that cannot be evaluated is skipped, and the next rule is tried.

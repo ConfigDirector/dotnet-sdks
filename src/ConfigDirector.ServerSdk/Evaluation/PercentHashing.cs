@@ -6,6 +6,8 @@ internal static class PercentHashing
 {
     private const ulong Seed = 0x397832987UL;
 
+    internal const double PercentageWithoutIdentifier = 0.0;
+
     // SEMANTICS.md 7.1. The salt is the identifier first and the config id second; swapping them
     // would hash just as cleanly while putting every user in a different bucket from the other
     // SDKs. Only 1000 values are reachable, 0.0 through 99.9 in tenths.

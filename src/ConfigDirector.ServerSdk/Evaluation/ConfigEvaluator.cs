@@ -98,8 +98,9 @@ internal sealed class ConfigEvaluator
         Config config,
         Context? context)
     {
-        var identifier = context?.Id ?? Guid.NewGuid().ToString();
-        var assigned = PercentHashing.AssignPercentage(config.Id, identifier);
+        var assigned = context?.Id is { } identifier
+            ? PercentHashing.AssignPercentage(config.Id, identifier)
+            : PercentHashing.PercentageWithoutIdentifier;
 
         var total = 0.0;
         foreach (var bucket in buckets)
