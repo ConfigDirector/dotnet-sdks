@@ -75,7 +75,7 @@ public sealed class ConfigDirectorProvider : FeatureProvider, IDisposable, IAsyn
         {
             Type = ProviderEventTypes.ProviderConfigurationChanged,
             ProviderName = Name,
-            FlagsChanged = [.. args.Keys],
+            FlagsChanged = [.. args.Keys, .. args.RemovedKeys],
         });
     }
 

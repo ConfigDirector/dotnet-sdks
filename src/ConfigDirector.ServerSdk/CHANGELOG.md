@@ -9,6 +9,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- `ConfigsUpdatedEventArgs.RemovedKeys`: the keys a full update no longer carried, sorted, so a
+  handler can tell a config that was removed from one that was updated. `Keys` still lists only the
+  keys the update carried.
+
+### Fixed
+
+- A watch on a config that a full update no longer carries is now called with its default value.
+  Before, the config silently stopped being served and the watch kept its last value.
+
 ### Changed
 
 - `ConnectionOptions.PollingInterval` no longer throws for a value below the minimum. The default

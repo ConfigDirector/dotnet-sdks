@@ -31,7 +31,12 @@ public sealed class ClientEventTests : IDisposable
     {
         await using var client = Client();
         IReadOnlyList<string> keys = [];
-        client.ConfigsUpdated += (_, updated) => keys = updated.Keys;
+        IReadOnlyList<string>? removedKeys = null;
+        client.ConfigsUpdated += (_, updated) =>
+        {
+            keys = updated.Keys;
+            removedKeys = updated.RemovedKeys;
+        };
 
         await client.InitializeAsync(TestContext.Current.CancellationToken);
 
@@ -43,6 +48,49 @@ public sealed class ClientEventTests : IDisposable
                 "permanent-kill-switch",
                 "temporary-feature-flag",
             ]);
+        removedKeys.ShouldBe([]);
+    }
+
+    [Fact]
+    public async Task AnnouncesTheKeysAFullUpdateRemovedAndNotifiesTheirWatches()
+    {
+        await using var client = Client();
+        var updates = new List<ConfigsUpdatedEventArgs>();
+        var flags = new List<bool>();
+        var counts = new List<int>();
+        client.ConfigsUpdated += (_, updated) => updates.Add(updated);
+        client.Watch("temporary-feature-flag", true, flags.Add, ProUser);
+        client.Watch("integer-config", 7, counts.Add);
+
+        await client.InitializeAsync(TestContext.Current.CancellationToken);
+        _server.Push(SampleConfigs.DayOfTheWeek("Friday", kind: "full"));
+        await WaitAsync(() => updates.Count == 2);
+
+        updates[1].Keys.ShouldBe(["day-of-the-week-config"]);
+        updates[1].RemovedKeys.ShouldBe(
+            ["integer-config", "json-value-config", "permanent-kill-switch", "temporary-feature-flag"]);
+        flags.ShouldBe([true, true]);
+        counts.ShouldBe([25, 7]);
+        client.GetValue("integer-config", 9).ShouldBe(9);
+    }
+
+    [Fact]
+    public async Task ADeltaUpdateRemovesNothing()
+    {
+        await using var client = Client();
+        var updates = new List<ConfigsUpdatedEventArgs>();
+        var counts = new List<int>();
+        client.ConfigsUpdated += (_, updated) => updates.Add(updated);
+        client.Watch("integer-config", 7, counts.Add);
+
+        await client.InitializeAsync(TestContext.Current.CancellationToken);
+        _server.Push(SampleConfigs.DayOfTheWeek("Friday"));
+        await WaitAsync(() => updates.Count == 2);
+
+        updates[1].Keys.ShouldBe(["day-of-the-week-config"]);
+        updates[1].RemovedKeys.ShouldBe([]);
+        counts.ShouldBe([25]);
+        client.GetValue("integer-config", 9).ShouldBe(25);
     }
 
     [Fact]

@@ -28,8 +28,9 @@ public interface IConfigDirectorClient : IDisposable, IAsyncDisposable
     event EventHandler<ClientReadyEventArgs>? ClientReady;
 
     /// <summary>
-    /// Raised every time new config state arrives. Handlers run on the thread the update arrived
-    /// on, so one that blocks delays later updates.
+    /// Raised every time new config state arrives, with the keys the update carried and the keys a
+    /// full update removed. Handlers run on the thread the update arrived on, so one that blocks
+    /// delays later updates.
     /// </summary>
     event EventHandler<ConfigsUpdatedEventArgs>? ConfigsUpdated;
 
@@ -167,12 +168,14 @@ public interface IConfigDirectorClient : IDisposable, IAsyncDisposable
 
     /// <summary>
     /// Calls <paramref name="onChange"/> with the newly evaluated integer whenever an update
-    /// carries <paramref name="configKey"/>.
+    /// carries or removes <paramref name="configKey"/>.
     /// </summary>
     /// <remarks>
     /// Handlers run on the thread the update arrived on, so one that blocks delays later updates.
     /// Register the watch before <see cref="InitializeAsync"/> to be called for the first config
-    /// state as well. As with <c>GetValue</c>, there is one overload per type the SDK can read
+    /// state as well. When a full update no longer carries the config, <paramref name="onChange"/>
+    /// receives <paramref name="defaultValue"/>, which is what the getter would now return. As with
+    /// <c>GetValue</c>, there is one overload per type the SDK can read
     /// exactly, so a type it cannot fill is a compile error rather than a surprise at runtime.
     /// </remarks>
     /// <param name="configKey">The config to watch.</param>
@@ -190,42 +193,42 @@ public interface IConfigDirectorClient : IDisposable, IAsyncDisposable
 
     /// <summary>
     /// Calls <paramref name="onChange"/> with the newly evaluated long whenever an update
-    /// carries <paramref name="configKey"/>.
+    /// carries or removes <paramref name="configKey"/>.
     /// </summary>
     /// <inheritdoc cref="Watch(string, int, Action{int}, Context)"/>
     IDisposable Watch(string configKey, long defaultValue, Action<long> onChange, Context? context = null);
 
     /// <summary>
     /// Calls <paramref name="onChange"/> with the newly evaluated double whenever an update
-    /// carries <paramref name="configKey"/>.
+    /// carries or removes <paramref name="configKey"/>.
     /// </summary>
     /// <inheritdoc cref="Watch(string, int, Action{int}, Context)"/>
     IDisposable Watch(string configKey, double defaultValue, Action<double> onChange, Context? context = null);
 
     /// <summary>
     /// Calls <paramref name="onChange"/> with the newly evaluated float whenever an update
-    /// carries <paramref name="configKey"/>.
+    /// carries or removes <paramref name="configKey"/>.
     /// </summary>
     /// <inheritdoc cref="Watch(string, int, Action{int}, Context)"/>
     IDisposable Watch(string configKey, float defaultValue, Action<float> onChange, Context? context = null);
 
     /// <summary>
     /// Calls <paramref name="onChange"/> with the newly evaluated decimal whenever an update
-    /// carries <paramref name="configKey"/>.
+    /// carries or removes <paramref name="configKey"/>.
     /// </summary>
     /// <inheritdoc cref="Watch(string, int, Action{int}, Context)"/>
     IDisposable Watch(string configKey, decimal defaultValue, Action<decimal> onChange, Context? context = null);
 
     /// <summary>
     /// Calls <paramref name="onChange"/> with the newly evaluated boolean whenever an update
-    /// carries <paramref name="configKey"/>.
+    /// carries or removes <paramref name="configKey"/>.
     /// </summary>
     /// <inheritdoc cref="Watch(string, int, Action{int}, Context)"/>
     IDisposable Watch(string configKey, bool defaultValue, Action<bool> onChange, Context? context = null);
 
     /// <summary>
     /// Calls <paramref name="onChange"/> with the newly evaluated text whenever an update
-    /// carries <paramref name="configKey"/>.
+    /// carries or removes <paramref name="configKey"/>.
     /// </summary>
     /// <remarks>
     /// The value arrives as the server spelled it, with no parsing, so any config can be
@@ -236,7 +239,7 @@ public interface IConfigDirectorClient : IDisposable, IAsyncDisposable
 
     /// <summary>
     /// Calls <paramref name="onChange"/> with the newly evaluated JSON whenever an update
-    /// carries <paramref name="configKey"/>.
+    /// carries or removes <paramref name="configKey"/>.
     /// </summary>
     /// <remarks>
     /// The config's JSON arrives whole, whatever shape it is. Use
@@ -247,7 +250,7 @@ public interface IConfigDirectorClient : IDisposable, IAsyncDisposable
 
     /// <summary>
     /// Calls <paramref name="onChange"/> with the config's JSON bound to <typeparamref name="T"/>
-    /// whenever an update carries <paramref name="configKey"/>.
+    /// whenever an update carries or removes <paramref name="configKey"/>.
     /// </summary>
     /// <remarks>
     /// The watching counterpart of <see cref="GetJsonValue{T}"/>, and it binds on the same terms:

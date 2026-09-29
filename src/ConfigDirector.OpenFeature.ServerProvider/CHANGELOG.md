@@ -11,6 +11,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- `PROVIDER_CONFIGURATION_CHANGED` now lists the flags a full update removed in `FlagsChanged`,
+  after the flags the update carried. Before, a removed flag was not reported as changed.
+
 - Default a percentage rollout to bucket 0 when there is no context identifier provided, rather than randomly assign on each evaluation.
 
 ## [1.2.1] - 2026-09-26

@@ -450,15 +450,15 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
         // A delta carries only what changed, so it is merged into what is already held. A full
         // bundle is the entire config state and replaces it, which is also how a config that was
         // deleted stops being served.
-        _configs = bundle.Kind == BundleKind.Delta && current is not null
-            ? Merge(current, bundle.Configs)
-            : bundle.Configs;
+        var isDelta = bundle.Kind == BundleKind.Delta && current is not null;
+        _configs = isDelta ? Merge(current!, bundle.Configs) : bundle.Configs;
+        var removedKeys = isDelta || current is null ? [] : KeysAbsentFrom(current, bundle.Configs);
 
-        Log.ConfigStateUpdated(_logger, bundle.Configs.Count, null);
+        Log.ConfigStateUpdated(_logger, bundle.Configs.Count, removedKeys.Length, null);
 
         var keys = bundle.Configs.Keys.OrderBy(key => key, StringComparer.Ordinal).ToArray();
-        Raise(ConfigsUpdated, new ConfigsUpdatedEventArgs(keys), nameof(ConfigsUpdated));
-        NotifyWatchers(bundle.Configs);
+        Raise(ConfigsUpdated, new ConfigsUpdatedEventArgs(keys, removedKeys), nameof(ConfigsUpdated));
+        NotifyWatchers(bundle.Configs, removedKeys);
 
         if (firstBundle)
         {
@@ -486,36 +486,54 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
         return merged;
     }
 
-    // Notified from the update rather than from the merged state: a watch only fires for a key the
-    // update carried, and for those two the definition is the same one.
-    private void NotifyWatchers(IReadOnlyDictionary<string, Config> updated)
+    private static string[] KeysAbsentFrom(
+        IReadOnlyDictionary<string, Config> previous,
+        IReadOnlyDictionary<string, Config> updated) =>
+        previous.Keys
+            .Where(key => !updated.ContainsKey(key))
+            .OrderBy(key => key, StringComparer.Ordinal)
+            .ToArray();
+
+    // Notified from the update rather than from the merged state: for a key the update carried the
+    // two hold the same definition, and a removed key has none, so its watches get the default.
+    private void NotifyWatchers(IReadOnlyDictionary<string, Config> updated, string[] removedKeys)
     {
         foreach (var entry in updated)
         {
-            Watcher[] entries;
-            lock (_watchLock)
-            {
-                if (!_watchers.TryGetValue(entry.Key, out var registered))
-                {
-                    continue;
-                }
+            NotifyWatchers(entry.Key, entry.Value);
+        }
 
-                // Copied, so a watch cancelling itself cannot edit the list being walked.
-                entries = [.. registered];
+        foreach (var key in removedKeys)
+        {
+            NotifyWatchers(key, null);
+        }
+    }
+
+    private void NotifyWatchers(string key, Config? definition)
+    {
+        Watcher[] entries;
+        lock (_watchLock)
+        {
+            if (!_watchers.TryGetValue(key, out var registered))
+            {
+                return;
             }
 
-            foreach (var watcher in entries)
+            // Copied, so a watch cancelling itself cannot edit the list being walked.
+            entries = [.. registered];
+        }
+
+        foreach (var watcher in entries)
+        {
+            try
             {
-                try
-                {
-                    watcher.Notify(entry.Value);
-                }
-                catch (Exception error)
-                {
-                    // One faulty watch must not cost the others their update, nor take down the
-                    // thread the update arrived on.
-                    Log.WatchThrew(_logger, entry.Key, error);
-                }
+                watcher.Notify(definition);
+            }
+            catch (Exception error)
+            {
+                // One faulty watch must not cost the others their update, nor take down the
+                // thread the update arrived on.
+                Log.WatchThrew(_logger, key, error);
             }
         }
     }
@@ -576,9 +594,9 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
 
     // Identity, not equality: two identical watches stay distinct, so cancelling one leaves the
     // other in place.
-    private sealed class Watcher(Action<Config> notify)
+    private sealed class Watcher(Action<Config?> notify)
     {
-        internal void Notify(Config definition) => notify(definition);
+        internal void Notify(Config? definition) => notify(definition);
     }
 
     private sealed class Cancellation(Action cancel) : IDisposable
@@ -629,11 +647,11 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
                 new EventId(2, "NoConfigState"),
                 "No config state was found for {ConfigKey}, returning the default value.");
 
-        internal static readonly Action<ILogger, int, Exception?> ConfigStateUpdated =
-            LoggerMessage.Define<int>(
+        internal static readonly Action<ILogger, int, int, Exception?> ConfigStateUpdated =
+            LoggerMessage.Define<int, int>(
                 LogLevel.Debug,
                 new EventId(3, "ConfigStateUpdated"),
-                "Config state updated with {ConfigCount} key(s).");
+                "Config state updated with {ConfigCount} key(s), {RemovedCount} removed.");
 
         internal static readonly Action<ILogger, string, Exception?> HandlerThrew =
             LoggerMessage.Define<string>(

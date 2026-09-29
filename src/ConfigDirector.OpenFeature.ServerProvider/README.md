@@ -77,7 +77,8 @@ reports `PROVIDER_NOT_READY`. In every error case the default you passed is retu
 
 ## Events
 
-The provider emits `PROVIDER_CONFIGURATION_CHANGED` with the keys each update carried. If the first
+The provider emits `PROVIDER_CONFIGURATION_CHANGED` with the keys each update carried, followed by
+the keys a full update removed. If the first
 config state does not arrive within the configured timeout, initialization still completes and the
 provider emits `PROVIDER_READY` once it does.
 

@@ -229,6 +229,22 @@ public sealed class ConfigDirectorProviderTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task EmitsConfigurationChangedWithRemovedFlagsAfterTheFlagsAnUpdateCarried()
+    {
+        var provider = await ReadyAsync(Bundles.Of(
+            Bundles.Config("greeting", "string", "\"Bye\""),
+            Bundles.Config("show-banner", "boolean", "true")));
+        await NextEventAsync(provider);
+
+        _server.Push(Bundles.Of(Bundles.Config("greeting", "string", "\"Ciao\"")));
+
+        var update = await NextEventAsync(provider);
+        update.Type.ShouldBe(ProviderEventTypes.ProviderConfigurationChanged);
+        update.FlagsChanged.ShouldBe(["greeting", "show-banner"]);
+        (await provider.ResolveBooleanValueAsync("show-banner", false, null, Cancellation)).Value.ShouldBeFalse();
+    }
+
+    [Fact]
     public async Task FinishesInitializingWithoutConfigsAndBecomesReadyWhenTheyArrive()
     {
         _server.Bundle = Bundles.Of(Bundles.Config("show-banner", "boolean", "true"));
