@@ -14,6 +14,13 @@ public class ArrayComparisonTests
     }
 
     [Fact]
+    public void ComparesElementsCaseSensitively()
+    {
+        Compare(Array("Blue", "RED"), "contains any of", "blue").ShouldBeFalse();
+        Compare(Array("Blue", "RED"), "does NOT contain any of", "blue").ShouldBeTrue();
+    }
+
+    [Fact]
     public void MatchesAnyOfSeveralTargets() =>
         Compare(Array("a", "b"), "contains any of", "x", "b").ShouldBeTrue();
 

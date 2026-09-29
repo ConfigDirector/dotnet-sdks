@@ -57,6 +57,18 @@ public class TextComparisonTests
         Compare("abc", op).ShouldBe(expected);
 
     [Theory]
+    [InlineData("equals", "premium", false)]
+    [InlineData("does NOT equal", "premium", true)]
+    [InlineData("is one of", "premium", false)]
+    [InlineData("is NOT one of", "premium", true)]
+    [InlineData("starts with any of", "pre", false)]
+    [InlineData("does NOT start with any of", "pre", true)]
+    [InlineData("ends with any of", "IUM", false)]
+    [InlineData("does NOT end with any of", "IUM", true)]
+    public void ComparesValuesCaseSensitively(string op, string target, bool expected) =>
+        Compare("Premium", op, target).ShouldBe(expected);
+
+    [Theory]
     [InlineData("IS ONE OF")]
     [InlineData("is one of")]
     [InlineData("Is One Of")]
