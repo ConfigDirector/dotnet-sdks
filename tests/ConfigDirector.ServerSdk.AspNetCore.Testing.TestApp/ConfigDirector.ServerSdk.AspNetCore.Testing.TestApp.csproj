@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!-- The application ConfigDirector.ServerSdk.AspNetCore.Testing.Tests starts through
+       WebApplicationFactory: it calls AddConfigDirector without an SDK key, so it can only start
+       with a test client registered. -->
+  <PropertyGroup>
+    <RootNamespace>ConfigDirector.AspNetCore.Testing.TestApp</RootNamespace>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!-- An application, not a test project: the test runner the tests folder adds by default would
+       otherwise supply a second entry point. -->
+  <ItemGroup>
+    <PackageReference Remove="xunit.v3" />
+    <PackageReference Remove="Shouldly" />
+    <Using Remove="Xunit" />
+    <Using Remove="Shouldly" />
+    <Content Remove="$(MSBuildThisFileDirectory)../xunit.runner.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/ConfigDirector.ServerSdk.AspNetCore/ConfigDirector.ServerSdk.AspNetCore.csproj" />
+  </ItemGroup>
+
+</Project>

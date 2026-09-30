@@ -1,9 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <Import Project="Version.props" />
+
   <PropertyGroup>
     <RootNamespace>ConfigDirector</RootNamespace>
-    <!-- The version this package releases at. The release workflow checks the tag against it. -->
-    <VersionPrefix>1.5.1</VersionPrefix>
     <Description>Server SDK for ConfigDirector, a remote configuration and feature flag service.</Description>
   </PropertyGroup>
 
@@ -30,6 +30,13 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="ConfigDirector.OpenFeature.ServerProvider" />
+  </ItemGroup>
+
+  <!-- The testing package builds a client over the internal in-memory connection. It is released
+       with the SDK at the same version and checks that at runtime, since a consumer's NuGet graph
+       can resolve a newer SDK than the one it was built against. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="ConfigDirector.ServerSdk.Testing" />
   </ItemGroup>
 
 </Project>

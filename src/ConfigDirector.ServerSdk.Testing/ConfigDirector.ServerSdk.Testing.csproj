@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Released with the SDK and always at its version: the package reaches the SDK's internal
+       in-memory connection, so it works only against the very SDK build it was compiled with. -->
+  <Import Project="../ConfigDirector.ServerSdk/Version.props" />
+
+  <PropertyGroup>
+    <RootNamespace>ConfigDirector.Testing</RootNamespace>
+    <Description>Testing tools for the ConfigDirector server SDK: a real client over an in-memory connection that a test seeds and changes, with no network and no telemetry.</Description>
+  </PropertyGroup>
+
+  <!-- netstandard2.0 has no trimming or AOT story, and the analyzers do not run there. -->
+  <PropertyGroup Condition="'$(TargetFramework)' != 'netstandard2.0'">
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../ConfigDirector.ServerSdk/ConfigDirector.ServerSdk.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ConfigDirector.ServerSdk.Testing.Tests" />
+  </ItemGroup>
+
+  <!-- A ProjectReference packs as a floor ("this version or newer"), which would let a consumer's
+       graph pair this package with a newer SDK whose internals may have moved. The dependency is
+       rewritten to the exact version instead, so restore itself keeps the two together. -->
+  <Target Name="PinTheSdkDependencyToTheExactVersion" AfterTargets="_GetProjectReferenceVersions">
+    <ItemGroup>
+      <_ProjectReferencesWithVersions Update="@(_ProjectReferencesWithVersions)" Condition="'%(Filename)' == 'ConfigDirector.ServerSdk'">
+        <ProjectVersion>[%(_ProjectReferencesWithVersions.ProjectVersion)]</ProjectVersion>
+      </_ProjectReferencesWithVersions>
+    </ItemGroup>
+  </Target>
+
+</Project>

@@ -18,6 +18,16 @@ Or as a package reference:
 <PackageReference Include="ConfigDirector.ServerSdk" Version="1.5.1" />
 ```
 
+## Test your code
+
+`ConfigDirector.ServerSdk.Testing` creates a **test client**: this SDK's real client connected to an
+in-memory server that your test controls, with no network connection and no telemetry. Seed values,
+change them mid-test so watches and `ConfigsUpdated` fire, and hold or fail initialization to test
+loading states. Add it to your test project only; see
+[its README](https://github.com/ConfigDirector/dotnet-sdks/tree/main/src/ConfigDirector.ServerSdk.Testing).
+For an ASP.NET Core application, `ConfigDirector.ServerSdk.AspNetCore.Testing` registers the test
+client with the application under test.
+
 ## Trimming and native AOT
 
 The package is annotated `IsAotCompatible`, so a trimmed or AOT-published application gets no

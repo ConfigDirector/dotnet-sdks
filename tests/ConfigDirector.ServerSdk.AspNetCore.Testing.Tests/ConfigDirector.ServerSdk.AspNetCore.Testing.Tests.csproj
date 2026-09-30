@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>ConfigDirector.AspNetCore.Testing.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <ProjectReference Include="../../src/ConfigDirector.ServerSdk.AspNetCore.Testing/ConfigDirector.ServerSdk.AspNetCore.Testing.csproj" />
+    <ProjectReference Include="../ConfigDirector.ServerSdk.AspNetCore.Testing.TestApp/ConfigDirector.ServerSdk.AspNetCore.Testing.TestApp.csproj" />
+  </ItemGroup>
+
+</Project>

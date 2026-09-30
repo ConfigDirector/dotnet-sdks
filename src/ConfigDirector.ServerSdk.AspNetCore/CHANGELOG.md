@@ -11,6 +11,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- The README and the `AddConfigDirector` documentation point integration tests at
+  `AddConfigDirectorTestClient` from the new `ConfigDirector.ServerSdk.AspNetCore.Testing` package,
+  rather than at registering a fake ahead of `AddConfigDirector`, which
+  `WebApplicationFactory.ConfigureTestServices` cannot do.
 - Requires the [`ConfigDirector.ServerSdk`](https://www.nuget.org/packages/ConfigDirector.ServerSdk)
   release that carries the polling interval change. A `Connection:PollingInterval` below 1 minute
   no longer fails to bind with an `ArgumentOutOfRangeException`: the configured value binds as

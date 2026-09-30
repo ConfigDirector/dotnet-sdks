@@ -1,6 +1,6 @@
 # ConfigDirector .NET SDKs
 
-[![CI][ci-badge]][ci] [![NuGet ServerSdk][nuget-badge]][nuget] [![NuGet AspNetCore][nuget-aspnet-badge]][nuget-aspnet] [![NuGet OpenFeature][nuget-openfeature-badge]][nuget-openfeature]
+[![CI][ci-badge]][ci] [![NuGet ServerSdk][nuget-badge]][nuget] [![NuGet AspNetCore][nuget-aspnet-badge]][nuget-aspnet] [![NuGet Testing][nuget-testing-badge]][nuget-testing] [![NuGet AspNetCore Testing][nuget-aspnet-testing-badge]][nuget-aspnet-testing] [![NuGet OpenFeature][nuget-openfeature-badge]][nuget-openfeature]
 
 .NET server SDK and [OpenFeature](https://openfeature.dev) server provider for [ConfigDirector](https://www.configdirector.com), remote config and feature flags with typed values, JSON Schema validation, and safe renames of live flags. Start free, no card required.
 
@@ -10,6 +10,10 @@ Each package carries its own README and changelog:
   [changelog](src/ConfigDirector.ServerSdk/CHANGELOG.md)
 - [`ConfigDirector.ServerSdk.AspNetCore`](src/ConfigDirector.ServerSdk.AspNetCore/) --
   [changelog](src/ConfigDirector.ServerSdk.AspNetCore/CHANGELOG.md)
+- [`ConfigDirector.ServerSdk.Testing`](src/ConfigDirector.ServerSdk.Testing/) --
+  [changelog](src/ConfigDirector.ServerSdk.Testing/CHANGELOG.md)
+- [`ConfigDirector.ServerSdk.AspNetCore.Testing`](src/ConfigDirector.ServerSdk.AspNetCore.Testing/) --
+  [changelog](src/ConfigDirector.ServerSdk.AspNetCore.Testing/CHANGELOG.md)
 - [`ConfigDirector.OpenFeature.ServerProvider`](src/ConfigDirector.OpenFeature.ServerProvider/) --
   [changelog](src/ConfigDirector.OpenFeature.ServerProvider/CHANGELOG.md)
 
@@ -36,6 +40,23 @@ var newCheckout = client.GetValue("new-checkout", false);
 ```
 
 Full details are in the [official documentation](https://docs.configdirector.com/sdks/server/dotnet).
+
+## Test your code
+
+`ConfigDirector.ServerSdk.Testing` creates a test client: the real client connected to an in-memory
+server that your test seeds and changes, with no network and no telemetry. In an ASP.NET Core
+application, `ConfigDirector.ServerSdk.AspNetCore.Testing` registers it with the application under
+test.
+
+```csharp
+using ConfigDirector.Testing;
+
+await using var testClient = ConfigDirectorTesting.CreateTestClient(
+    new Dictionary<string, object> { ["new-checkout"] = true });
+await testClient.Client.InitializeAsync();
+
+var newCheckout = testClient.Client.GetValue("new-checkout", false);
+```
 
 ## Retrieve a value through OpenFeature
 
@@ -110,5 +131,9 @@ dotnet run --project samples/ConfigDirector.Samples.OpenFeature.NativeAot
 [nuget]: https://www.nuget.org/packages/ConfigDirector.ServerSdk
 [nuget-aspnet-badge]: https://img.shields.io/nuget/v/ConfigDirector.ServerSdk.AspNetCore?label=ConfigDirector.ServerSdk.AspNetCore
 [nuget-aspnet]: https://www.nuget.org/packages/ConfigDirector.ServerSdk.AspNetCore
+[nuget-testing-badge]: https://img.shields.io/nuget/v/ConfigDirector.ServerSdk.Testing?label=ConfigDirector.ServerSdk.Testing
+[nuget-testing]: https://www.nuget.org/packages/ConfigDirector.ServerSdk.Testing
+[nuget-aspnet-testing-badge]: https://img.shields.io/nuget/v/ConfigDirector.ServerSdk.AspNetCore.Testing?label=ConfigDirector.ServerSdk.AspNetCore.Testing
+[nuget-aspnet-testing]: https://www.nuget.org/packages/ConfigDirector.ServerSdk.AspNetCore.Testing
 [nuget-openfeature-badge]: https://img.shields.io/nuget/v/ConfigDirector.OpenFeature.ServerProvider?label=ConfigDirector.OpenFeature.ServerProvider
 [nuget-openfeature]: https://www.nuget.org/packages/ConfigDirector.OpenFeature.ServerProvider

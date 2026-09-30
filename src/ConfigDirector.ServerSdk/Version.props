@@ -1,0 +1,11 @@
+<Project>
+
+  <!-- The version ConfigDirector.ServerSdk releases at. The release workflow checks the tag against
+       it. ConfigDirector.ServerSdk.Testing and ConfigDirector.ServerSdk.AspNetCore.Testing import
+       this file too: they rely on the SDK's internals, so they are released with the SDK and always
+       carry its version. -->
+  <PropertyGroup>
+    <VersionPrefix>1.5.1</VersionPrefix>
+  </PropertyGroup>
+
+</Project>

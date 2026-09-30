@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Released with ConfigDirector.ServerSdk.Testing and always at its version, which is the SDK's. -->
+  <Import Project="../ConfigDirector.ServerSdk/Version.props" />
+
+  <PropertyGroup>
+    <!-- Overrides the repository default, as ConfigDirector.ServerSdk.AspNetCore does: the package
+         it extends is net8.0 only. -->
+    <TargetFrameworks>net8.0</TargetFrameworks>
+    <RootNamespace>ConfigDirector.Testing</RootNamespace>
+    <Description>Registers a ConfigDirector test client with an ASP.NET Core application under test, in place of the client AddConfigDirector builds.</Description>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="../ConfigDirector.ServerSdk.AspNetCore/ConfigDirector.ServerSdk.AspNetCore.csproj" />
+    <ProjectReference Include="../ConfigDirector.ServerSdk.Testing/ConfigDirector.ServerSdk.Testing.csproj" />
+  </ItemGroup>
+
+  <!-- This package uses only public types of both packages it depends on, so the AspNetCore
+       dependency stays a floor. The Testing dependency is pinned exactly, because that package is
+       itself pinned to the SDK and the three ship together. -->
+  <Target Name="PinTheTestingDependencyToTheExactVersion" AfterTargets="_GetProjectReferenceVersions">
+    <ItemGroup>
+      <_ProjectReferencesWithVersions Update="@(_ProjectReferencesWithVersions)" Condition="'%(Filename)' == 'ConfigDirector.ServerSdk.Testing'">
+        <ProjectVersion>[%(_ProjectReferencesWithVersions.ProjectVersion)]</ProjectVersion>
+      </_ProjectReferencesWithVersions>
+    </ItemGroup>
+  </Target>
+
+</Project>

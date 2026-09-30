@@ -25,7 +25,10 @@ public static class ConfigDirectorServiceCollectionExtensions
     /// </para>
     /// <para>
     /// It is registered with <c>TryAdd</c>, so an <see cref="IConfigDirectorClient"/> already in the
-    /// collection is left alone — which is how an integration test substitutes a fake.
+    /// collection is left alone. An integration test registers a test client from
+    /// <c>ConfigDirector.ServerSdk.AspNetCore.Testing</c> with <c>AddConfigDirectorTestClient</c>,
+    /// which replaces this registration even from <c>WebApplicationFactory.ConfigureTestServices</c>,
+    /// where <c>TryAdd</c> ordering would not help.
     /// </para>
     /// </remarks>
     /// <param name="services">The collection to add to.</param>

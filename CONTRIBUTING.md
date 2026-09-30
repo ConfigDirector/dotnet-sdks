@@ -69,7 +69,9 @@ tag, so a package living in `src/<PackageId>/<PackageId>.csproj` needs no workfl
 Releases cut before this scheme were tagged `v1.2.3`, which the workflow no longer matches.
 
 The version lives in the package's project file, as `VersionPrefix` plus `VersionSuffix` for a
-prerelease. The workflow reads it from there and refuses a tag that disagrees with it. It is
+prerelease; the SDK's lives in `src/ConfigDirector.ServerSdk/Version.props`, which its project and
+the two testing packages import. The workflow reads it from there and refuses a tag that disagrees
+with it. It is
 deliberately not passed in on the command line: `-p:Version` is a global MSBuild property, so it
 flows across a `ProjectReference` and would stamp the wrong dependency version on a package that
 depends on another one here.
@@ -86,12 +88,16 @@ The same steps apply to every package; `ConfigDirector.ServerSdk` stands in for 
    `beta.1`, which produces `1.3.0-beta.1`.
 
 2. **Bump the project.** Set `VersionPrefix` (and `VersionSuffix`, if any) in
-   `src/ConfigDirector.ServerSdk/ConfigDirector.ServerSdk.csproj`.
+   `src/ConfigDirector.ServerSdk/Version.props`. Every other package keeps its own in its
+   `.csproj`.
 
 3. **Close out the changelog.** In `src/ConfigDirector.ServerSdk/CHANGELOG.md`, rename the
    `[Unreleased]` section to `[1.2.0] - YYYY-MM-DD` and open a fresh, empty `[Unreleased]` above
    it. At the bottom, point `[Unreleased]` at `compare/ConfigDirector.ServerSdk-v1.2.0...HEAD` and
-   add a `[1.2.0]` link comparing the previous tag to the new one.
+   add a `[1.2.0]` link comparing the previous tag to the new one. For the SDK, do the same in
+   `src/ConfigDirector.ServerSdk.Testing/CHANGELOG.md` and
+   `src/ConfigDirector.ServerSdk.AspNetCore.Testing/CHANGELOG.md`, which release with it at the
+   same version and link to the same tags.
 
 4. **Check the version the workflow will see.** A local build appends `-dev`; setting `CI` shows
    the version as the workflow evaluates it, which is what the tag has to match:
@@ -110,8 +116,9 @@ The same steps apply to every package; `ConfigDirector.ServerSdk` stands in for 
    gh workflow run release.yml -f package=ConfigDirector.ServerSdk
    ```
 
-   It builds and tests the solution, packs the package at the version in the project, and uploads
-   the `.nupkg` and `.snupkg` as a workflow artifact without publishing anything. Download the
+   It builds and tests the solution, packs the package at the version in the project (for the
+   SDK, the two testing packages as well), and uploads the `.nupkg` and `.snupkg` as a workflow
+   artifact without publishing anything. Download the
    artifact and check what would ship: the version, the README, and the dependencies in the
    `.nuspec`. The rehearsal does not run the dependency check described below; that runs only when
    publishing.
@@ -129,15 +136,47 @@ The same steps apply to every package; `ConfigDirector.ServerSdk` stands in for 
    rejects, such as a downgrade, fails here rather than in a user's build. The
    `Publish` job checks that every dependency on another package here is already on nuget.org,
    pushes the package and its symbols, and creates a GitHub release named after the tag with
-   generated notes. If `Pack` fails, fix the cause, delete the tag, and start again from step 5. If
-   `Publish` fails before pushing, nothing has been published and the job can simply be re-run.
+   generated notes. For the SDK it then pushes the two testing packages, each after nuget.org has
+   indexed the one before it (see [The testing packages](#the-testing-packages)). If `Pack` fails,
+   fix the cause, delete the tag, and start again from step 5. If `Publish` fails before pushing,
+   nothing has been published and the job can simply be re-run; a push of what is already on
+   nuget.org is skipped, so a re-run after a partial failure resumes where it stopped.
 
 9. **Confirm on nuget.org.** Indexing takes a few minutes. The package page shows the new version
    once it has been indexed, and a consumer can restore it from then on.
 
 A package published for the first time also needs a trusted publishing policy for its id on
 nuget.org, matching this repository and `release.yml`. Without one, `Publish` fails at the login
-step with nothing pushed.
+step with nothing pushed. The first SDK release that carries the testing packages needs policies
+for `ConfigDirector.ServerSdk.Testing` and `ConfigDirector.ServerSdk.AspNetCore.Testing` as well.
+
+### The testing packages
+
+`ConfigDirector.ServerSdk.Testing` builds a client over the SDK's internal in-memory connection,
+which the SDK exposes to it through `InternalsVisibleTo`. That binding is by signature, and NuGet
+lets a consumer's graph resolve a newer SDK than the package was built against, so the two are kept
+together three ways:
+
+- **One version.** Both testing packages import `src/ConfigDirector.ServerSdk/Version.props`
+  instead of declaring a `VersionPrefix`, so they always carry the SDK's version.
+- **Exact dependencies.** A `ProjectReference` packs as a floor, so each testing project rewrites
+  its `ProjectVersion` metadata to `[x.y.z]` in a target that runs after
+  `_GetProjectReferenceVersions`: `ConfigDirector.ServerSdk.Testing` pins the SDK, and
+  `ConfigDirector.ServerSdk.AspNetCore.Testing` pins `ConfigDirector.ServerSdk.Testing`. Its
+  dependency on `ConfigDirector.ServerSdk.AspNetCore` stays a floor, because it uses only public
+  types of that package. When a consumer's graph still forces a newer SDK, NuGet warns (NU1608)
+  and resolves it.
+- **A runtime check.** `CreateTestClient` compares the SDK assembly's informational version with
+  its own before touching any internal member, and throws an `InvalidOperationException` naming
+  both when they differ.
+
+They release from the SDK's tag: `release.yml` packs all three on `ConfigDirector.ServerSdk-v*`,
+pushes the SDK, waits for nuget.org to index it (`scripts/wait-for-package-indexed.sh`), pushes
+`ConfigDirector.ServerSdk.Testing`, waits again, and pushes
+`ConfigDirector.ServerSdk.AspNetCore.Testing`. The waits are what keep the exact dependencies
+restorable: nuget.org accepts a package whose dependencies it has not indexed yet. A tag naming a
+testing package on its own is rejected. Every SDK release therefore releases both testing packages
+too, with a changelog entry in each, if only to say that they now require the new SDK version.
 
 ### A package that depends on another package here
 

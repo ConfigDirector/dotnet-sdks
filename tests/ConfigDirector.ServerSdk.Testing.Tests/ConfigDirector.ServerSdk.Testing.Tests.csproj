@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>ConfigDirector.Testing.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/ConfigDirector.ServerSdk.Testing/ConfigDirector.ServerSdk.Testing.csproj" />
+  </ItemGroup>
+
+  <!-- Shared with the server SDK's suite rather than copied, so the capturing logger cannot drift
+       between them. -->
+  <ItemGroup>
+    <Compile Include="../ConfigDirector.ServerSdk.Tests/CapturingLogger.cs" Link="Shared/CapturingLogger.cs" />
+    <Compile Include="../ConfigDirector.ServerSdk.Tests/CapturingLoggerFactory.cs" Link="Shared/CapturingLoggerFactory.cs" />
+  </ItemGroup>
+
+</Project>

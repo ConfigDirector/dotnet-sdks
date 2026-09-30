@@ -12,8 +12,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ### Added
 
 - An internal in-memory connection, `ConfigDirector.Transport.InMemoryConnection`, that builds a real
-  client over an in-memory transport with telemetry switched off, for the upcoming
-  `ConfigDirector.ServerSdk.Testing` package, which reaches it through `InternalsVisibleTo`.
+  client over an in-memory transport with telemetry switched off, for the
+  `ConfigDirector.ServerSdk.Testing` package, which reaches it through `InternalsVisibleTo` and is
+  released with the SDK at the same version.
 - `ConfigsUpdatedEventArgs.RemovedKeys`: the keys a full update no longer carried, sorted, so a
   handler can tell a config that was removed from one that was updated. `Keys` still lists only the
   keys the update carried.

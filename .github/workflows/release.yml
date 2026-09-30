@@ -13,6 +13,11 @@ name: release
 #
 # One workflow serves every package, since a package's project path follows its id. Releases before
 # this scheme were tagged v1.0.0, which this workflow deliberately no longer matches.
+#
+# The ConfigDirector.ServerSdk tag also releases ConfigDirector.ServerSdk.Testing and
+# ConfigDirector.ServerSdk.AspNetCore.Testing. They rely on the SDK's internals, carry its version,
+# and pin it exactly, so they are packed with it and pushed after it, one at a time, as nuget.org
+# indexes each one. They cannot be tagged on their own.
 on:
   push:
     tags:
@@ -43,6 +48,7 @@ jobs:
     timeout-minutes: 15
     outputs:
       package: ${{ steps.release.outputs.package }}
+      packages: ${{ steps.release.outputs.packages }}
       version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v7
@@ -87,7 +93,22 @@ jobs:
             exit 1
           fi
 
+          # The testing packages ship from the SDK's tag, in dependency order.
+          case "$package" in
+            ConfigDirector.ServerSdk.Testing | ConfigDirector.ServerSdk.AspNetCore.Testing)
+              echo "::error::$package is released with ConfigDirector.ServerSdk and carries its version. Tag ConfigDirector.ServerSdk-v<version> instead, which publishes all three."
+              exit 1
+              ;;
+            ConfigDirector.ServerSdk)
+              packages="$package ConfigDirector.ServerSdk.Testing ConfigDirector.ServerSdk.AspNetCore.Testing"
+              ;;
+            *)
+              packages="$package"
+              ;;
+          esac
+
           echo "package=$package" >> "$GITHUB_OUTPUT"
+          echo "packages=$packages" >> "$GITHUB_OUTPUT"
           echo "tagged=$tagged" >> "$GITHUB_OUTPUT"
           echo "project=$project" >> "$GITHUB_OUTPUT"
 
@@ -119,7 +140,10 @@ jobs:
 
       - run: scripts/verify-packages-restore.sh restore-check/*.nupkg
 
-      - run: dotnet pack "${{ steps.release.outputs.project }}" -c "$CONFIGURATION" -o artifacts
+      - run: |
+          for package in ${{ steps.release.outputs.packages }}; do
+            dotnet pack "src/$package/$package.csproj" -c "$CONFIGURATION" -o artifacts
+          done
 
       - uses: actions/upload-artifact@v7
         with:
@@ -133,7 +157,8 @@ jobs:
     needs: pack
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Room for nuget.org to index each of the SDK's companion packages before the next is pushed.
+    timeout-minutes: 60
     permissions:
       # id-token lets nuget.org verify this workflow through OIDC and hand back a short-lived key,
       # so no long-lived credential is stored anywhere. contents is for the GitHub release.
@@ -150,8 +175,10 @@ jobs:
           path: artifacts
 
       # Before the credential is fetched, so an out-of-order release fails having published
-      # nothing. Two release tags pushed together run in parallel and in no particular order.
-      - run: scripts/verify-dependencies-published.sh artifacts/*.nupkg
+      # nothing. Two release tags pushed together run in parallel and in no particular order. The
+      # first package is the tagged one; the packages after it depend on it and are checked again
+      # below, once it has been pushed and indexed.
+      - run: scripts/verify-dependencies-published.sh "artifacts/$(echo "${{ needs.pack.outputs.packages }}" | cut -d' ' -f1).${{ needs.pack.outputs.version }}.nupkg"
 
       # Exchanges this run's OIDC token for a key that expires within the hour. The trusted
       # publishing policy on nuget.org decides whether to issue one, matching on this repository,
@@ -161,12 +188,30 @@ jobs:
         with:
           user: ${{ vars.NUGET_USER }}
 
-      # The symbol package next to it is pushed with it.
+      # In dependency order. The symbol package next to each one is pushed with it. A package that
+      # pins the one before it exactly is pushed only once nuget.org has indexed that one, since
+      # nuget.org would otherwise accept a package nobody can restore. --skip-duplicate lets a
+      # failed run be re-run: what was pushed already is skipped and the rest continues.
       - run: |
-          dotnet nuget push "artifacts/*.nupkg" \
-            --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" \
-            --source https://api.nuget.org/v3/index.json \
-            --skip-duplicate
+          version="${{ needs.pack.outputs.version }}"
+          packages=(${{ needs.pack.outputs.packages }})
+          last=$(( ${#packages[@]} - 1 ))
+
+          for index in "${!packages[@]}"; do
+            package="${packages[$index]}"
+            nupkg="artifacts/$package.$version.nupkg"
+
+            scripts/verify-dependencies-published.sh "$nupkg"
+
+            dotnet nuget push "$nupkg" \
+              --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" \
+              --source https://api.nuget.org/v3/index.json \
+              --skip-duplicate
+
+            if [ "$index" -lt "$last" ]; then
+              scripts/wait-for-package-indexed.sh "$package" "$version"
+            fi
+          done
 
       - run: |
           gh release create "$GITHUB_REF_NAME" artifacts/*.nupkg \

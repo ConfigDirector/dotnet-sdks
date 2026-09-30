@@ -45,8 +45,13 @@ Pass an `IConfiguration` to bind a section under a different name.
 informational version, so targeting rules can match on the application without configuring either.
 
 The client is a singleton and the container disposes it on shutdown. It is registered with
-`TryAdd`, so an `IConfigDirectorClient` already in the collection is left alone -- which is how an
-integration test substitutes a fake.
+`TryAdd`, so an `IConfigDirectorClient` already in the collection is left alone.
+
+To test the application without a network connection, register a test client from
+[`ConfigDirector.ServerSdk.AspNetCore.Testing`](https://github.com/ConfigDirector/dotnet-sdks/tree/main/src/ConfigDirector.ServerSdk.AspNetCore.Testing)
+with `services.AddConfigDirectorTestClient(testClient)`. It replaces the client registered here,
+also from `WebApplicationFactory.ConfigureTestServices`, which runs after `AddConfigDirector` and
+so cannot rely on `TryAdd`.
 
 ## Startup
 

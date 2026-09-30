@@ -2,6 +2,8 @@
   <Folder Name="/src/">
     <Project Path="src/ConfigDirector.ServerSdk/ConfigDirector.ServerSdk.csproj" />
     <Project Path="src/ConfigDirector.ServerSdk.AspNetCore/ConfigDirector.ServerSdk.AspNetCore.csproj" />
+    <Project Path="src/ConfigDirector.ServerSdk.Testing/ConfigDirector.ServerSdk.Testing.csproj" />
+    <Project Path="src/ConfigDirector.ServerSdk.AspNetCore.Testing/ConfigDirector.ServerSdk.AspNetCore.Testing.csproj" />
     <Project Path="src/ConfigDirector.OpenFeature.ServerProvider/ConfigDirector.OpenFeature.ServerProvider.csproj" />
   </Folder>
   <Folder Name="/samples/">
@@ -14,6 +16,9 @@
   <Folder Name="/tests/">
     <Project Path="tests/ConfigDirector.ServerSdk.Tests/ConfigDirector.ServerSdk.Tests.csproj" />
     <Project Path="tests/ConfigDirector.ServerSdk.AspNetCore.Tests/ConfigDirector.ServerSdk.AspNetCore.Tests.csproj" />
+    <Project Path="tests/ConfigDirector.ServerSdk.Testing.Tests/ConfigDirector.ServerSdk.Testing.Tests.csproj" />
+    <Project Path="tests/ConfigDirector.ServerSdk.AspNetCore.Testing.Tests/ConfigDirector.ServerSdk.AspNetCore.Testing.Tests.csproj" />
+    <Project Path="tests/ConfigDirector.ServerSdk.AspNetCore.Testing.TestApp/ConfigDirector.ServerSdk.AspNetCore.Testing.TestApp.csproj" />
     <Project Path="tests/ConfigDirector.OpenFeature.ServerProvider.Tests/ConfigDirector.OpenFeature.ServerProvider.Tests.csproj" />
   </Folder>
 </Solution>
