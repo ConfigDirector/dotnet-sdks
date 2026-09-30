@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 namespace ConfigDirector.Telemetry;
 
 // Collects config evaluations and reports them on an interval.
-internal sealed class TelemetryCollector : IAsyncDisposable
+internal sealed class TelemetryCollector : ITelemetryCollector
 {
     // The first report comes early so that a process which runs briefly still reports what it
     // evaluated, without outrunning an interval shorter than that.
@@ -45,7 +45,7 @@ internal sealed class TelemetryCollector : IAsyncDisposable
     }
 
     // On the client's hot path, so this returns without doing any appreciable work.
-    internal void Record<T>(
+    public void Record<T>(
         string key,
         T defaultValue,
         T value,

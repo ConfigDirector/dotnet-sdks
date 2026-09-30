@@ -31,7 +31,7 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
     private readonly TimeSpan _timeout;
     private readonly ConfigEvaluator _evaluator;
     private readonly ITransport _transport;
-    private readonly TelemetryCollector _telemetry;
+    private readonly ITelemetryCollector _telemetry;
 
     // Null until the first bundle arrives, which is what separates "not ready" from "ready but the
     // server does not know this key". Only ever swapped, never edited in place, so a read on the
@@ -62,6 +62,16 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
         ConfigDirectorClientOptions? options,
         SdkIdentity identity,
         Func<ConnectionMode, TransportOptions, ITransport> buildTransport)
+        : this(serverSdkKey, options, identity, buildTransport, telemetryOptions => new TelemetryCollector(telemetryOptions))
+    {
+    }
+
+    internal ConfigDirectorClient(
+        string serverSdkKey,
+        ConfigDirectorClientOptions? options,
+        SdkIdentity identity,
+        Func<ConnectionMode, TransportOptions, ITransport> buildTransport,
+        Func<TelemetryCollectorOptions, ITelemetryCollector> buildTelemetry)
     {
         if (identity is null)
         {
@@ -88,7 +98,7 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
         var connection = settings.Connection;
         var baseUrl = connection.Url ?? Transports.DefaultBaseUrl;
 
-        _telemetry = new TelemetryCollector(
+        _telemetry = buildTelemetry(
             new TelemetryCollectorOptions(serverSdkKey, baseUrl, identity, settings.LoggerFactory)
             {
                 Metadata = settings.Metadata,
