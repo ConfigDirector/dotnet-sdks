@@ -28,14 +28,12 @@ internal sealed class StreamingTransport : ITransport
     private readonly HttpClient _http = Transports.BuildHttpClient();
     private readonly Random _jitter = new();
 
-    // Completed by the first config state, or by a failure the stream cannot recover from, so
-    // whoever is waiting on ConnectAsync is released either way.
-    private readonly TaskCompletionSource<bool> _settled =
-        new(TaskCreationOptions.RunContinuationsAsynchronously);
-
     private readonly Uri _heartbeatUrl;
     private readonly TimeSpan _heartbeatInterval;
 
+    // One connection at a time: a new ConnectAsync stops the loops of the previous one before it
+    // starts its own, and each connection settles its own waiter.
+    private CancellationTokenSource? _connection;
     private Task _reading = Task.CompletedTask;
     private Task _beating = Task.CompletedTask;
     private volatile string? _sessionId;
@@ -87,14 +85,21 @@ internal sealed class StreamingTransport : ITransport
         return Transports.RequestPayload(_options, null, sessionId);
     }
 
-    public Task ConnectAsync(CancellationToken cancellationToken)
+    public async Task ConnectAsync(CancellationToken cancellationToken)
     {
-        _reading = ReadAsync();
-        _beating = BeatAsync();
+        await StopConnectionAsync().ConfigureAwait(false);
+
+        var connection = CancellationTokenSource.CreateLinkedTokenSource(_stop.Token);
+        // Completed by the first config state, or by a failure the stream cannot recover from, so
+        // whoever is waiting on ConnectAsync is released either way.
+        var settled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _connection = connection;
+        _reading = ReadAsync(settled, connection.Token);
+        _beating = BeatAsync(connection.Token);
 
         // Returning on the timeout is not a failure: the stream keeps retrying in the background,
         // and the client reports itself unready until config state arrives.
-        return _settled.Task.WaitOrCancel(cancellationToken);
+        await settled.Task.WaitOrCancel(cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask DisposeAsync()
@@ -103,6 +108,23 @@ internal sealed class StreamingTransport : ITransport
         {
             _stop.Cancel();
         }
+
+        await StopConnectionAsync().ConfigureAwait(false);
+
+        _stop.Dispose();
+        _http.Dispose();
+    }
+
+    private async Task StopConnectionAsync()
+    {
+        var connection = _connection;
+        if (connection is null)
+        {
+            return;
+        }
+
+        _connection = null;
+        connection.Cancel();
 
         try
         {
@@ -114,28 +136,27 @@ internal sealed class StreamingTransport : ITransport
         }
 
         await _beating.ConfigureAwait(false);
-
-        _stop.Dispose();
-        _http.Dispose();
+        connection.Dispose();
+        _connected = false;
     }
 
-    private async Task BeatAsync()
+    private async Task BeatAsync(CancellationToken cancellationToken)
     {
         try
         {
             while (true)
             {
-                await Task.Delay(_heartbeatInterval, _stop.Token).ConfigureAwait(false);
-                await SendHeartbeatAsync().ConfigureAwait(false);
+                await Task.Delay(_heartbeatInterval, cancellationToken).ConfigureAwait(false);
+                await SendHeartbeatAsync(cancellationToken).ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException)
         {
-            // Disposed.
+            // Stopped.
         }
     }
 
-    private async Task SendHeartbeatAsync()
+    private async Task SendHeartbeatAsync(CancellationToken cancellationToken)
     {
         var sessionId = _sessionId;
         if (!_connected || sessionId is null)
@@ -155,7 +176,7 @@ internal sealed class StreamingTransport : ITransport
 
         try
         {
-            using var deadline = CancellationTokenSource.CreateLinkedTokenSource(_stop.Token);
+            using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             deadline.CancelAfter(_heartbeatInterval);
             using var response = await _http.SendAsync(request, deadline.Token).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
@@ -163,7 +184,7 @@ internal sealed class StreamingTransport : ITransport
                 Log.HeartbeatFailed(_logger, null);
             }
         }
-        catch (OperationCanceledException) when (_stop.IsCancellationRequested)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             throw;
         }
@@ -175,18 +196,18 @@ internal sealed class StreamingTransport : ITransport
         }
     }
 
-    private async Task ReadAsync()
+    private async Task ReadAsync(TaskCompletionSource<bool> settled, CancellationToken cancellationToken)
     {
         try
         {
-            await foreach (var message in _stream.ReadAsync(_stop.Token).ConfigureAwait(false))
+            await foreach (var message in _stream.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
-                Apply(message.Data, message.EventType);
+                Apply(message.Data, message.EventType, settled);
             }
         }
         catch (OperationCanceledException)
         {
-            // Disposed.
+            // Stopped.
         }
         catch (SseStatusException fatal)
         {
@@ -194,17 +215,17 @@ internal sealed class StreamingTransport : ITransport
             Log.Fatal(_logger, error.Message, null);
 
             // Whoever is still blocked in ConnectAsync is waiting for exactly this.
-            _settled.TrySetException(error);
+            settled.TrySetException(error);
         }
         catch (Exception error)
         {
             // The read loop must not die without saying why.
             Log.ReadStopped(_logger, error);
-            _settled.TrySetException(error);
+            settled.TrySetException(error);
         }
     }
 
-    private void Apply(string data, string eventType)
+    private void Apply(string data, string eventType, TaskCompletionSource<bool> settled)
     {
         ConfigBundle bundle;
         try
@@ -225,7 +246,7 @@ internal sealed class StreamingTransport : ITransport
         }
 
         _options.OnBundle(bundle);
-        _settled.TrySetResult(true);
+        settled.TrySetResult(true);
     }
 
     private TimeSpan ReconnectDelay(SseReconnect reconnect)

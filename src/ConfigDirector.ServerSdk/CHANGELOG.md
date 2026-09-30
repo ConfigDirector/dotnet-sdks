@@ -17,6 +17,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- Calling `InitializeAsync` again on a streaming client replaces the previous connection instead of
+  starting a second read loop and heartbeat beside it, and waits for the new connection's first
+  config state. After a fatal connection error, such as a rejected SDK key, a later `InitializeAsync`
+  connects again instead of failing at once with the earlier error.
 - A watch on a config that a full update no longer carries is now called with its default value.
   Before, the config silently stopped being served and the watch kept its last value.
 

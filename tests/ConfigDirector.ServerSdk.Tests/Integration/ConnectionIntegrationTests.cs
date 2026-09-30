@@ -139,6 +139,37 @@ public sealed class ConnectionIntegrationTests : IDisposable
         SessionIdOf(_server.Bodies[1]).ShouldNotBe(SessionIdOf(_server.Bodies[0]));
     }
 
+    [Fact]
+    public async Task RecoversWhenInitializedAgainAfterAFatalStreamingError()
+    {
+        _server.Replies(HttpStatusCode.Forbidden, "the server SDK key was revoked");
+        await using var client = Client();
+        await client.InitializeAsync(TestContext.Current.CancellationToken);
+        client.IsReady.ShouldBeFalse();
+
+        await client.InitializeAsync(TestContext.Current.CancellationToken);
+
+        client.IsReady.ShouldBeTrue();
+        client.GetValue("integer-config", 7).ShouldBe(25);
+    }
+
+    [Fact]
+    public async Task ASecondInitializeReplacesTheStreamConnectionRatherThanAddingOne()
+    {
+        await using var client = Client();
+        var updates = 0;
+        client.ConfigsUpdated += (_, _) => Interlocked.Increment(ref updates);
+        await client.InitializeAsync(TestContext.Current.CancellationToken);
+        await client.InitializeAsync(TestContext.Current.CancellationToken);
+        updates.ShouldBe(2);
+
+        _server.Push(SampleConfigs.DayOfTheWeek("Friday"));
+        await WaitAsync(() => updates >= 3);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
+
+        updates.ShouldBe(3);
+    }
+
     private static string SessionIdOf(string body)
     {
         var match = Regex.Match(body, "\"sessionId\":\"([^\"]*)\"");
