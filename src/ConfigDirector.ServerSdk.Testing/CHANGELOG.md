@@ -11,6 +11,8 @@ tag.
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-10-01
+
 ### Added
 
 - `ConfigDirectorTesting.CreateTestClient`, returning a `TestClient` whose `Client` is a real
@@ -18,3 +20,6 @@ tag.
   `RemoveValue`, `ReplaceValues`, `HoldInitialization`, `CompleteInitialization`, and
   `FailInitialization`. `TestClientOptions` carries the client's `Timeout` and `LoggerFactory`. No
   network connection is opened and no telemetry is sent.
+
+[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.6.0...HEAD
+[1.6.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.5.1...ConfigDirector.ServerSdk-v1.6.0

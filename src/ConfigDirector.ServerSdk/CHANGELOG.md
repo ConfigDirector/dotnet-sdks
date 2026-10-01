@@ -9,6 +9,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-10-01
+
 ### Added
 
 - An internal in-memory connection, `ConfigDirector.Transport.InMemoryConnection`, that builds a real
@@ -141,7 +143,8 @@ Initial release. Targets `net8.0` and `netstandard2.0`.
   telemetry is queued.
 - Source Link, deterministic builds, and a symbol package.
 
-[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.5.1...HEAD
+[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.6.0...HEAD
+[1.6.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.5.1...ConfigDirector.ServerSdk-v1.6.0
 [1.5.1]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.5.0...ConfigDirector.ServerSdk-v1.5.1
 [1.5.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.4.0...ConfigDirector.ServerSdk-v1.5.0
 [1.4.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.3.0...ConfigDirector.ServerSdk-v1.4.0

@@ -15,7 +15,7 @@ dotnet add package ConfigDirector.ServerSdk
 Or as a package reference:
 
 ```xml
-<PackageReference Include="ConfigDirector.ServerSdk" Version="1.5.1" />
+<PackageReference Include="ConfigDirector.ServerSdk" Version="1.6.0" />
 ```
 
 ## Test your code
