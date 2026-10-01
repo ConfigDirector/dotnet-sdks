@@ -96,6 +96,33 @@ which connects the client before the server listens, and shuts it down as the ho
 `IFeatureClient`, and `Api` if you need it, from the container: `AddOpenFeature` drives its own
 `Api` instance, so the static `Api.Instance` is not the one your provider is registered with.
 
+## Test your code
+
+Tests of code that reads flags through OpenFeature swap the provider for the in-memory one the
+OpenFeature .NET SDK ships, `InMemoryProvider` in `OpenFeature.Providers.Memory`, so the test
+controls the values and nothing from ConfigDirector is involved:
+
+```csharp
+using OpenFeature.Providers.Memory;
+
+var provider = new InMemoryProvider(new Dictionary<string, Flag>
+{
+    ["new-checkout"] = new Flag<bool>(new Dictionary<string, bool> { ["on"] = true, ["off"] = false }, "on"),
+});
+await Api.Instance.SetProviderAsync(provider);
+
+Assert.True(await client.GetBooleanValueAsync("new-checkout", false));
+
+await provider.UpdateFlagsAsync(new Dictionary<string, Flag>
+{
+    ["new-checkout"] = new Flag<bool>(new Dictionary<string, bool> { ["on"] = true, ["off"] = false }, "off"),
+});
+Assert.False(await client.GetBooleanValueAsync("new-checkout", true));
+```
+
+Full details are in the
+[testing section of the official documentation](https://docs.configdirector.com/sdks/openfeature/dotnet#test-your-code).
+
 ## Documentation
 
 Refer to the [official documentation for the OpenFeature .NET provider](https://docs.configdirector.com/sdks/openfeature/dotnet).

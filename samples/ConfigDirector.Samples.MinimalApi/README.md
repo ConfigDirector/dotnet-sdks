@@ -82,6 +82,30 @@ repeated `tags` parameter becomes an array trait, which `day-of-the-week-config`
 curl 'localhost:5000/configs?id=user-3&tags=beta&tags=vip'
 ```
 
+## Tests
+
+[`ConfigDirector.Samples.MinimalApi.Tests`](../ConfigDirector.Samples.MinimalApi.Tests/) drives
+the endpoints through `WebApplicationFactory<Program>` with a test client from
+`ConfigDirector.ServerSdk.Testing`: the SDK's real client connected to an in-memory server the
+test seeds, so nothing connects to ConfigDirector and no key is needed. The factory replaces the
+`IConfigDirectorClient` registration from `ConfigureTestServices`, which runs after the
+`AddSingleton` in `Program.cs`, and the startup code then initializes the test client where it
+would have initialized the real one.
+
+One factory, and so one test client, serves the whole test class; each test starts by calling
+`ReplaceValues` to reset it. The tests cover every value being served, a `SetValue` seen by the
+next request, a `RemoveValue` falling back to the in-code default, the query string arriving as
+the evaluation context, `/configs/all`, `/health`, the 404, and a failed initialization leaving
+the application up and serving every default.
+
+```bash
+dotnet test samples/ConfigDirector.Samples.MinimalApi.Tests
+```
+
+The testing package is released together with the SDK at the same version, pinned in
+[Directory.Packages.props](../../Directory.Packages.props). `UseLocalSdk` swaps in the project
+from this checkout, as it does for the sample itself.
+
 ## Settings
 
 Bound from the `ConfigDirector` section of `appsettings.json`, which holds the defaults. Anything

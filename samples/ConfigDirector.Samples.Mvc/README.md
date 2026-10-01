@@ -102,6 +102,31 @@ config differs between this sample and the hand-wired one.
 the host starts. Registering a watch in that gap is what has it called for the first config state
 as well as the updates after it.
 
+## Tests
+
+[`ConfigDirector.Samples.Mvc.Tests`](../ConfigDirector.Samples.Mvc.Tests/) drives the endpoints
+through `WebApplicationFactory<Program>` with a test client from
+`ConfigDirector.ServerSdk.Testing`: the SDK's real client connected to an in-memory server the
+test seeds, so nothing connects to ConfigDirector and no key is needed. The factory registers it
+with `AddConfigDirectorTestClient` from `ConfigDirector.ServerSdk.AspNetCore.Testing`, which
+replaces the client `AddConfigDirector` registered; the package's startup initialization then
+initializes the test client where it would have initialized the real one.
+
+One factory, and so one test client, serves the whole test class; each test starts by calling
+`ReplaceValues` to reset it. The tests cover every value being served, a `SetValue` seen by the
+next request, a `RemoveValue` falling back to the in-code default, the query string arriving as
+the evaluation context through `WithContext`, `/configs/all`, the health check reporting
+`Healthy`, the 404, and a failed initialization starting the application `Degraded` and serving
+every default.
+
+```bash
+dotnet test samples/ConfigDirector.Samples.Mvc.Tests
+```
+
+The testing packages are released together with the SDK at the same version, pinned in
+[Directory.Packages.props](../../Directory.Packages.props). `UseLocalSdk` swaps in the projects
+from this checkout, as it does for the sample itself.
+
 ## Settings
 
 Bound from the `ConfigDirector` section of [appsettings.json](appsettings.json), which holds the

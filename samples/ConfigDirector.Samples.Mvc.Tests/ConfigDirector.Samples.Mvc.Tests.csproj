@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>ConfigDirector.Samples.Mvc.Tests</RootNamespace>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="xunit.v3" />
+    <ProjectReference Include="../ConfigDirector.Samples.Mvc/ConfigDirector.Samples.Mvc.csproj" />
+  </ItemGroup>
+
+  <!-- Only the ASP.NET Core testing package either way, as the sample references only the
+       ASP.NET Core package: ConfigDirector.ServerSdk.Testing arrives transitively. The published
+       package by default, the project from this checkout under UseLocalSdk; it is released with
+       the SDK at the same version, which Directory.Packages.props pins. -->
+  <ItemGroup Condition="'$(UseLocalSdk)' == 'true'">
+    <ProjectReference Include="../../src/ConfigDirector.ServerSdk.AspNetCore.Testing/ConfigDirector.ServerSdk.AspNetCore.Testing.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(UseLocalSdk)' != 'true'">
+    <PackageReference Include="ConfigDirector.ServerSdk.AspNetCore.Testing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Shouldly" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>

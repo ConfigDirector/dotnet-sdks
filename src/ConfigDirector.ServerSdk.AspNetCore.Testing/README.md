@@ -83,7 +83,7 @@ public sealed class CheckoutTests : IClassFixture<CheckoutTests.Factory>
         protected override void ConfigureWebHost(IWebHostBuilder builder) =>
             builder.ConfigureTestServices(services => services.AddConfigDirectorTestClient(TestClient));
 
-        protected override async ValueTask DisposeAsync()
+        public override async ValueTask DisposeAsync()
         {
             await base.DisposeAsync();
             await TestClient.DisposeAsync();

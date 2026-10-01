@@ -125,6 +125,31 @@ static `Api.Instance`, so anything that needs the API, such as the `/health` end
 provider's name, takes `Api` as a dependency. Reading `Api.Instance` in a hosted application would
 show the no-op provider.
 
+## Tests
+
+[`ConfigDirector.Samples.OpenFeature.Tests`](../ConfigDirector.Samples.OpenFeature.Tests/) drives
+the endpoints through `WebApplicationFactory<Program>` with the in-memory provider the OpenFeature
+SDK ships, `InMemoryProvider`, so nothing from ConfigDirector is involved and no key is needed.
+The factory replaces the `FeatureProvider` registration that `AddProvider` made, and the hosted
+lifecycle then registers the in-memory provider at startup exactly as it would the ConfigDirector
+one.
+
+One factory, and so one provider, serves the whole test class; each test starts by calling
+`UpdateFlagsAsync` to reset it. The tests cover every flag being served, an update seen by the
+next request, a flag left out of an update falling back to the in-code default, `/configs/details`
+reporting the variant, the reason, and `FLAG_NOT_FOUND`, the query string reaching a flag's
+context evaluator as the targeting key, `name`, `anonymous`, and the `traits` structure,
+`/health` naming the in-memory provider, and the 404.
+
+```bash
+dotnet test samples/ConfigDirector.Samples.OpenFeature.Tests
+```
+
+Disposing the factory stops the host twice: once from the factory, and once more from the
+application's own `Run`, which waits for shutdown and then stops the host itself. The second stop
+runs the OpenFeature shutdown again, and `Api.ShutdownAsync` throws `ChannelClosedException` when
+its event channel is already closed, so the factory ignores that exception.
+
 ## Settings
 
 Bound from the `ConfigDirector` section of [appsettings.json](appsettings.json), which holds the

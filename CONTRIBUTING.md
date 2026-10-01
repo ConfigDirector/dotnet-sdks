@@ -45,6 +45,14 @@ breaking API change fails the build before it ships. Set it by hand to reproduce
 UseLocalSdk=true dotnet build -c Release
 ```
 
+The three web samples each have a test project next to them, `ConfigDirector.Samples.<Name>.Tests`,
+which `dotnet test` runs with the rest of the solution. The Minimal API and MVC ones test through
+the testing packages, referenced the same way the samples reference the SDK: the published
+packages at the version pinned in [Directory.Packages.props](Directory.Packages.props) by default,
+the projects from this checkout under `UseLocalSdk`. The OpenFeature one uses the in-memory
+provider the OpenFeature SDK ships. Raise the pins after a release so the samples and their tests
+track the published packages, and run the samples once without `UseLocalSdk` to check them.
+
 ### Slow tests
 
 [tests/ConfigDirector.ServerSdk.SlowTests](tests/ConfigDirector.ServerSdk.SlowTests) covers

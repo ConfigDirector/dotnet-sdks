@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>ConfigDirector.Samples.MinimalApi.Tests</RootNamespace>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="xunit.v3" />
+    <ProjectReference Include="../ConfigDirector.Samples.MinimalApi/ConfigDirector.Samples.MinimalApi.csproj" />
+  </ItemGroup>
+
+  <!-- The testing package the same way the sample references the SDK: the published package by
+       default, the project from this checkout under UseLocalSdk. It is released with the SDK at
+       the same version, which Directory.Packages.props pins. -->
+  <ItemGroup Condition="'$(UseLocalSdk)' == 'true'">
+    <ProjectReference Include="../../src/ConfigDirector.ServerSdk.Testing/ConfigDirector.ServerSdk.Testing.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(UseLocalSdk)' != 'true'">
+    <PackageReference Include="ConfigDirector.ServerSdk.Testing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Shouldly" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>

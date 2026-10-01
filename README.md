@@ -82,7 +82,9 @@ There is also [a quickstart guide for ConfigDirector and any of our SDKs](https:
 ## Sample apps
 
 [`samples/`](samples/) holds small, runnable applications built on this SDK. They are the same app
-written each way -- a single `/configs` endpoint -- so they can be read side by side.
+written each way -- a single `/configs` endpoint -- so they can be read side by side. The web
+samples each come with a test project showing how to test an application against the testing
+packages, or against OpenFeature's in-memory provider.
 
 [`ConfigDirector.Samples.MinimalApi`](samples/ConfigDirector.Samples.MinimalApi/):
 

@@ -8,9 +8,12 @@
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/ConfigDirector.Samples.MinimalApi/ConfigDirector.Samples.MinimalApi.csproj" />
+    <Project Path="samples/ConfigDirector.Samples.MinimalApi.Tests/ConfigDirector.Samples.MinimalApi.Tests.csproj" />
     <Project Path="samples/ConfigDirector.Samples.Mvc/ConfigDirector.Samples.Mvc.csproj" />
+    <Project Path="samples/ConfigDirector.Samples.Mvc.Tests/ConfigDirector.Samples.Mvc.Tests.csproj" />
     <Project Path="samples/ConfigDirector.Samples.NativeAot/ConfigDirector.Samples.NativeAot.csproj" />
     <Project Path="samples/ConfigDirector.Samples.OpenFeature/ConfigDirector.Samples.OpenFeature.csproj" />
+    <Project Path="samples/ConfigDirector.Samples.OpenFeature.Tests/ConfigDirector.Samples.OpenFeature.Tests.csproj" />
     <Project Path="samples/ConfigDirector.Samples.OpenFeature.NativeAot/ConfigDirector.Samples.OpenFeature.NativeAot.csproj" />
   </Folder>
   <Folder Name="/tests/">
