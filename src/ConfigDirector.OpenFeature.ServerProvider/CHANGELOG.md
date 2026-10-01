@@ -9,10 +9,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-01
+
 ### Changed
 
 - `PROVIDER_CONFIGURATION_CHANGED` now lists the flags a full update removed in `FlagsChanged`,
-  after the flags the update carried. Before, a removed flag was not reported as changed.
+  after the flags the update carried. Before, a removed flag was not reported as changed. Requires
+  [`ConfigDirector.ServerSdk`](https://www.nuget.org/packages/ConfigDirector.ServerSdk) 1.6.0 or later.
 
 - Default a percentage rollout to bucket 0 when there is no context identifier provided, rather than randomly assign on each evaluation.
 
@@ -72,7 +75,8 @@ later and [`OpenFeature`](https://www.nuget.org/packages/OpenFeature) 2.14.1 or 
 - The provider identifies itself to ConfigDirector as `dotnet-openfeature-server-provider` with its
   own version.
 
-[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.2.0...HEAD
+[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.3.0...HEAD
+[1.3.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.2.1...ConfigDirector.OpenFeature.ServerProvider-v1.3.0
 [1.2.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.1.0...ConfigDirector.OpenFeature.ServerProvider-v1.2.0
 [1.1.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.0.1...ConfigDirector.OpenFeature.ServerProvider-v1.1.0
 [1.0.1]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.0.0...ConfigDirector.OpenFeature.ServerProvider-v1.0.1

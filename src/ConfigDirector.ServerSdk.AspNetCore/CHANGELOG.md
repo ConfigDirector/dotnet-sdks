@@ -9,14 +9,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-10-01
+
 ### Changed
 
 - The README and the `AddConfigDirector` documentation point integration tests at
   `AddConfigDirectorTestClient` from the new `ConfigDirector.ServerSdk.AspNetCore.Testing` package,
   rather than at registering a fake ahead of `AddConfigDirector`, which
   `WebApplicationFactory.ConfigureTestServices` cannot do.
-- Requires the [`ConfigDirector.ServerSdk`](https://www.nuget.org/packages/ConfigDirector.ServerSdk)
-  release that carries the polling interval change. A `Connection:PollingInterval` below 1 minute
+- Requires [`ConfigDirector.ServerSdk`](https://www.nuget.org/packages/ConfigDirector.ServerSdk)
+  1.6.0 or later, which carries the polling interval change. A `Connection:PollingInterval` below 1 minute
   no longer fails to bind with an `ArgumentOutOfRangeException`: the configured value binds as
   written, and the client raises it to the 1 minute minimum with one warning. The default stays
   5 minutes.
@@ -109,7 +111,8 @@ later.
 - Configuration binding runs through the source-generated binder, so the package adds no trimming
   or AOT warnings to a consuming application.
 
-[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.5.0...HEAD
+[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.6.0...HEAD
+[1.6.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.5.1...ConfigDirector.ServerSdk.AspNetCore-v1.6.0
 [1.5.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.4.0...ConfigDirector.ServerSdk.AspNetCore-v1.5.0
 [1.4.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.3.1...ConfigDirector.ServerSdk.AspNetCore-v1.4.0
 [1.3.1]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.3.0...ConfigDirector.ServerSdk.AspNetCore-v1.3.1
