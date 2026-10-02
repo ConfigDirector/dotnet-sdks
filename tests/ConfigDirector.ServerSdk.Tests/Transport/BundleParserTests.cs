@@ -1,5 +1,6 @@
 using ConfigDirector.Evaluation;
 using ConfigDirector.Transport;
+using Microsoft.Extensions.Logging;
 
 namespace ConfigDirector.Tests.Transport;
 
@@ -229,6 +230,93 @@ public class BundleParserTests
     [InlineData("""{"configs": []}""")]
     public void RejectsAPayloadCarryingNoConfigs(string payload) =>
         Should.Throw<NotAConfigBundleException>(() => Parse(payload));
+
+    [Fact]
+    public void AFullSetWithConditionKindsAndAPayloadVersionServesAsBefore()
+    {
+        var bundle = Parse(SetWithConditionKindsAndPayloadVersion("full"));
+        var evaluator = new ConfigEvaluator(_logger);
+
+        bundle.Kind.ShouldBe(BundleKind.Full);
+        _logger.Entries.ShouldNotContain(entry => entry.Level == LogLevel.Warning);
+        var config = bundle.Configs.ShouldHaveSingleItem().Value;
+        var matched = evaluator.Evaluate(config, new Context { Id = "10", Traits = { ["plan"] = "pro" } }, null);
+        matched.Value.ShouldBe("bonjour");
+        matched.ValueId.ShouldBe("value-id-2");
+        var unmatched = evaluator.Evaluate(config, new Context { Id = "10", Traits = { ["plan"] = "free" } }, null);
+        unmatched.Value.ShouldBe("hello");
+        unmatched.ValueId.ShouldBe("value-id-1");
+    }
+
+    [Fact]
+    public void ADeltaWithConditionKindsAndAPayloadVersionServesAsBefore()
+    {
+        var bundle = Parse(SetWithConditionKindsAndPayloadVersion("delta"));
+        var evaluator = new ConfigEvaluator(_logger);
+
+        bundle.Kind.ShouldBe(BundleKind.Delta);
+        _logger.Entries.ShouldNotContain(entry => entry.Level == LogLevel.Warning);
+        var config = bundle.Configs.ShouldHaveSingleItem().Value;
+        var matched = evaluator.Evaluate(config, new Context { Id = "10", Traits = { ["plan"] = "pro" } }, null);
+        matched.Value.ShouldBe("bonjour");
+        matched.ValueId.ShouldBe("value-id-2");
+        var unmatched = evaluator.Evaluate(config, new Context { Id = "10", Traits = { ["plan"] = "free" } }, null);
+        unmatched.Value.ShouldBe("hello");
+        unmatched.ValueId.ShouldBe("value-id-1");
+    }
+
+    private static string SetWithConditionKindsAndPayloadVersion(string kind) =>
+        $$$"""
+            {
+              "payloadVersion": 1,
+              "kind": "{{{kind}}}",
+              "environmentId": "env-1",
+              "projectId": "proj-1",
+              "configs": {
+                "greeting": {
+                  "id": "c1",
+                  "key": "greeting",
+                  "type": "string",
+                  "variations": [],
+                  "target": {
+                    "environmentId": "env-1",
+                    "defaultValue": "hello",
+                    "defaultValueId": "value-id-1",
+                    "rules": [
+                      {
+                        "id": "r1",
+                        "type": "conditional",
+                        "order": 0,
+                        "target": "value",
+                        "value": "bonjour",
+                        "valueId": "value-id-2",
+                        "conditions": [
+                          {
+                            "id": "cond-1",
+                            "kind": "attribute",
+                            "attribute": "identifier",
+                            "trait": null,
+                            "operator": "=",
+                            "targetType": "text",
+                            "targetValues": ["10"]
+                          },
+                          {
+                            "id": "cond-2",
+                            "kind": "attribute",
+                            "attribute": "traits",
+                            "trait": "/plan",
+                            "operator": "is one of",
+                            "targetType": "text",
+                            "targetValues": ["pro", "enterprise"]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+            """;
 
     private ConfigBundle Parse(string payload) => BundleParser.Parse(payload, _logger);
 
