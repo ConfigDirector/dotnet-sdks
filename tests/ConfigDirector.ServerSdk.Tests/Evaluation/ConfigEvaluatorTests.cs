@@ -90,7 +90,7 @@ public class ConfigEvaluatorTests
     [Fact]
     public void MatchesARuleWhenEveryConditionMatches()
     {
-        var config = Config(Requiring(Condition("identifier", "user-1"), TraitCondition("/plan", "pro")));
+        var config = Config(Requiring(AttributeCondition("identifier", "user-1"), TraitCondition("/plan", "pro")));
 
         Evaluate(config, ContextWith("user-1", plan: "pro")).Value.ShouldBe("matched");
     }
@@ -98,7 +98,7 @@ public class ConfigEvaluatorTests
     [Fact]
     public void DoesNotMatchARuleWhenOnlyTheFirstConditionMatches()
     {
-        var config = Config(Requiring(Condition("identifier", "user-1"), TraitCondition("/plan", "pro")));
+        var config = Config(Requiring(AttributeCondition("identifier", "user-1"), TraitCondition("/plan", "pro")));
 
         Evaluate(config, ContextWith("user-1", plan: "free")).Value.ShouldBe("the default");
     }
@@ -106,7 +106,7 @@ public class ConfigEvaluatorTests
     [Fact]
     public void DoesNotMatchARuleWhenOnlyTheSecondConditionMatches()
     {
-        var config = Config(Requiring(Condition("identifier", "user-1"), TraitCondition("/plan", "pro")));
+        var config = Config(Requiring(AttributeCondition("identifier", "user-1"), TraitCondition("/plan", "pro")));
 
         Evaluate(config, ContextWith("user-2", plan: "pro")).Value.ShouldBe("the default");
     }
@@ -114,7 +114,7 @@ public class ConfigEvaluatorTests
     [Fact]
     public void DoesNotMatchARuleWhenNoConditionMatches()
     {
-        var config = Config(Requiring(Condition("identifier", "user-1"), TraitCondition("/plan", "pro")));
+        var config = Config(Requiring(AttributeCondition("identifier", "user-1"), TraitCondition("/plan", "pro")));
 
         Evaluate(config, ContextWith("user-2", plan: "free")).Value.ShouldBe("the default");
     }
@@ -132,7 +132,7 @@ public class ConfigEvaluatorTests
     [Fact]
     public void NeverMatchesARuleWhoseConditionsCannotAllHold()
     {
-        var config = Config(Requiring(Condition("identifier", "never"), Condition("identifier", "user-1")));
+        var config = Config(Requiring(AttributeCondition("identifier", "never"), AttributeCondition("identifier", "user-1")));
 
         Evaluate(config, ContextWith("user-1", plan: "pro")).Value.ShouldBe("the default");
         Evaluate(config, ContextWith("never", plan: "pro")).Value.ShouldBe("the default");
@@ -164,7 +164,7 @@ public class ConfigEvaluatorTests
             Id = "r",
             Order = 1,
             Target = "percentage",
-            Conditions = [Condition("identifier", "user-1")],
+            Conditions = [AttributeCondition("identifier", "user-1")],
             Percentages = [Bucket(50, "under"), Bucket(50, "over")],
         };
 
@@ -179,7 +179,7 @@ public class ConfigEvaluatorTests
             Id = "r",
             Order = 1,
             Target = "percentage",
-            Conditions = [Condition("identifier", "somebody-else")],
+            Conditions = [AttributeCondition("identifier", "somebody-else")],
             Percentages = [Bucket(100, "everyone")],
         };
 
@@ -292,7 +292,7 @@ public class ConfigEvaluatorTests
             Value = "never served",
             Conditions =
             [
-                new Condition
+                new AttributeCondition
                 {
                     Attribute = "identifier",
                     Operator = "starts with any of",
@@ -348,7 +348,7 @@ public class ConfigEvaluatorTests
             Order = order,
             Value = value,
             ValueId = $"{value}-value-id",
-            Conditions = [Condition("identifier", "user-1")],
+            Conditions = [AttributeCondition("identifier", "user-1")],
         };
 
     private static ConditionalRule NotMatching(string value) =>
@@ -357,10 +357,10 @@ public class ConfigEvaluatorTests
             Id = $"rule-{value}",
             Order = 1,
             Value = value,
-            Conditions = [Condition("identifier", "somebody-else")],
+            Conditions = [AttributeCondition("identifier", "somebody-else")],
         };
 
-    private static ConditionalRule Requiring(params Condition[] conditions) =>
+    private static ConditionalRule Requiring(params AttributeCondition[] conditions) =>
         new()
         {
             Id = "r",
@@ -369,7 +369,7 @@ public class ConfigEvaluatorTests
             Conditions = conditions,
         };
 
-    private static Condition TraitCondition(string trait, string target) =>
+    private static AttributeCondition TraitCondition(string trait, string target) =>
         new()
         {
             Attribute = "traits",
@@ -382,7 +382,7 @@ public class ConfigEvaluatorTests
     private static Context ContextWith(string id, string plan) =>
         new() { Id = id, Traits = { ["plan"] = plan } };
 
-    private static Condition Condition(string attribute, string target) =>
+    private static AttributeCondition AttributeCondition(string attribute, string target) =>
         new()
         {
             Attribute = attribute,

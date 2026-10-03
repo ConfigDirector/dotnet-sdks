@@ -6,7 +6,7 @@ internal static class ConditionEvaluator
     // empty string, so a condition can still match or not match on its own terms. An attribute this
     // SDK version does not know about is different -- there is nothing sensible to compare, so the
     // condition simply does not match.
-    internal static bool Evaluate(Condition condition, Context? context, Metadata? metadata)
+    internal static bool Evaluate(AttributeCondition condition, Context? context, Metadata? metadata)
     {
         if (!TryResolve(condition, context, metadata, out var value))
         {
@@ -31,7 +31,7 @@ internal static class ConditionEvaluator
         };
     }
 
-    private static bool TryResolve(Condition condition, Context? context, Metadata? metadata, out TraitValue value)
+    private static bool TryResolve(AttributeCondition condition, Context? context, Metadata? metadata, out TraitValue value)
     {
         switch (condition.Attribute)
         {

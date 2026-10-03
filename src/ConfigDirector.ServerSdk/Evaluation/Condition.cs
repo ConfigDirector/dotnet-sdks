@@ -1,10 +1,13 @@
 namespace ConfigDirector.Evaluation;
 
-internal sealed record Condition
+internal abstract record Condition
+{
+    public string Id { get; init; } = string.Empty;
+}
+
+internal sealed record AttributeCondition : Condition
 {
     private readonly IReadOnlyList<string> _targetValues = [];
-
-    public string Id { get; init; } = string.Empty;
 
     public string Attribute { get; init; } = string.Empty;
 
@@ -19,4 +22,11 @@ internal sealed record Condition
         get => _targetValues;
         init => _targetValues = value ?? [];
     }
+}
+
+internal sealed record SegmentCondition : Condition
+{
+    public string Operator { get; init; } = string.Empty;
+
+    public string SegmentId { get; init; } = string.Empty;
 }

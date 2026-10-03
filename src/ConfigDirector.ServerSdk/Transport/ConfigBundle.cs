@@ -18,6 +18,14 @@ internal sealed record ConfigBundle
         init => _configs = value ?? new Dictionary<string, Config>(StringComparer.Ordinal);
     }
 
+    private readonly IReadOnlyDictionary<string, Segment> _segments = new Dictionary<string, Segment>(StringComparer.Ordinal);
+
+    public IReadOnlyDictionary<string, Segment> Segments
+    {
+        get => _segments;
+        init => _segments = value ?? new Dictionary<string, Segment>(StringComparer.Ordinal);
+    }
+
     public BundleKind Kind { get; init; }
 
     public string? EnvironmentId { get; init; }

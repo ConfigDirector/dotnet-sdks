@@ -36,6 +36,7 @@ internal static class BundleParser
             return new ConfigBundle
             {
                 Configs = ParseConfigs(configs, logger),
+                Segments = ParseSegments(Property(root, "segments"), logger),
                 Kind = Text(root, "kind") == "delta" ? BundleKind.Delta : BundleKind.Full,
                 EnvironmentId = Text(root, "environmentId"),
                 ProjectId = Text(root, "projectId"),
@@ -63,6 +64,35 @@ internal static class BundleParser
 
         return configs;
     }
+
+    private static Dictionary<string, Segment> ParseSegments(JsonElement raw, ILogger logger)
+    {
+        var segments = new Dictionary<string, Segment>(StringComparer.Ordinal);
+        if (raw.ValueKind != JsonValueKind.Object)
+        {
+            return segments;
+        }
+
+        foreach (var entry in raw.EnumerateObject())
+        {
+            try
+            {
+                segments[entry.Name] = ParseSegment(Object(entry.Value));
+            }
+            catch (BundleFormatException error)
+            {
+                Log.SkippedSegment(logger, entry.Name, error);
+            }
+        }
+
+        return segments;
+    }
+
+    private static Segment ParseSegment(JsonElement raw) =>
+        new()
+        {
+            Groups = Map(Property(raw, "groups"), group => (IReadOnlyList<AttributeCondition>)Map(group, element => ParseAttributeCondition(Object(element)))),
+        };
 
     private static Config ParseConfig(JsonElement raw)
     {
@@ -109,8 +139,29 @@ internal static class BundleParser
         };
     }
 
+    private static string ConditionKind(JsonElement raw) => Text(raw, "kind") ?? "attribute";
+
     private static Condition ParseCondition(JsonElement raw) =>
-        new()
+        ConditionKind(raw) switch
+        {
+            "attribute" => ParseAttributeCondition(raw),
+            "segment" => new SegmentCondition
+            {
+                Id = Required(raw, "id"),
+                Operator = Required(raw, "operator"),
+                SegmentId = Required(raw, "segmentId"),
+            },
+            var kind => throw new BundleFormatException($"Unknown condition kind '{kind}'."),
+        };
+
+    private static AttributeCondition ParseAttributeCondition(JsonElement raw)
+    {
+        if (ConditionKind(raw) != "attribute")
+        {
+            throw new BundleFormatException("A condition group holds attribute conditions only.");
+        }
+
+        return new()
         {
             Id = Required(raw, "id"),
             Attribute = Required(raw, "attribute"),
@@ -119,6 +170,7 @@ internal static class BundleParser
             TargetValues = Map(Property(raw, "targetValues"), element => AsText(element) ?? string.Empty),
             Trait = Text(raw, "trait"),
         };
+    }
 
     private static PercentageBucket ParseBucket(JsonElement raw) =>
         new()
@@ -211,5 +263,11 @@ internal static class BundleParser
                 LogLevel.Warning,
                 new EventId(1, "SkippedConfig"),
                 "Skipping the config {ConfigKey}, its definition could not be read.");
+
+        internal static readonly Action<ILogger, string, Exception?> SkippedSegment =
+            LoggerMessage.Define<string>(
+                LogLevel.Warning,
+                new EventId(2, "SkippedSegment"),
+                "Skipping the segment {SegmentId}, its definition could not be read.");
     }
 }

@@ -36,7 +36,7 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
     // Null until the first bundle arrives, which is what separates "not ready" from "ready but the
     // server does not know this key". Only ever swapped, never edited in place, so a read on the
     // path every GetValue takes is a volatile read and a lookup.
-    private volatile IReadOnlyDictionary<string, Config>? _configs;
+    private volatile ServedDefinitions? _served;
     private volatile bool _closed;
     private int _closing;
 
@@ -126,14 +126,14 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
     public event EventHandler<ConfigEvaluatedEventArgs>? ConfigEvaluated;
 
     /// <inheritdoc/>
-    public bool IsReady => Configs is not null;
+    public bool IsReady => Served is not null;
 
     /// <inheritdoc/>
     public bool IsClosed => _closed;
 
     // Disposal is what makes config state unreachable, so every reader goes through here rather
     // than through the field: a bundle still in flight when the client closes cannot bring it back.
-    private IReadOnlyDictionary<string, Config>? Configs => _closed ? null : _configs;
+    private ServedDefinitions? Served => _closed ? null : _served;
 
     /// <inheritdoc/>
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
@@ -207,16 +207,22 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
             throw new ArgumentNullException(nameof(defaultValue));
         }
 
-        var configs = Configs;
+        var served = Served;
         Config? definition = null;
-        configs?.TryGetValue(configKey, out definition);
+        served?.Configs.TryGetValue(configKey, out definition);
 
-        return Evaluate(configKey, definition, defaultValue, context, parse);
+        return Evaluate(configKey, definition, defaultValue, context, parse, served?.Segments ?? ConfigEvaluator.NoSegments);
     }
 
     // Shared by the getter and by a watch being notified: for a watch the definition comes from
     // the update that carried it, so the two only differ in where the definition was found.
-    private T Evaluate<T>(string configKey, Config? definition, T defaultValue, Context? context, ValueReader<T> parse)
+    private T Evaluate<T>(
+        string configKey,
+        Config? definition,
+        T defaultValue,
+        Context? context,
+        ValueReader<T> parse,
+        IReadOnlyDictionary<string, Segment> segments)
     {
         if (definition is null)
         {
@@ -226,7 +232,7 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
             return defaultValue;
         }
 
-        var state = _evaluator.Evaluate(definition, context, _metadata);
+        var state = _evaluator.Evaluate(definition, context, _metadata, segments);
         var result = parse(state, defaultValue);
         Report(
             configKey,
@@ -277,7 +283,8 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
         Context? context = null,
         IEnumerable<string>? configKeys = null)
     {
-        var configs = Configs;
+        var served = Served;
+        var configs = served?.Configs;
         if (configs is null)
         {
             return EmptyState;
@@ -295,7 +302,7 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
         {
             if (requested is null || requested.Contains(entry.Key))
             {
-                evaluated[entry.Key] = _evaluator.Evaluate(entry.Value, context, _metadata);
+                evaluated[entry.Key] = _evaluator.Evaluate(entry.Value, context, _metadata, served!.Segments);
             }
         }
 
@@ -359,8 +366,8 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
             throw new ArgumentNullException(nameof(onChange));
         }
 
-        var watcher = new Watcher(definition =>
-            onChange(Evaluate(configKey, definition, defaultValue, context, parse)));
+        var watcher = new Watcher((definition, segments) =>
+            onChange(Evaluate(configKey, definition, defaultValue, context, parse, segments)));
 
         lock (_watchLock)
         {
@@ -438,7 +445,7 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
         }
 
         _closed = true;
-        _configs = null;
+        _served = null;
         UnwatchAll();
         ClientReady = null;
         ConfigsUpdated = null;
@@ -454,21 +461,24 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
             return;
         }
 
-        var current = _configs;
+        var current = _served;
         var firstBundle = current is null;
 
         // A delta carries only what changed, so it is merged into what is already held. A full
         // bundle is the entire config state and replaces it, which is also how a config that was
         // deleted stops being served.
         var isDelta = bundle.Kind == BundleKind.Delta && current is not null;
-        _configs = isDelta ? Merge(current!, bundle.Configs) : bundle.Configs;
-        var removedKeys = isDelta || current is null ? [] : KeysAbsentFrom(current, bundle.Configs);
+        var served = isDelta
+            ? new ServedDefinitions(Merge(current!.Configs, bundle.Configs), Merge(current.Segments, bundle.Segments))
+            : new ServedDefinitions(bundle.Configs, bundle.Segments);
+        _served = served;
+        var removedKeys = isDelta || current is null ? [] : KeysAbsentFrom(current.Configs, bundle.Configs);
 
         Log.ConfigStateUpdated(_logger, bundle.Configs.Count, removedKeys.Length, null);
 
         var keys = bundle.Configs.Keys.OrderBy(key => key, StringComparer.Ordinal).ToArray();
         Raise(ConfigsUpdated, new ConfigsUpdatedEventArgs(keys, removedKeys), nameof(ConfigsUpdated));
-        NotifyWatchers(bundle.Configs, removedKeys);
+        NotifyWatchers(bundle.Configs, removedKeys, served.Segments);
 
         if (firstBundle)
         {
@@ -476,13 +486,13 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
         }
     }
 
-    private static Dictionary<string, Config> Merge(
-        IReadOnlyDictionary<string, Config> current,
-        IReadOnlyDictionary<string, Config> update)
+    private static Dictionary<string, T> Merge<T>(
+        IReadOnlyDictionary<string, T> current,
+        IReadOnlyDictionary<string, T> update)
     {
         // Copied rather than edited in place, so a reader already walking the config state is not
         // overtaken by an update landing underneath it.
-        var merged = new Dictionary<string, Config>(current.Count + update.Count, StringComparer.Ordinal);
+        var merged = new Dictionary<string, T>(current.Count + update.Count, StringComparer.Ordinal);
         foreach (var entry in current)
         {
             merged[entry.Key] = entry.Value;
@@ -506,20 +516,23 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
 
     // Notified from the update rather than from the merged state: for a key the update carried the
     // two hold the same definition, and a removed key has none, so its watches get the default.
-    private void NotifyWatchers(IReadOnlyDictionary<string, Config> updated, string[] removedKeys)
+    private void NotifyWatchers(
+        IReadOnlyDictionary<string, Config> updated,
+        string[] removedKeys,
+        IReadOnlyDictionary<string, Segment> segments)
     {
         foreach (var entry in updated)
         {
-            NotifyWatchers(entry.Key, entry.Value);
+            NotifyWatchers(entry.Key, entry.Value, segments);
         }
 
         foreach (var key in removedKeys)
         {
-            NotifyWatchers(key, null);
+            NotifyWatchers(key, null, segments);
         }
     }
 
-    private void NotifyWatchers(string key, Config? definition)
+    private void NotifyWatchers(string key, Config? definition, IReadOnlyDictionary<string, Segment> segments)
     {
         Watcher[] entries;
         lock (_watchLock)
@@ -537,7 +550,7 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
         {
             try
             {
-                watcher.Notify(definition);
+                watcher.Notify(definition, segments);
             }
             catch (Exception error)
             {
@@ -604,9 +617,12 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
 
     // Identity, not equality: two identical watches stay distinct, so cancelling one leaves the
     // other in place.
-    private sealed class Watcher(Action<Config?> notify)
+    private sealed record ServedDefinitions(IReadOnlyDictionary<string, Config> Configs, IReadOnlyDictionary<string, Segment> Segments);
+
+    private sealed class Watcher(Action<Config?, IReadOnlyDictionary<string, Segment>> notify)
     {
-        internal void Notify(Config? definition) => notify(definition);
+        internal void Notify(Config? definition, IReadOnlyDictionary<string, Segment> segments) =>
+            notify(definition, segments);
     }
 
     private sealed class Cancellation(Action cancel) : IDisposable

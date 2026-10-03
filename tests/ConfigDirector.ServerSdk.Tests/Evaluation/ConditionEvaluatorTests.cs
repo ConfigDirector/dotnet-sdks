@@ -92,10 +92,10 @@ public class ConditionEvaluatorTests
     [Fact]
     public void DispatchesOnTheTargetType()
     {
-        Evaluate(Condition("traits", "number", ">", "20").WithTrait("/age")).ShouldBeTrue();
-        Evaluate(Condition("appVersion", "semver", ">", "2.0.0")).ShouldBeTrue();
-        Evaluate(Condition("traits", "array", "contains any of", "blue").WithTrait("/tags")).ShouldBeTrue();
-        Evaluate(Condition("traits", "text", "=", "pro").WithTrait("/plan")).ShouldBeTrue();
+        Evaluate(AttributeCondition("traits", "number", ">", "20").WithTrait("/age")).ShouldBeTrue();
+        Evaluate(AttributeCondition("appVersion", "semver", ">", "2.0.0")).ShouldBeTrue();
+        Evaluate(AttributeCondition("traits", "array", "contains any of", "blue").WithTrait("/tags")).ShouldBeTrue();
+        Evaluate(AttributeCondition("traits", "text", "=", "pro").WithTrait("/plan")).ShouldBeTrue();
     }
 
     [Fact]
@@ -103,7 +103,7 @@ public class ConditionEvaluatorTests
     {
         var context = new Context { Traits = { ["signedUpAt"] = "2026-01-28T00:00:00Z" } };
 
-        Evaluate(Condition("traits", "datetime", "is before", "2026-06-01").WithTrait("/signedUpAt"), context)
+        Evaluate(AttributeCondition("traits", "datetime", "is before", "2026-06-01").WithTrait("/signedUpAt"), context)
             .ShouldBeTrue();
     }
 
@@ -115,20 +115,20 @@ public class ConditionEvaluatorTests
     [InlineData("")]
     public void NeverMatchesAnUnknownTargetType(string targetType)
     {
-        Evaluate(Condition("identifier", targetType, "=", "u1")).ShouldBeFalse();
-        Evaluate(Condition("identifier", targetType, "does NOT equal", "x")).ShouldBeFalse();
+        Evaluate(AttributeCondition("identifier", targetType, "=", "u1")).ShouldBeFalse();
+        Evaluate(AttributeCondition("identifier", targetType, "does NOT equal", "x")).ShouldBeFalse();
     }
 
     // An absent value reaches each family in that family's own terms, not as text.
     [Fact]
     public void HandsAnAbsentValueToEachFamilyUnrendered()
     {
-        Evaluate(Condition("traits", "number", "!=", "26").WithTrait("/missing")).ShouldBeTrue();
-        Evaluate(Condition("traits", "number", "=", "26").WithTrait("/missing")).ShouldBeFalse();
-        Evaluate(Condition("traits", "array", "does NOT contain any of", "red").WithTrait("/missing")).ShouldBeTrue();
-        Evaluate(Condition("traits", "array", "contains any of", "red").WithTrait("/missing")).ShouldBeFalse();
-        Evaluate(Condition("traits", "semver", "is NOT one of", "1.0.0").WithTrait("/missing")).ShouldBeTrue();
-        Evaluate(Condition("traits", "datetime", "is before", "2026-01-01").WithTrait("/missing")).ShouldBeFalse();
+        Evaluate(AttributeCondition("traits", "number", "!=", "26").WithTrait("/missing")).ShouldBeTrue();
+        Evaluate(AttributeCondition("traits", "number", "=", "26").WithTrait("/missing")).ShouldBeFalse();
+        Evaluate(AttributeCondition("traits", "array", "does NOT contain any of", "red").WithTrait("/missing")).ShouldBeTrue();
+        Evaluate(AttributeCondition("traits", "array", "contains any of", "red").WithTrait("/missing")).ShouldBeFalse();
+        Evaluate(AttributeCondition("traits", "semver", "is NOT one of", "1.0.0").WithTrait("/missing")).ShouldBeTrue();
+        Evaluate(AttributeCondition("traits", "datetime", "is before", "2026-01-01").WithTrait("/missing")).ShouldBeFalse();
     }
 
     // SEMANTICS.md 1.1 -- a structured trait has no text form, so it does not match a text rule.
@@ -142,7 +142,7 @@ public class ConditionEvaluatorTests
     [Fact]
     public void TreatsMissingTargetValuesAsAnEmptyList()
     {
-        var condition = new Condition
+        var condition = new AttributeCondition
         {
             Attribute = "identifier",
             Operator = "is NOT one of",
@@ -153,10 +153,10 @@ public class ConditionEvaluatorTests
         Evaluate(condition).ShouldBeTrue();
     }
 
-    private static Condition Text(string attribute, string op, params string[] targets) =>
-        Condition(attribute, "text", op, targets);
+    private static AttributeCondition Text(string attribute, string op, params string[] targets) =>
+        AttributeCondition(attribute, "text", op, targets);
 
-    private static Condition Condition(string attribute, string targetType, string op, params string[] targets) =>
+    private static AttributeCondition AttributeCondition(string attribute, string targetType, string op, params string[] targets) =>
         new()
         {
             Attribute = attribute,
@@ -165,15 +165,15 @@ public class ConditionEvaluatorTests
             TargetValues = targets,
         };
 
-    private static bool Evaluate(Condition condition, Context? context = null, Metadata? metadata = null) =>
+    private static bool Evaluate(AttributeCondition condition, Context? context = null, Metadata? metadata = null) =>
         ConditionEvaluator.Evaluate(condition, context ?? User, metadata ?? App);
 
-    private static bool EvaluateWithoutAContext(Condition condition) =>
+    private static bool EvaluateWithoutAContext(AttributeCondition condition) =>
         ConditionEvaluator.Evaluate(condition, null, null);
 }
 
 internal static class ConditionExtensions
 {
-    internal static Condition WithTrait(this Condition condition, string pointer) =>
+    internal static AttributeCondition WithTrait(this AttributeCondition condition, string pointer) =>
         condition with { Trait = pointer };
 }

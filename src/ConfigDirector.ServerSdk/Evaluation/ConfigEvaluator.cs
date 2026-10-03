@@ -6,6 +6,9 @@ internal sealed class ConfigEvaluator
 {
     private const int Last = int.MaxValue;
 
+    internal static readonly IReadOnlyDictionary<string, Segment> NoSegments =
+        new Dictionary<string, Segment>(StringComparer.Ordinal);
+
     private static readonly Action<ILogger, string, string, Exception?> ReportDisregardedRule =
         LoggerMessage.Define<string, string>(
             LogLevel.Warning,
@@ -17,9 +20,16 @@ internal sealed class ConfigEvaluator
 
     internal ConfigEvaluator(ILogger logger) => _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-    internal ConfigState Evaluate(Config config, Context? context, Metadata? metadata)
+    internal ConfigState Evaluate(Config config, Context? context, Metadata? metadata) =>
+        Evaluate(config, context, metadata, NoSegments);
+
+    internal ConfigState Evaluate(
+        Config config,
+        Context? context,
+        Metadata? metadata,
+        IReadOnlyDictionary<string, Segment> segments)
     {
-        var selected = SelectValue(config, context, metadata);
+        var selected = SelectValue(config, context, metadata, segments);
 
         return new ConfigState
         {
@@ -31,11 +41,15 @@ internal sealed class ConfigEvaluator
         };
     }
 
-    private Selection SelectValue(Config config, Context? context, Metadata? metadata)
+    private Selection SelectValue(
+        Config config,
+        Context? context,
+        Metadata? metadata,
+        IReadOnlyDictionary<string, Segment> segments)
     {
         foreach (var rule in config.Target.Rules.OrderBy(rule => rule.Order ?? Last))
         {
-            var selected = EvaluateRule(rule, config, context, metadata);
+            var selected = EvaluateRule(rule, config, context, metadata, segments);
             if (selected.Matched)
             {
                 return selected;
@@ -45,14 +59,19 @@ internal sealed class ConfigEvaluator
         return Selection.From(config.Target.DefaultValue, config.Target.DefaultValueId);
     }
 
-    private Selection EvaluateRule(Rule rule, Config config, Context? context, Metadata? metadata)
+    private Selection EvaluateRule(
+        Rule rule,
+        Config config,
+        Context? context,
+        Metadata? metadata,
+        IReadOnlyDictionary<string, Segment> segments)
     {
         try
         {
             return rule switch
             {
                 PercentageRule percentageRule => SelectBucket(percentageRule.Percentages, config, context),
-                ConditionalRule conditionalRule => EvaluateConditionals(conditionalRule, config, context, metadata),
+                ConditionalRule conditionalRule => EvaluateConditionals(conditionalRule, config, context, metadata, segments),
                 _ => Selection.None,
             };
         }
@@ -65,9 +84,14 @@ internal sealed class ConfigEvaluator
         }
     }
 
-    private static Selection EvaluateConditionals(ConditionalRule rule, Config config, Context? context, Metadata? metadata)
+    private static Selection EvaluateConditionals(
+        ConditionalRule rule,
+        Config config,
+        Context? context,
+        Metadata? metadata,
+        IReadOnlyDictionary<string, Segment> segments)
     {
-        if (!ConditionsMet(rule, context, metadata))
+        if (!ConditionsMet(rule, context, metadata, segments))
         {
             return Selection.None;
         }
@@ -80,11 +104,15 @@ internal sealed class ConfigEvaluator
         return rule.Target == "value" ? Selection.From(rule.Value, rule.ValueId) : Selection.None;
     }
 
-    private static bool ConditionsMet(ConditionalRule rule, Context? context, Metadata? metadata)
+    private static bool ConditionsMet(
+        ConditionalRule rule,
+        Context? context,
+        Metadata? metadata,
+        IReadOnlyDictionary<string, Segment> segments)
     {
         foreach (var condition in rule.Conditions)
         {
-            if (!ConditionEvaluator.Evaluate(condition, context, metadata))
+            if (!ConditionHolds(condition, context, metadata, segments))
             {
                 return false;
             }
@@ -92,6 +120,18 @@ internal sealed class ConfigEvaluator
 
         return true;
     }
+
+    private static bool ConditionHolds(
+        Condition condition,
+        Context? context,
+        Metadata? metadata,
+        IReadOnlyDictionary<string, Segment> segments) =>
+        condition switch
+        {
+            AttributeCondition attributeCondition => ConditionEvaluator.Evaluate(attributeCondition, context, metadata),
+            SegmentCondition segmentCondition => SegmentEvaluator.Evaluate(segmentCondition, segments, context, metadata),
+            _ => false,
+        };
 
     private static Selection SelectBucket(
         IReadOnlyList<PercentageBucket> buckets,

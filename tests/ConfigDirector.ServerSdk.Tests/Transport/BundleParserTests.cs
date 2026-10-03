@@ -123,7 +123,7 @@ public class BundleParserTests
         rule.ValueId.ShouldBe("value-1");
         TraitText.Render(rule.Value).ShouldBe("true");
 
-        var condition = rule.Conditions.ShouldHaveSingleItem();
+        var condition = rule.Conditions.ShouldHaveSingleItem().ShouldBeOfType<AttributeCondition>();
         condition.Attribute.ShouldBe("traits");
         condition.Trait.ShouldBe("/plan");
         condition.Operator.ShouldBe("is one of");
@@ -317,6 +317,98 @@ public class BundleParserTests
               }
             }
             """;
+
+    [Fact]
+    public void ReadsTheSegmentsSectionIntoGroupsOfAttributeConditions()
+    {
+        var bundle = Parse($$$$"""
+            {"configs": {}, "segments": {"segment-1": {"groups": [
+              [{{{{GroupCondition("@acme.com", "attribute")}}}}],
+              [{{{{GroupCondition("@beta.com", "attribute")}}}}]
+            ]}}}
+            """);
+
+        bundle.Segments.Keys.ShouldBe(["segment-1"]);
+        var groups = bundle.Segments["segment-1"].Groups;
+        groups.Count.ShouldBe(2);
+        var first = groups[0].ShouldHaveSingleItem();
+        first.Id.ShouldBe("g0c0");
+        first.Attribute.ShouldBe("traits");
+        first.Trait.ShouldBe("/email");
+        first.Operator.ShouldBe("ends with any of");
+        first.TargetType.ShouldBe("text");
+        first.TargetValues.ShouldBe(["@acme.com"]);
+        groups[1].ShouldHaveSingleItem().TargetValues.ShouldBe(["@beta.com"]);
+    }
+
+    [Fact]
+    public void APayloadWithoutASegmentsSectionCarriesNoSegments()
+    {
+        Parse("""{"configs": {}}""").Segments.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void AGroupConditionWithoutAKindIsAnAttributeCondition()
+    {
+        var bundle = Parse($$$$"""{"configs": {}, "segments": {"segment-1": {"groups": [[{{{{GroupCondition("@acme.com", null)}}}}]]}}}""");
+
+        bundle.Segments["segment-1"].Groups[0][0].Attribute.ShouldBe("traits");
+    }
+
+    [Fact]
+    public void ReadsASegmentConditionInARule()
+    {
+        var rule = RuleOf("""
+            {"id": "r1", "type": "conditional", "order": 0, "target": "value", "value": "members",
+             "conditions": [{"id": "c-1", "kind": "segment", "operator": "in", "segmentId": "segment-1"}]}
+            """).ShouldBeOfType<ConditionalRule>();
+
+        rule.Conditions.ShouldHaveSingleItem().ShouldBe(new SegmentCondition { Id = "c-1", Operator = "in", SegmentId = "segment-1" });
+    }
+
+    [Fact]
+    public void AnUnreadableSegmentIsSkippedAndLoggedAndTheRestKept()
+    {
+        var bundle = Parse($$$$"""
+            {"configs": {}, "segments": {
+              "broken": {"groups": [[{"id": "g0c0", "kind": "attribute", "operator": "equals"}]]},
+              "segment-1": {"groups": [[{{{{GroupCondition("@acme.com", "attribute")}}}}]]}
+            }}
+            """);
+
+        bundle.Segments.Keys.ShouldBe(["segment-1"]);
+        _logger.Entries.ShouldContain(entry => entry.Level == LogLevel.Warning && entry.Message.Contains("broken"));
+    }
+
+    [Fact]
+    public void ASegmentConditionInsideAGroupMakesTheSegmentUnreadable()
+    {
+        var bundle = Parse("""
+            {"configs": {}, "segments": {"segment-1": {"groups": [[
+              {"id": "g0c0", "kind": "segment", "operator": "in", "segmentId": "other"}
+            ]]}}}
+            """);
+
+        bundle.Segments.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void AConditionOfAnUnknownKindMakesTheConfigUnreadable()
+    {
+        var bundle = Parse("""
+            {"configs": {"greeting": {"id": "c1", "key": "greeting", "type": "string", "target": {"defaultValue": "hello",
+              "rules": [{"id": "r1", "type": "conditional", "order": 0, "target": "value", "value": "members",
+                "conditions": [{"id": "c-1", "kind": "made-up", "operator": "in", "segmentId": "segment-1"}]}]}}}}
+            """);
+
+        bundle.Configs.ShouldBeEmpty();
+    }
+
+    private static string GroupCondition(string domain, string? kind)
+    {
+        var kindField = kind is null ? string.Empty : $"\"kind\": \"{kind}\", ";
+        return $$$$"""{"id": "g0c0", {{{{kindField}}}}"attribute": "traits", "trait": "/email", "operator": "ends with any of", "targetType": "text", "targetValues": ["{{{{domain}}}}"]}""";
+    }
 
     private ConfigBundle Parse(string payload) => BundleParser.Parse(payload, _logger);
 
