@@ -11,6 +11,14 @@ carries the SDK's version: it declares an exact dependency on that version of
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-10-05
+
+### Changed
+
+- Depends on `ConfigDirector.ServerSdk.Testing` 1.7.0, and through it on
+  [`ConfigDirector.ServerSdk`](https://www.nuget.org/packages/ConfigDirector.ServerSdk) 1.7.0, which
+  evaluates segment conditions in targeting rules. The testing API is unchanged.
+
 ## [1.6.0] - 2026-10-01
 
 ### Added
@@ -20,5 +28,6 @@ carries the SDK's version: it declares an exact dependency on that version of
   key when none is configured, and leaves startup initialization in place. It works from
   `WebApplicationFactory.ConfigureTestServices`.
 
-[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.6.0...HEAD
+[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.7.0...HEAD
+[1.7.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.6.0...ConfigDirector.ServerSdk-v1.7.0
 [1.6.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.5.1...ConfigDirector.ServerSdk-v1.6.0

@@ -11,6 +11,13 @@ tag.
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-10-05
+
+### Changed
+
+- Depends on [`ConfigDirector.ServerSdk`](https://www.nuget.org/packages/ConfigDirector.ServerSdk)
+  1.7.0, which evaluates segment conditions in targeting rules. The testing API is unchanged.
+
 ## [1.6.0] - 2026-10-01
 
 ### Added
@@ -21,5 +28,6 @@ tag.
   `FailInitialization`. `TestClientOptions` carries the client's `Timeout` and `LoggerFactory`. No
   network connection is opened and no telemetry is sent.
 
-[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.6.0...HEAD
+[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.7.0...HEAD
+[1.7.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.6.0...ConfigDirector.ServerSdk-v1.7.0
 [1.6.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.5.1...ConfigDirector.ServerSdk-v1.6.0

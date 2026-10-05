@@ -9,6 +9,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-10-05
+
 ### Added
 
 - Targeting rules can now use segments. The SDK reads the `segments` section of the server payload
@@ -152,7 +154,8 @@ Initial release. Targets `net8.0` and `netstandard2.0`.
   telemetry is queued.
 - Source Link, deterministic builds, and a symbol package.
 
-[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.6.0...HEAD
+[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.7.0...HEAD
+[1.7.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.6.0...ConfigDirector.ServerSdk-v1.7.0
 [1.6.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.5.1...ConfigDirector.ServerSdk-v1.6.0
 [1.5.1]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.5.0...ConfigDirector.ServerSdk-v1.5.1
 [1.5.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.4.0...ConfigDirector.ServerSdk-v1.5.0
