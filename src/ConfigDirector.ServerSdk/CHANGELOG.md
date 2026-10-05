@@ -9,6 +9,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- A segment change now reaches watches. When an update from the server carries a segment, the
+  watches of every config whose targeting rules use that segment are called with the newly
+  evaluated value, and `ConfigsUpdatedEventArgs.Keys` lists those configs beside the configs the
+  update carried. Before, editing a segment or one of its environment overrides changed the values
+  served without calling any watch, and `ConfigsUpdated` reported no keys.
+
 ## [1.7.0] - 2026-10-05
 
 ### Added

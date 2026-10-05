@@ -214,8 +214,6 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
         return Evaluate(configKey, definition, defaultValue, context, parse, served?.Segments ?? ConfigEvaluator.NoSegments);
     }
 
-    // Shared by the getter and by a watch being notified: for a watch the definition comes from
-    // the update that carried it, so the two only differ in where the definition was found.
     private T Evaluate<T>(
         string configKey,
         Config? definition,
@@ -473,12 +471,12 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
             : new ServedDefinitions(bundle.Configs, bundle.Segments);
         _served = served;
         var removedKeys = isDelta || current is null ? [] : KeysAbsentFrom(current.Configs, bundle.Configs);
+        var keys = KeysUpdatedBy(bundle, served.Configs);
 
-        Log.ConfigStateUpdated(_logger, bundle.Configs.Count, removedKeys.Length, null);
+        Log.ConfigStateUpdated(_logger, keys.Length, removedKeys.Length, null);
 
-        var keys = bundle.Configs.Keys.OrderBy(key => key, StringComparer.Ordinal).ToArray();
         Raise(ConfigsUpdated, new ConfigsUpdatedEventArgs(keys, removedKeys), nameof(ConfigsUpdated));
-        NotifyWatchers(bundle.Configs, removedKeys, served.Segments);
+        NotifyWatchers(keys, removedKeys, served);
 
         if (firstBundle)
         {
@@ -514,21 +512,30 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
             .OrderBy(key => key, StringComparer.Ordinal)
             .ToArray();
 
-    // Notified from the update rather than from the merged state: for a key the update carried the
-    // two hold the same definition, and a removed key has none, so its watches get the default.
-    private void NotifyWatchers(
-        IReadOnlyDictionary<string, Config> updated,
-        string[] removedKeys,
-        IReadOnlyDictionary<string, Segment> segments)
+    private static string[] KeysUpdatedBy(ConfigBundle bundle, IReadOnlyDictionary<string, Config> served) =>
+        served
+            .Where(entry => bundle.Configs.ContainsKey(entry.Key) || UsesAnySegment(entry.Value, bundle.Segments))
+            .Select(entry => entry.Key)
+            .OrderBy(key => key, StringComparer.Ordinal)
+            .ToArray();
+
+    private static bool UsesAnySegment(Config definition, IReadOnlyDictionary<string, Segment> segments) =>
+        definition.Target.Rules
+            .OfType<ConditionalRule>()
+            .SelectMany(rule => rule.Conditions)
+            .OfType<SegmentCondition>()
+            .Any(condition => segments.ContainsKey(condition.SegmentId));
+
+    private void NotifyWatchers(string[] updatedKeys, string[] removedKeys, ServedDefinitions served)
     {
-        foreach (var entry in updated)
+        foreach (var key in updatedKeys)
         {
-            NotifyWatchers(entry.Key, entry.Value, segments);
+            NotifyWatchers(key, served.Configs[key], served.Segments);
         }
 
         foreach (var key in removedKeys)
         {
-            NotifyWatchers(key, null, segments);
+            NotifyWatchers(key, null, served.Segments);
         }
     }
 

@@ -9,7 +9,10 @@ public sealed class ConfigsUpdatedEventArgs : EventArgs
         RemovedKeys = removedKeys;
     }
 
-    /// <summary>The keys the update carried, sorted.</summary>
+    /// <summary>
+    /// The keys the update carried, and the keys of every config whose targeting rules use a segment
+    /// the update carried, sorted.
+    /// </summary>
     public IReadOnlyList<string> Keys { get; }
 
     /// <summary>

@@ -69,6 +69,49 @@ public sealed class ClientSegmentTests : IDisposable
         client.GetValue("greeting", "in-code-default", Member).ShouldBe("hello");
     }
 
+    [Fact]
+    public async Task CallsTheWatchersOfTheConfigsWhoseRulesUseASegmentADeltaCarriesWithoutThem()
+    {
+        _server.Bundle = SetOf(
+            "full",
+            $"{GreetingForMembers("bonjour")}, {FarewellForMembersOf(Beta, "ciao")}",
+            MembersOf(Acme, "@acme.com"));
+        await using var client = Client();
+        var updates = new List<ConfigsUpdatedEventArgs>();
+        var greetings = new List<string>();
+        var farewells = new List<string>();
+        client.ConfigsUpdated += (_, updated) => updates.Add(updated);
+        client.Watch("greeting", "in-code-default", greetings.Add, Member);
+        client.Watch("farewell", "in-code-default", farewells.Add, Member);
+
+        await client.InitializeAsync(TestContext.Current.CancellationToken);
+        _server.Push(SetOf("delta", string.Empty, MembersOf(Acme, "@other.com")));
+        await WaitAsync(() => updates.Count == 2);
+
+        updates[1].Keys.ShouldBe(["greeting"]);
+        updates[1].RemovedKeys.ShouldBeEmpty();
+        greetings.ShouldBe(["bonjour", "hello"]);
+        farewells.ShouldBe(["bye"]);
+    }
+
+    [Fact]
+    public async Task ListsAConfigOnceWhenADeltaCarriesItWithASegmentItsRulesUse()
+    {
+        _server.Bundle = SetOf("full", GreetingForMembers("bonjour"), MembersOf(Acme, "@acme.com"));
+        await using var client = Client();
+        var updates = new List<ConfigsUpdatedEventArgs>();
+        var greetings = new List<string>();
+        client.ConfigsUpdated += (_, updated) => updates.Add(updated);
+        client.Watch("greeting", "in-code-default", greetings.Add, Member);
+
+        await client.InitializeAsync(TestContext.Current.CancellationToken);
+        _server.Push(SetOf("delta", GreetingForMembers("salut"), MembersOf(Acme, "@acme.com")));
+        await WaitAsync(() => updates.Count == 2);
+
+        updates[1].Keys.ShouldBe(["greeting"]);
+        greetings.ShouldBe(["bonjour", "salut"]);
+    }
+
     private static string MembersOf(string segmentId, string domain) =>
         $$$$"""
         {"{{{{segmentId}}}}": {"groups": [[{"id": "g0c0", "kind": "attribute", "attribute": "traits", "trait": "/email",

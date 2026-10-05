@@ -28,9 +28,9 @@ public interface IConfigDirectorClient : IDisposable, IAsyncDisposable
     event EventHandler<ClientReadyEventArgs>? ClientReady;
 
     /// <summary>
-    /// Raised every time new config state arrives, with the keys the update carried and the keys a
-    /// full update removed. Handlers run on the thread the update arrived on, so one that blocks
-    /// delays later updates.
+    /// Raised every time new config state arrives, with the keys the update carried or whose
+    /// targeting rules use a segment it carried, and the keys a full update removed. Handlers run on
+    /// the thread the update arrived on, so one that blocks delays later updates.
     /// </summary>
     event EventHandler<ConfigsUpdatedEventArgs>? ConfigsUpdated;
 
@@ -168,7 +168,7 @@ public interface IConfigDirectorClient : IDisposable, IAsyncDisposable
 
     /// <summary>
     /// Calls <paramref name="onChange"/> with the newly evaluated integer whenever an update
-    /// carries or removes <paramref name="configKey"/>.
+    /// carries <paramref name="configKey"/> or a segment its targeting rules use, or removes it.
     /// </summary>
     /// <remarks>
     /// Handlers run on the thread the update arrived on, so one that blocks delays later updates.
@@ -193,42 +193,42 @@ public interface IConfigDirectorClient : IDisposable, IAsyncDisposable
 
     /// <summary>
     /// Calls <paramref name="onChange"/> with the newly evaluated long whenever an update
-    /// carries or removes <paramref name="configKey"/>.
+    /// carries <paramref name="configKey"/> or a segment its targeting rules use, or removes it.
     /// </summary>
     /// <inheritdoc cref="Watch(string, int, Action{int}, Context)"/>
     IDisposable Watch(string configKey, long defaultValue, Action<long> onChange, Context? context = null);
 
     /// <summary>
     /// Calls <paramref name="onChange"/> with the newly evaluated double whenever an update
-    /// carries or removes <paramref name="configKey"/>.
+    /// carries <paramref name="configKey"/> or a segment its targeting rules use, or removes it.
     /// </summary>
     /// <inheritdoc cref="Watch(string, int, Action{int}, Context)"/>
     IDisposable Watch(string configKey, double defaultValue, Action<double> onChange, Context? context = null);
 
     /// <summary>
     /// Calls <paramref name="onChange"/> with the newly evaluated float whenever an update
-    /// carries or removes <paramref name="configKey"/>.
+    /// carries <paramref name="configKey"/> or a segment its targeting rules use, or removes it.
     /// </summary>
     /// <inheritdoc cref="Watch(string, int, Action{int}, Context)"/>
     IDisposable Watch(string configKey, float defaultValue, Action<float> onChange, Context? context = null);
 
     /// <summary>
     /// Calls <paramref name="onChange"/> with the newly evaluated decimal whenever an update
-    /// carries or removes <paramref name="configKey"/>.
+    /// carries <paramref name="configKey"/> or a segment its targeting rules use, or removes it.
     /// </summary>
     /// <inheritdoc cref="Watch(string, int, Action{int}, Context)"/>
     IDisposable Watch(string configKey, decimal defaultValue, Action<decimal> onChange, Context? context = null);
 
     /// <summary>
     /// Calls <paramref name="onChange"/> with the newly evaluated boolean whenever an update
-    /// carries or removes <paramref name="configKey"/>.
+    /// carries <paramref name="configKey"/> or a segment its targeting rules use, or removes it.
     /// </summary>
     /// <inheritdoc cref="Watch(string, int, Action{int}, Context)"/>
     IDisposable Watch(string configKey, bool defaultValue, Action<bool> onChange, Context? context = null);
 
     /// <summary>
     /// Calls <paramref name="onChange"/> with the newly evaluated text whenever an update
-    /// carries or removes <paramref name="configKey"/>.
+    /// carries <paramref name="configKey"/> or a segment its targeting rules use, or removes it.
     /// </summary>
     /// <remarks>
     /// The value arrives as the server spelled it, with no parsing, so any config can be
@@ -239,7 +239,7 @@ public interface IConfigDirectorClient : IDisposable, IAsyncDisposable
 
     /// <summary>
     /// Calls <paramref name="onChange"/> with the newly evaluated JSON whenever an update
-    /// carries or removes <paramref name="configKey"/>.
+    /// carries <paramref name="configKey"/> or a segment its targeting rules use, or removes it.
     /// </summary>
     /// <remarks>
     /// The config's JSON arrives whole, whatever shape it is. Use
@@ -250,7 +250,8 @@ public interface IConfigDirectorClient : IDisposable, IAsyncDisposable
 
     /// <summary>
     /// Calls <paramref name="onChange"/> with the config's JSON bound to <typeparamref name="T"/>
-    /// whenever an update carries or removes <paramref name="configKey"/>.
+    /// whenever an update carries <paramref name="configKey"/> or a segment its targeting rules use,
+    /// or removes it.
     /// </summary>
     /// <remarks>
     /// The watching counterpart of <see cref="GetJsonValue{T}"/>, and it binds on the same terms:

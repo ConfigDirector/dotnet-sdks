@@ -9,6 +9,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- A segment change now emits `PROVIDER_CONFIGURATION_CHANGED` with the affected flags in
+  `FlagsChanged`: every flag whose targeting rules use the changed segment. Before, editing a
+  segment or one of its environment overrides emitted the event with an empty `FlagsChanged`.
+  Requires the [`ConfigDirector.ServerSdk`](https://www.nuget.org/packages/ConfigDirector.ServerSdk)
+  release that reports those flags in `ConfigsUpdatedEventArgs.Keys`.
+
 ## [1.4.0] - 2026-10-05
 
 ### Added
