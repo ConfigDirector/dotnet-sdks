@@ -9,12 +9,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-10-05
+
 ### Added
 
 - Targeting rules can now use segments: the provider evaluates segment conditions through the
-  server SDK it depends on, which reads the payload's segments. ConfigDirector only sends rules
-  with segment conditions to provider versions that evaluate them, so upgrading is what makes rules
-  that use segments apply to this application.
+  server SDK it depends on, which reads the payload's segments. Requires
+  [`ConfigDirector.ServerSdk`](https://www.nuget.org/packages/ConfigDirector.ServerSdk) 1.7.0 or
+  later. ConfigDirector only sends rules with segment conditions to provider versions that evaluate
+  them, so upgrading is what makes rules that use segments apply to this application.
 
 ## [1.3.0] - 2026-10-01
 
@@ -82,7 +85,8 @@ later and [`OpenFeature`](https://www.nuget.org/packages/OpenFeature) 2.14.1 or 
 - The provider identifies itself to ConfigDirector as `dotnet-openfeature-server-provider` with its
   own version.
 
-[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.3.0...HEAD
+[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.4.0...HEAD
+[1.4.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.3.0...ConfigDirector.OpenFeature.ServerProvider-v1.4.0
 [1.3.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.2.1...ConfigDirector.OpenFeature.ServerProvider-v1.3.0
 [1.2.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.1.0...ConfigDirector.OpenFeature.ServerProvider-v1.2.0
 [1.1.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.0.1...ConfigDirector.OpenFeature.ServerProvider-v1.1.0

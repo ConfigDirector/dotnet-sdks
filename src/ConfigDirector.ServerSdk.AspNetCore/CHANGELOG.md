@@ -9,6 +9,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-10-05
+
+### Changed
+
+- Requires [`ConfigDirector.ServerSdk`](https://www.nuget.org/packages/ConfigDirector.ServerSdk)
+  1.7.0 or later, which evaluates segment conditions in targeting rules. ConfigDirector only sends
+  rules with segment conditions to SDK versions that evaluate them, so upgrading is what makes
+  rules that use segments apply to an application that references only this package.
+
 ## [1.6.0] - 2026-10-01
 
 ### Changed
@@ -111,7 +120,8 @@ later.
 - Configuration binding runs through the source-generated binder, so the package adds no trimming
   or AOT warnings to a consuming application.
 
-[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.6.0...HEAD
+[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.7.0...HEAD
+[1.7.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.6.0...ConfigDirector.ServerSdk.AspNetCore-v1.7.0
 [1.6.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.5.1...ConfigDirector.ServerSdk.AspNetCore-v1.6.0
 [1.5.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.4.0...ConfigDirector.ServerSdk.AspNetCore-v1.5.0
 [1.4.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.3.1...ConfigDirector.ServerSdk.AspNetCore-v1.4.0
