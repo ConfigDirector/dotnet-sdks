@@ -5,7 +5,7 @@
        this file too: they rely on the SDK's internals, so they are released with the SDK and always
        carry its version. -->
   <PropertyGroup>
-    <VersionPrefix>1.7.0</VersionPrefix>
+    <VersionPrefix>1.7.1</VersionPrefix>
   </PropertyGroup>
 
 </Project>
