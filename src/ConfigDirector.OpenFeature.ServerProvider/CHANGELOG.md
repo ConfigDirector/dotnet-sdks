@@ -9,13 +9,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-10-05
+
 ### Fixed
 
 - A segment change now emits `PROVIDER_CONFIGURATION_CHANGED` with the affected flags in
   `FlagsChanged`: every flag whose targeting rules use the changed segment. Before, editing a
   segment or one of its environment overrides emitted the event with an empty `FlagsChanged`.
-  Requires the [`ConfigDirector.ServerSdk`](https://www.nuget.org/packages/ConfigDirector.ServerSdk)
-  release that reports those flags in `ConfigsUpdatedEventArgs.Keys`.
+  Requires [`ConfigDirector.ServerSdk`](https://www.nuget.org/packages/ConfigDirector.ServerSdk)
+  1.7.1 or later, which reports those flags in `ConfigsUpdatedEventArgs.Keys`.
 
 ## [1.4.0] - 2026-10-05
 
@@ -93,7 +95,8 @@ later and [`OpenFeature`](https://www.nuget.org/packages/OpenFeature) 2.14.1 or 
 - The provider identifies itself to ConfigDirector as `dotnet-openfeature-server-provider` with its
   own version.
 
-[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.4.0...HEAD
+[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.4.1...HEAD
+[1.4.1]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.4.0...ConfigDirector.OpenFeature.ServerProvider-v1.4.1
 [1.4.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.3.0...ConfigDirector.OpenFeature.ServerProvider-v1.4.0
 [1.3.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.2.1...ConfigDirector.OpenFeature.ServerProvider-v1.3.0
 [1.2.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.1.0...ConfigDirector.OpenFeature.ServerProvider-v1.2.0
