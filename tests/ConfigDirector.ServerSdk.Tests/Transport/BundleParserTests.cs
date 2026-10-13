@@ -152,6 +152,29 @@ public class BundleParserTests
     }
 
     [Fact]
+    public void ReadsAConditionalRuleServingAPercentageRollout()
+    {
+        var rule = (ConditionalRule)RuleOf("""
+            {
+              "id": "rule-1",
+              "type": "conditional",
+              "target": "percentage",
+              "conditions": [{"id": "c-1", "kind": "segment", "operator": "in", "segmentId": "segment-1"}],
+              "percentages": [
+                { "id": "b0", "percentage": 40.5, "value": "control", "valueId": "v0" },
+                { "id": "b1", "percentage": 59.5, "value": "variant", "valueId": "v1" }
+              ]
+            }
+            """);
+
+        rule.Target.ShouldBe("percentage");
+        rule.Percentages.ShouldBe([
+            new PercentageBucket { Id = "b0", Percentage = 40.5, Value = "control", ValueId = "v0" },
+            new PercentageBucket { Id = "b1", Percentage = 59.5, Value = "variant", ValueId = "v1" },
+        ]);
+    }
+
+    [Fact]
     public void TreatsARuleKindItDoesNotKnowAsConditional() =>
         RuleOf("""{"id": "rule-1", "type": "from-the-future"}""").ShouldBeOfType<ConditionalRule>();
 
@@ -317,6 +340,53 @@ public class BundleParserTests
               }
             }
             """;
+
+    [Fact]
+    public void AConditionalRuleServesItsPercentageRolloutToAMatchingContext()
+    {
+        var bundle = Parse("""
+            {
+              "configs": {
+                "checkout": {
+                  "id": "c1",
+                  "key": "checkout",
+                  "type": "string",
+                  "target": {
+                    "defaultValue": "off",
+                    "defaultValueId": "off-id",
+                    "rules": [
+                      {
+                        "id": "r",
+                        "type": "conditional",
+                        "order": 0,
+                        "target": "percentage",
+                        "conditions": [
+                          {
+                            "id": "cond-1",
+                            "attribute": "traits",
+                            "trait": "/plan",
+                            "operator": "is one of",
+                            "targetType": "text",
+                            "targetValues": ["pro"]
+                          }
+                        ],
+                        "percentages": [
+                          { "id": "b", "percentage": 100, "value": "on", "valueId": "on-id" }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+            """);
+        var evaluator = new ConfigEvaluator(_logger);
+
+        var matched = evaluator.Evaluate(bundle.Configs["checkout"], new Context { Id = "10", Traits = { ["plan"] = "pro" } }, null);
+
+        matched.Value.ShouldBe("on");
+        matched.ValueId.ShouldBe("on-id");
+    }
 
     [Fact]
     public void ReadsTheSegmentsSectionIntoGroupsOfAttributeConditions()

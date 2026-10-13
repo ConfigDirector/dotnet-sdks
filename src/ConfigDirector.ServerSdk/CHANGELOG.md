@@ -9,6 +9,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- A conditional rule that serves a percentage rollout now serves it to the contexts that match its
+  conditions. Before, every release skipped such a rule even when all of its conditions matched,
+  and served the next rule or the default targeting rule value instead.
+
 ## [1.7.1] - 2026-10-05
 
 ### Fixed

@@ -136,6 +136,7 @@ internal static class BundleParser
             Target = Text(raw, "target") ?? "value",
             Value = AsValue(Property(raw, "value")),
             ValueId = Text(raw, "valueId"),
+            Percentages = percentages,
         };
     }
 
