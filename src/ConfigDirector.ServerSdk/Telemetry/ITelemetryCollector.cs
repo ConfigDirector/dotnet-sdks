@@ -11,4 +11,6 @@ internal interface ITelemetryCollector : IAsyncDisposable
         Context? context,
         ConfigType? configType,
         string? valueId);
+
+    InvalidContextLogging RecordInvalidContext(string kindSample);
 }

@@ -11,6 +11,12 @@ carries the SDK's version: it declares an exact dependency on that version of
 
 ## [Unreleased]
 
+### Changed
+
+- Depends on `ConfigDirector.ServerSdk.Testing` 1.8.0, and through it on
+  [`ConfigDirector.ServerSdk`](https://www.nuget.org/packages/ConfigDirector.ServerSdk) 1.8.0, which
+  adds `Context.Kind`. The testing API is unchanged.
+
 ## [1.7.1] - 2026-10-05
 
 ### Changed

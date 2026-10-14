@@ -7,6 +7,7 @@ namespace ConfigDirector.OpenFeature;
 internal static class ContextMapper
 {
     private const string Id = "id";
+    private const string Kind = "kind";
     private const string Name = "name";
     private const string Traits = "traits";
     private const string Anonymous = "anonymous";
@@ -24,6 +25,7 @@ internal static class ContextMapper
         return new Context
         {
             Id = evaluationContext.TargetingKey ?? Text(Attribute(evaluationContext, Id)),
+            Kind = Text(Attribute(evaluationContext, Kind)),
             Name = Text(Attribute(evaluationContext, Name)),
             Traits = traits is { IsStructure: true } ? ValueMapper.ToTraits(traits.AsStructure!) : null!,
             Anonymous = anonymous is { IsBoolean: true } && anonymous.AsBoolean == true,

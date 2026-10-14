@@ -211,7 +211,7 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
         Config? definition = null;
         served?.Configs.TryGetValue(configKey, out definition);
 
-        return Evaluate(configKey, definition, defaultValue, context, parse, served?.Segments ?? ConfigEvaluator.NoSegments);
+        return Evaluate(configKey, definition, defaultValue, Admit(context), parse, served?.Segments ?? ConfigEvaluator.NoSegments);
     }
 
     private T Evaluate<T>(
@@ -242,6 +242,27 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
             state.Type,
             context);
         return result.Value;
+    }
+
+    private Context? Admit(Context? context)
+    {
+        if (context?.Kind is not { } kind || ContextKinds.IsValid(kind))
+        {
+            return context;
+        }
+
+        var sample = ContextKinds.Sample(kind);
+        switch (_telemetry.RecordInvalidContext(sample))
+        {
+            case InvalidContextLogging.LogKind:
+                Log.InvalidContextKind(_logger, sample, null);
+                break;
+            case InvalidContextLogging.LogSampleLimitReached:
+                Log.InvalidContextKindsNotLogged(_logger, null);
+                break;
+        }
+
+        return null;
     }
 
     // Generic all the way through, so nothing is boxed for an evaluation nobody is listening to.
@@ -281,6 +302,7 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
         Context? context = null,
         IEnumerable<string>? configKeys = null)
     {
+        var admitted = Admit(context);
         var served = Served;
         var configs = served?.Configs;
         if (configs is null)
@@ -300,7 +322,7 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
         {
             if (requested is null || requested.Contains(entry.Key))
             {
-                evaluated[entry.Key] = _evaluator.Evaluate(entry.Value, context, _metadata, served!.Segments);
+                evaluated[entry.Key] = _evaluator.Evaluate(entry.Value, admitted, _metadata, served!.Segments);
             }
         }
 
@@ -365,7 +387,7 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
         }
 
         var watcher = new Watcher((definition, segments) =>
-            onChange(Evaluate(configKey, definition, defaultValue, context, parse, segments)));
+            onChange(Evaluate(configKey, definition, defaultValue, Admit(context), parse, segments)));
 
         lock (_watchLock)
         {
@@ -697,6 +719,22 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
                 LogLevel.Error,
                 new EventId(6, "WatchThrew"),
                 "A watch on {ConfigKey} threw.");
+
+        internal static readonly Action<ILogger, string, Exception?> InvalidContextKind =
+            LoggerMessage.Define<string>(
+                LogLevel.Error,
+                new EventId(9, "InvalidContextKind"),
+                "Ignored a context with the invalid context kind {ContextKind} and evaluated as if no "
+                    + "context was supplied. A context kind has 1 to 64 characters, each a lowercase "
+                    + "ASCII letter, a digit, '-' or '_'.");
+
+        internal static readonly Action<ILogger, Exception?> InvalidContextKindsNotLogged =
+            LoggerMessage.Define(
+                LogLevel.Error,
+                new EventId(10, "InvalidContextKindsNotLogged"),
+                "Ignored a context with another invalid context kind and evaluated as if no context "
+                    + "was supplied. Further invalid context kinds are not logged individually until "
+                    + "the next telemetry report.");
 
         internal static readonly Action<ILogger, Exception?> Closed =
             LoggerMessage.Define(

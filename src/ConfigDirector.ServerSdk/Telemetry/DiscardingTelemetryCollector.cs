@@ -20,5 +20,7 @@ internal sealed class DiscardingTelemetryCollector : ITelemetryCollector
     {
     }
 
+    public InvalidContextLogging RecordInvalidContext(string kindSample) => InvalidContextLogging.LogKind;
+
     public ValueTask DisposeAsync() => default;
 }

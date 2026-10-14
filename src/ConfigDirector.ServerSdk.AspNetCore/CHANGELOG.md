@@ -9,6 +9,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Changed
+
+- Requires [`ConfigDirector.ServerSdk`](https://www.nuget.org/packages/ConfigDirector.ServerSdk)
+  1.8.0 or later, which adds `Context.Kind`. A context built by `WithContext` can describe another
+  kind of entity than a user, such as a tenant, and a context with an invalid kind is disregarded
+  and logged instead of evaluated. The README and the `WithContext` documentation show a context
+  with a kind.
+
 ## [1.7.1] - 2026-10-05
 
 ### Changed

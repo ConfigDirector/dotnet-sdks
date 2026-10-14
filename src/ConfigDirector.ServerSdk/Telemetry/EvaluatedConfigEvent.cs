@@ -9,6 +9,9 @@ internal sealed record EvaluatedConfigEvent
     [JsonPropertyName("contextId")]
     public string? ContextId { get; init; }
 
+    [JsonPropertyName("contextKind")]
+    public string? ContextKind { get; init; }
+
     [JsonPropertyName("key")]
     public string Key { get; init; } = string.Empty;
 
@@ -42,7 +45,8 @@ internal sealed record EvaluatedConfigEvent
         EvaluationReason reason,
         string? contextId = null,
         ConfigType? configType = null,
-        string? valueId = null) =>
+        string? valueId = null,
+        string? contextKind = null) =>
         new()
         {
             Key = key,
@@ -52,6 +56,7 @@ internal sealed record EvaluatedConfigEvent
             UsedDefault = usedDefault,
             Reason = reason,
             ContextId = contextId,
+            ContextKind = contextKind,
             Type = configType,
             EvaluatedValueId = valueId,
         };

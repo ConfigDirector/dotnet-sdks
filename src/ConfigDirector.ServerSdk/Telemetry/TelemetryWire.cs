@@ -18,7 +18,10 @@ internal static class TelemetryWire
     });
 
     internal static JsonTypeInfo<EvaluatedConfigEvent> Event => Context.EvaluatedConfigEvent;
+
+    internal static JsonTypeInfo<InvalidContextEvent> InvalidContext => Context.InvalidContextEvent;
 }
 
 [JsonSerializable(typeof(EvaluatedConfigEvent))]
+[JsonSerializable(typeof(InvalidContextEvent))]
 internal sealed partial class TelemetryWireContext : JsonSerializerContext;

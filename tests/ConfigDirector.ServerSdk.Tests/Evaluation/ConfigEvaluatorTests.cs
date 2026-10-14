@@ -280,6 +280,47 @@ public class ConfigEvaluatorTests
         served.ShouldBe(["first"]);
     }
 
+    [Theory]
+    [InlineData(null, "0")]
+    [InlineData("user", "0")]
+    [InlineData("device", "5")]
+    [InlineData("tenant", "0")]
+    public void AssignsABucketFromTheIdentifierAndTheKind(string? kind, string expected)
+    {
+        var config = Config(BucketingConfigId, TenEqualBuckets());
+
+        Evaluate(config, new Context { Id = "user-1", Kind = kind }).Value.ShouldBe(expected);
+    }
+
+    [Fact]
+    public void AssignsTheFirstBucketWithoutAnIdentifierWhateverTheKind()
+    {
+        var config = Config(BucketingConfigId, TenEqualBuckets());
+
+        Evaluate(config, new Context { Kind = "device" }).Value.ShouldBe("0");
+    }
+
+    [Theory]
+    [InlineData(null, "user", "matched")]
+    [InlineData("user", "user", "matched")]
+    [InlineData("device", "device", "matched")]
+    [InlineData("device", "user", "the default")]
+    [InlineData(null, "", "the default")]
+    public void MatchesAKindConditionAgainstTheEffectiveKind(string? kind, string target, string expected)
+    {
+        var config = Config(Requiring(AttributeCondition("kind", target)));
+
+        Evaluate(config, new Context { Id = "42", Kind = kind }).Value.ShouldBe(expected);
+    }
+
+    [Fact]
+    public void MatchesAKindConditionForUserWithoutAContext()
+    {
+        var config = Config(Requiring(AttributeCondition("kind", "user")));
+
+        new ConfigEvaluator(NullLogger.Instance).Evaluate(config, null, null).Value.ShouldBe("matched");
+    }
+
     // SEMANTICS.md 7 -- a rule that cannot be evaluated is skipped, and the next rule is tried.
     [Fact]
     public void SkipsARuleThatThrowsAndReportsIt()
@@ -398,6 +439,14 @@ public class ConfigEvaluatorTests
             Percentage = percentage,
             Value = value,
             ValueId = value is null ? null : $"{value}-value-id",
+        };
+
+    private static PercentageRule TenEqualBuckets() =>
+        new()
+        {
+            Id = "r",
+            Order = 1,
+            Percentages = [.. Enumerable.Range(0, 10).Select(index => Bucket(10, $"{index}"))],
         };
 
     private static Config Config(params Rule[] rules) => Config("the-id", rules);

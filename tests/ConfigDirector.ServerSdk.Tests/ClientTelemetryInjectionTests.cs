@@ -92,6 +92,8 @@ public sealed class ClientTelemetryInjectionTests : IDisposable
             string? valueId) =>
             Recorded.Add(new RecordedEvaluation(key, defaultValue, usedDefault, reason, configType));
 
+        public InvalidContextLogging RecordInvalidContext(string kindSample) => InvalidContextLogging.LogKind;
+
         public ValueTask DisposeAsync()
         {
             Disposed = true;

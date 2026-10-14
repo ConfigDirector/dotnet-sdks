@@ -24,8 +24,9 @@ namespace ConfigDirector.OpenFeature;
 /// </code>
 /// <para>
 /// The OpenFeature evaluation context maps onto the ConfigDirector <see cref="Context"/>: the
-/// targeting key, or failing that an <c>id</c> attribute, becomes the context's id, <c>name</c> its
-/// name, a <c>traits</c> structure its traits, and a boolean <c>anonymous</c> its anonymous flag.
+/// targeting key, or failing that an <c>id</c> attribute, becomes the context's id, a top-level
+/// <c>kind</c> its kind (<c>user</c> when omitted), <c>name</c> its name, a <c>traits</c> structure
+/// its traits, and a boolean <c>anonymous</c> its anonymous flag.
 /// </para>
 /// <para>
 /// If the first config state does not arrive within the configured timeout, initialization still

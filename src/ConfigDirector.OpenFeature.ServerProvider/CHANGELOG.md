@@ -9,6 +9,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- A top-level `kind` field of the evaluation context, beside the targeting key, becomes the
+  ConfigDirector context's kind. It is read the way `id` is: a string as written, a number, boolean
+  or date as its text, and a null, structure or list is ignored. An omitted kind means `user`, and
+  a `kind` inside `traits` stays an ordinary trait. A context whose kind is invalid is disregarded:
+  the flag resolves successfully to its value for no context, and the SDK logs an error. Requires
+  [`ConfigDirector.ServerSdk`](https://www.nuget.org/packages/ConfigDirector.ServerSdk) 1.8.0 or later.
+
 ## [1.4.1] - 2026-10-05
 
 ### Fixed

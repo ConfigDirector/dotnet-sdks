@@ -109,9 +109,9 @@ public sealed class HttpEventReporterTests : IDisposable
     [Fact]
     public void AReportThatOnlyCountsDropsIsNotEmpty()
     {
-        new EventReport([], 1, [], 0).IsEmpty.ShouldBeFalse();
-        new EventReport([], 0, [], 1).IsEmpty.ShouldBeFalse();
-        new EventReport([], 0, [], 0).IsEmpty.ShouldBeTrue();
+        new EventReport([], 1, [], 0, []).IsEmpty.ShouldBeFalse();
+        new EventReport([], 0, [], 1, []).IsEmpty.ShouldBeFalse();
+        new EventReport([], 0, [], 0, []).IsEmpty.ShouldBeTrue();
     }
 
     [Fact]
@@ -120,7 +120,7 @@ public sealed class HttpEventReporterTests : IDisposable
         await using var reporter = Reporter();
 
         var response = await reporter.ReportAsync(
-            new EventReport([], 0, [], 0), TestContext.Current.CancellationToken);
+            new EventReport([], 0, [], 0, []), TestContext.Current.CancellationToken);
 
         response.Success.ShouldBeTrue();
         _server.Paths.ShouldBeEmpty();
@@ -246,7 +246,8 @@ public sealed class HttpEventReporterTests : IDisposable
                 "my-config", "default", "hello", false, EvaluationReason.FoundMatch))],
             droppedEvaluations,
             contexts ?? [],
-            droppedContexts);
+            droppedContexts,
+            []);
 
     private JsonElement Payload() => JsonDocument.Parse(_server.Bodies[0]).RootElement.Clone();
 }

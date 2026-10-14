@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using ConfigDirector.Transport;
 using Microsoft.Extensions.Logging;
 
@@ -137,6 +138,13 @@ internal sealed class HttpEventReporter : IAsyncDisposable
             }
 
             json.WriteEndArray();
+            json.WriteStartArray("invalidContext");
+            foreach (var invalid in report.InvalidContexts)
+            {
+                WriteInvalidContext(json, invalid);
+            }
+
+            json.WriteEndArray();
             json.WriteEndObject();
 
             json.WriteStartObject("droppedEvents");
@@ -150,14 +158,28 @@ internal sealed class HttpEventReporter : IAsyncDisposable
         return buffer.ToArray();
     }
 
-    private static void WriteAggregated(Utf8JsonWriter json, AggregatedEvent aggregated)
+    private static void WriteAggregated(Utf8JsonWriter json, AggregatedEvent aggregated) =>
+        WriteAggregated(
+            json, aggregated.StartTime, aggregated.EndTime, aggregated.Count, aggregated.Event, TelemetryWire.Event);
+
+    private static void WriteInvalidContext(Utf8JsonWriter json, InvalidContextEntry invalid) =>
+        WriteAggregated(
+            json, invalid.StartTime, invalid.EndTime, invalid.Count, invalid.Event, TelemetryWire.InvalidContext);
+
+    private static void WriteAggregated<TEvent>(
+        Utf8JsonWriter json,
+        DateTimeOffset startTime,
+        DateTimeOffset endTime,
+        int count,
+        TEvent aggregatedEvent,
+        JsonTypeInfo<TEvent> eventType)
     {
         json.WriteStartObject();
-        json.WriteString("startTime", Timestamp(aggregated.StartTime));
-        json.WriteString("endTime", Timestamp(aggregated.EndTime));
-        json.WriteNumber("count", aggregated.Count);
+        json.WriteString("startTime", Timestamp(startTime));
+        json.WriteString("endTime", Timestamp(endTime));
+        json.WriteNumber("count", count);
         json.WritePropertyName("event");
-        JsonSerializer.Serialize(json, aggregated.Event, TelemetryWire.Event);
+        JsonSerializer.Serialize(json, aggregatedEvent, eventType);
         json.WriteEndObject();
     }
 
@@ -167,6 +189,7 @@ internal sealed class HttpEventReporter : IAsyncDisposable
     {
         json.WriteStartObject();
         json.WriteString("id", context.Id);
+        json.WriteString("kind", ContextKinds.EffectiveKind(context));
 
         if (context.Name is not null)
         {

@@ -8,6 +8,7 @@ public class ContextTests
         var context = new Context();
 
         context.Id.ShouldBeNull();
+        context.Kind.ShouldBeNull();
         context.Name.ShouldBeNull();
         context.Traits.ShouldBeEmpty();
         context.Anonymous.ShouldBeFalse();
@@ -83,6 +84,7 @@ public class ContextTests
         one.ShouldNotBe(different);
         one.ShouldNotBe(one with { Id = "u2" });
         one.ShouldNotBe(one with { Anonymous = true });
+        one.ShouldNotBe(one with { Kind = "device" });
         one.ShouldNotBe(new Context { Id = "u1" });
     }
 
@@ -94,6 +96,25 @@ public class ContextTests
         var identified = context with { Id = "u1" };
 
         identified.Traits["plan"].ShouldBe((TraitValue)"pro");
+    }
+
+    [Theory]
+    [InlineData("device")]
+    [InlineData("")]
+    [InlineData("Device")]
+    [InlineData(" device ")]
+    [InlineData("a-kind-of-sixty-five-characters-is-one-character-over-the-limit-x")]
+    public void TakesAnyKindAsWrittenWithoutThrowing(string kind) =>
+        new Context { Id = "u1", Kind = kind }.Kind.ShouldBe(kind);
+
+    [Fact]
+    public void KeepsTheKindThroughAWithExpression()
+    {
+        var context = new Context { Id = "42", Kind = "device" };
+
+        var renamed = context with { Name = "Kitchen tablet" };
+
+        renamed.Kind.ShouldBe("device");
     }
 
     [Fact]

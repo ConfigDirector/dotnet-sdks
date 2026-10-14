@@ -77,6 +77,17 @@ builder.Services.AddConfigDirector()
     .WithContext(http => new Context { Id = http.User.FindFirst("sub")?.Value });
 ```
 
+An omitted `Kind` means `user`. To evaluate for another kind of entity, set it:
+
+```csharp
+builder.Services.AddConfigDirector()
+    .WithContext(http => new Context
+    {
+        Kind = "tenant",
+        Id = http.User.FindFirst("tenant_id")?.Value,
+    });
+```
+
 Then inject `IConfigDirectorContextAccessor` and read `Context` from it. It is built at most once
 per request however many times it is read, so six evaluations in one action cost one call to the
 delegate.

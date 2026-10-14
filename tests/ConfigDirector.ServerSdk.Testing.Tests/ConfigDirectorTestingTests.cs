@@ -70,6 +70,30 @@ public sealed class ConfigDirectorTestingTests
     }
 
     [Fact]
+    public async Task LogsEveryEvaluationSuppliedAContextWithAnInvalidKind()
+    {
+        using var loggerFactory = new CapturingLoggerFactory();
+        await using var testClient = ConfigDirectorTesting.CreateTestClient(
+            new Dictionary<string, object>(StringComparer.Ordinal) { ["new-checkout"] = true },
+            new TestClientOptions { LoggerFactory = loggerFactory });
+        await testClient.Client.InitializeAsync(Cancellation);
+        var evaluations = new List<ConfigEvaluation>();
+        testClient.Client.ConfigEvaluated += (_, evaluated) => evaluations.Add(evaluated.Evaluation);
+        var invalid = new Context { Id = "user-1", Kind = "Device" };
+
+        testClient.Client.GetValue("new-checkout", false, invalid).ShouldBeTrue();
+        testClient.Client.GetValue("new-checkout", false, invalid).ShouldBeTrue();
+        testClient.Client.GetAllConfigs(invalid);
+        testClient.Client.GetValue("new-checkout", false).ShouldBeTrue();
+
+        evaluations.Select(evaluation => (evaluation.Context, evaluation.Reason))
+            .ShouldBe([(null, EvaluationReason.FoundMatch), (null, EvaluationReason.FoundMatch), (null, EvaluationReason.FoundMatch)]);
+        loggerFactory.Logger.Entries
+            .Count(entry => entry.Level == LogLevel.Error && entry.EventId.Name == "InvalidContextKind")
+            .ShouldBe(3);
+    }
+
+    [Fact]
     public async Task DisposingTheTestClientDisposesItsClient()
     {
         var testClient = ConfigDirectorTesting.CreateTestClient();

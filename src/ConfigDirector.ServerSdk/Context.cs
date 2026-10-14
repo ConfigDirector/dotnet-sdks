@@ -4,8 +4,8 @@ namespace ConfigDirector;
 /// Who a config is being evaluated for. Targeting rules are matched against it.
 /// </summary>
 /// <remarks>
-/// <see cref="Id"/> is what segments users in a percentage rollout, so changing it can move a user
-/// into a different percentile.
+/// <see cref="Id"/> and <see cref="Kind"/> are what segment contexts in a percentage rollout, so
+/// changing either can move a context into a different percentile.
 /// <code>
 /// new Context
 /// {
@@ -23,10 +23,23 @@ public sealed record Context
     private readonly TraitCollection _traits = [];
 
     /// <summary>
-    /// The user's identifier, which decides their bucket in a percentage rollout. Null leaves the
-    /// bucket unstable, assigned afresh on every evaluation.
+    /// The user's identifier, which decides their bucket in a percentage rollout. Without one, a
+    /// context always lands in the rollout's first non-empty bucket.
     /// </summary>
     public string? Id { get; init; }
+
+    /// <summary>
+    /// What kind of entity the context describes, such as <c>user</c>, <c>device</c> or
+    /// <c>tenant</c>. Null means <c>user</c>. A context of one kind is a different context from one
+    /// of another kind with the same <see cref="Id"/>, and a percentage rollout buckets it by both,
+    /// so the two can land in different buckets.
+    /// </summary>
+    /// <remarks>
+    /// A kind has 1 to 64 characters, each a lowercase ASCII letter, a digit, <c>-</c> or <c>_</c>,
+    /// and is used exactly as written. Setting any other kind never throws: evaluating with it logs
+    /// an error and evaluates as if no context had been supplied.
+    /// </remarks>
+    public string? Kind { get; init; }
 
     /// <summary>The user's display name.</summary>
     public string? Name { get; init; }

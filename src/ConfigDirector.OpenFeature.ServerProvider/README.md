@@ -54,9 +54,14 @@ evaluated against:
 | OpenFeature | ConfigDirector |
 | --- | --- |
 | targeting key, or failing that an `id` attribute | `Id` |
+| `kind`, beside the targeting key rather than inside `traits` | `Kind` |
 | `name` | `Name` |
 | `traits`, a structure | `Traits` |
 | `anonymous`, a boolean | `Anonymous` |
+
+An omitted `kind` means `user`, and a `kind` inside `traits` is an ordinary trait. A context whose
+kind is invalid is disregarded: the SDK logs an error, and the flag resolves successfully to its
+value for no context.
 
 ```csharp
 var context = EvaluationContext.Builder()

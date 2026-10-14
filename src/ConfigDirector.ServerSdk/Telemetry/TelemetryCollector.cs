@@ -18,6 +18,7 @@ internal sealed class TelemetryCollector : ITelemetryCollector
     private readonly HttpEventReporter _reporter;
     private readonly EventQueue _events;
     private readonly ContextRegistry _contexts;
+    private readonly InvalidContextSubmissions _invalidContexts = new();
 
     // Held for the whole of a flush, so a report triggered by closing cannot overtake one the
     // interval already started.
@@ -63,15 +64,20 @@ internal sealed class TelemetryCollector : ITelemetryCollector
         // An anonymous context still targets rules, but it is not persisted and must not be
         // identifiable in what is reported.
         string? contextId = null;
+        string? contextKind = null;
         if (context is { Anonymous: false, Id: { Length: > 0 } identifier })
         {
             contextId = identifier;
+            contextKind = ContextKinds.EffectiveKind(context);
             _contexts.Add(identifier, context);
         }
 
         _events.Push(EvaluatedConfigEvent.Create(
-            key, defaultValue, value, usedDefault, reason, contextId, configType, valueId));
+            key, defaultValue, value, usedDefault, reason, contextId, configType, valueId, contextKind));
     }
+
+    public InvalidContextLogging RecordInvalidContext(string kindSample) =>
+        _collecting ? _invalidContexts.Record(kindSample) : InvalidContextLogging.LogKind;
 
     // Reports everything collected so far without waiting for the next interval. Nothing is sent
     // when there is nothing to report.
@@ -97,7 +103,8 @@ internal sealed class TelemetryCollector : ITelemetryCollector
                     snapshot.EndTime),
                 snapshot.DroppedCount,
                 contexts,
-                droppedContexts);
+                droppedContexts,
+                _invalidContexts.TakeSnapshot());
 
             if (report.IsEmpty)
             {
@@ -157,6 +164,7 @@ internal sealed class TelemetryCollector : ITelemetryCollector
 
         _events.Clear();
         _contexts.Clear();
+        _invalidContexts.Clear();
         _disposed = true;
         await _reporter.DisposeAsync().ConfigureAwait(false);
         _stop.Dispose();
@@ -192,6 +200,7 @@ internal sealed class TelemetryCollector : ITelemetryCollector
         _stop.Cancel();
         _events.Clear();
         _contexts.Clear();
+        _invalidContexts.Clear();
         Log.StoppedCollecting(_logger, null);
     }
 

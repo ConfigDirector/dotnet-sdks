@@ -11,6 +11,13 @@ tag.
 
 ## [Unreleased]
 
+### Changed
+
+- Depends on [`ConfigDirector.ServerSdk`](https://www.nuget.org/packages/ConfigDirector.ServerSdk)
+  1.8.0, which adds `Context.Kind`. A test client evaluates kinds as the SDK does. It sends no
+  telemetry, so every evaluation supplied a context with an invalid kind logs the
+  `InvalidContextKind` error (EventId 9). The testing API is unchanged.
+
 ## [1.7.1] - 2026-10-05
 
 ### Changed

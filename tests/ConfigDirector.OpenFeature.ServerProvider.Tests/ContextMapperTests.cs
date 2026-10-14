@@ -17,6 +17,7 @@ public class ContextMapperTests
         var context = ContextMapper.ToContext(EvaluationContext.Builder().SetTargetingKey("user-1").Build());
 
         context!.Id.ShouldBe("user-1");
+        context.Kind.ShouldBeNull();
         context.Name.ShouldBeNull();
         context.Traits.ShouldBeEmpty();
         context.Anonymous.ShouldBeFalse();
@@ -45,6 +46,56 @@ public class ContextMapperTests
     public void AStructuredIdIsIgnored() =>
         ContextMapper.ToContext(EvaluationContext.Builder().Set("id", Structure.Builder().Set("a", 1).Build()).Build())!
             .Id.ShouldBeNull();
+
+    [Fact]
+    public void ATopLevelKindBecomesTheKind() =>
+        ContextMapper.ToContext(EvaluationContext.Builder().SetTargetingKey("42").Set("kind", "device").Build())!
+            .Kind.ShouldBe("device");
+
+    [Fact]
+    public void AKindIsPassedOnAsWritten() =>
+        ContextMapper.ToContext(EvaluationContext.Builder().SetTargetingKey("42").Set("kind", " Device").Build())!
+            .Kind.ShouldBe(" Device");
+
+    [Theory]
+    [InlineData(42, "42")]
+    [InlineData(2.5, "2.5")]
+    [InlineData(true, "true")]
+    public void AKindOfAnyScalarTypeBecomesTheKindAsText(object kind, string expected) =>
+        ContextMapper.ToContext(EvaluationContext.Builder().SetTargetingKey("42").Set("kind", new OpenFeatureValue(kind)).Build())!
+            .Kind.ShouldBe(expected);
+
+    [Fact]
+    public void ADateTimeKindIsRenderedAsIso8601() =>
+        ContextMapper.ToContext(EvaluationContext.Builder().SetTargetingKey("42").Set("kind", new DateTime(2026, 1, 2, 3, 4, 5, DateTimeKind.Utc)).Build())!
+            .Kind.ShouldBe("2026-01-02T03:04:05.0000000Z");
+
+    [Fact]
+    public void ANullKindIsIgnored() =>
+        ContextMapper.ToContext(EvaluationContext.Builder().SetTargetingKey("42").Set("kind", new OpenFeatureValue()).Build())!
+            .Kind.ShouldBeNull();
+
+    [Fact]
+    public void AListKindIsIgnored() =>
+        ContextMapper.ToContext(EvaluationContext.Builder().SetTargetingKey("42").Set("kind", new OpenFeatureValue(new List<OpenFeatureValue> { new("device") })).Build())!
+            .Kind.ShouldBeNull();
+
+    [Fact]
+    public void AStructuredKindIsIgnored() =>
+        ContextMapper.ToContext(EvaluationContext.Builder().SetTargetingKey("42").Set("kind", Structure.Builder().Set("a", 1).Build()).Build())!
+            .Kind.ShouldBeNull();
+
+    [Fact]
+    public void AKindInsideTraitsStaysATrait()
+    {
+        var context = ContextMapper.ToContext(EvaluationContext.Builder()
+            .SetTargetingKey("42")
+            .Set("traits", Structure.Builder().Set("kind", "device").Build())
+            .Build());
+
+        context!.Kind.ShouldBeNull();
+        context.Traits["kind"].ShouldBe((TraitValue)"device");
+    }
 
     [Fact]
     public void NameTraitsAndAnonymousMapOntoTheirCounterparts()

@@ -38,6 +38,9 @@ internal static class ConditionEvaluator
             case "identifier":
                 value = context?.Id;
                 return true;
+            case "kind":
+                value = ContextKinds.EffectiveKind(context);
+                return true;
             case "name":
                 value = context?.Name;
                 return true;

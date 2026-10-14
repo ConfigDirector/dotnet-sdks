@@ -139,7 +139,7 @@ internal sealed class ConfigEvaluator
         Context? context)
     {
         var assigned = context?.Id is { } identifier
-            ? PercentHashing.AssignPercentage(config.Id, identifier)
+            ? PercentHashing.AssignPercentage(config.Id, identifier, ContextKinds.EffectiveKind(context))
             : PercentHashing.PercentageWithoutIdentifier;
 
         var total = 0.0;

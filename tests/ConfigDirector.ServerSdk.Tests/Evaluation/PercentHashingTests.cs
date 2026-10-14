@@ -21,6 +21,15 @@ public class PercentHashingTests
     public void AssignsTheSameBucketAsTheOtherSdks(string configId, string identifier, double expected) =>
         PercentHashing.AssignPercentage(configId, identifier).ShouldBe(expected);
 
+    [Theory]
+    [InlineData("11111111-1111-4111-8111-111111111111", "user-1", "user", 7.8)]
+    [InlineData("11111111-1111-4111-8111-111111111111", "user-1", "device", 59.0)]
+    [InlineData("11111111-1111-4111-8111-111111111111", "user-1", "tenant", 8.5)]
+    [InlineData("11111111-1111-4111-8111-111111111111", "abc", "device", 75.0)]
+    public void AssignsTheSameBucketAsTheOtherSdksForEachKind(
+        string configId, string identifier, string kind, double expected) =>
+        PercentHashing.AssignPercentage(configId, identifier, kind).ShouldBe(expected);
+
     [Fact]
     public void AssignsTheSameBucketForTheSamePair() =>
         PercentHashing.AssignPercentage("config-a", "user-1")

@@ -21,6 +21,16 @@ public static class ConfigDirectorBuilderExtensions
     /// builder.Services.AddConfigDirector()
     ///     .WithContext(http => new Context { Id = http.User.FindFirst("sub")?.Value });
     /// </code>
+    /// An omitted <see cref="Context.Kind"/> means <c>user</c>. To evaluate for another kind of
+    /// entity, set it:
+    /// <code>
+    /// builder.Services.AddConfigDirector()
+    ///     .WithContext(http => new Context
+    ///     {
+    ///         Kind = "tenant",
+    ///         Id = http.User.FindFirst("tenant_id")?.Value,
+    ///     });
+    /// </code>
     /// </remarks>
     /// <param name="builder">The builder returned by <c>AddConfigDirector</c>.</param>
     /// <param name="build">Builds the context for a request.</param>

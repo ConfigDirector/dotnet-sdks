@@ -171,6 +171,40 @@ public sealed class ConfigDirectorProviderTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task MapsATopLevelKindOntoTheContextRulesAreEvaluatedAgainst()
+    {
+        var provider = await ReadyAsync(Bundles.Of(
+            Bundles.Config("by-kind", "string", "\"default\"", Bundles.Rule("kind", null, "device", "matched"))));
+        var device = EvaluationContext.Builder().SetTargetingKey("42").Set("kind", "device").Build();
+        var omitted = EvaluationContext.Builder().SetTargetingKey("42").Build();
+        var inTraits = EvaluationContext.Builder()
+            .SetTargetingKey("42")
+            .Set("traits", Structure.Builder().Set("kind", "device").Build())
+            .Build();
+
+        (await provider.ResolveStringValueAsync("by-kind", "x", device, Cancellation)).Value.ShouldBe("matched");
+        (await provider.ResolveStringValueAsync("by-kind", "x", omitted, Cancellation)).Value.ShouldBe("default");
+        (await provider.ResolveStringValueAsync("by-kind", "x", inTraits, Cancellation)).Value.ShouldBe("default");
+    }
+
+    [Fact]
+    public async Task ResolvesAContextWithAnInvalidKindSuccessfullyToTheValueForNoContext()
+    {
+        var provider = await ReadyAsync(Bundles.Of(
+            Bundles.Config("by-id", "string", "\"default\"", Bundles.Rule("identifier", null, "user-1", "matched"))));
+        var invalid = EvaluationContext.Builder().SetTargetingKey("user-1").Set("kind", "Device").Build();
+
+        var details = await provider.ResolveStringValueAsync("by-id", "x", invalid, Cancellation);
+        var withoutContext = await provider.ResolveStringValueAsync("by-id", "x", null, Cancellation);
+
+        details.Value.ShouldBe("default");
+        details.ErrorType.ShouldBe(ErrorType.None);
+        details.ErrorMessage.ShouldBeNull();
+        details.Reason.ShouldBe(withoutContext.Reason);
+        details.Variant.ShouldBe(withoutContext.Variant);
+    }
+
+    [Fact]
     public async Task KeepsAnAnonymousContextOutOfTheReportedTelemetry()
     {
         var provider = await ReadyAsync(Bundles.Of(Bundles.Config("greeting", "string", "\"Bye\"")));

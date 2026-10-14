@@ -9,6 +9,31 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- `Context.Kind`, the kind of entity a context describes, such as `user`, `device` or `tenant`. Null
+  means `user`, so existing code is unaffected. A kind has 1 to 64 characters, each a lowercase
+  ASCII letter, a digit, `-` or `_`, and is used exactly as written. Setting any other kind never
+  throws.
+  - Targeting rules and segments can test a context's kind with a `kind` condition. ConfigDirector
+    sends `kind` conditions only to SDK versions that evaluate them, and older versions receive
+    rules simplified as if every context were a `user`.
+  - A percentage rollout buckets a context of another kind by its identifier, the config and its
+    kind, so user `42` and device `42` can land in different buckets. A `user` context keeps the
+    bucket it had before, whether its kind is set or omitted.
+  - Telemetry reports a context per kind and identifier, so user `42` and device `42` are two
+    contexts in the dashboard.
+- A context with an invalid kind is disregarded instead of evaluated. `GetValue`, `GetJsonValue`,
+  watches and `GetAllConfigs` return what they return without a context, with the same
+  `EvaluationReason`, and `ConfigEvaluatedEventArgs.Evaluation.Context` is null.
+  - The client logs it at `LogLevel.Error`. EventId 9 `InvalidContextKind` names the kind, cut to
+    128 characters, once per telemetry flush interval for each of up to 20 distinct kinds. Then
+    EventId 10 `InvalidContextKindsNotLogged` says once that further kinds in that interval are not
+    logged individually.
+  - When telemetry is not being collected, after a fatal telemetry rejection or once the client is
+    closed, every such evaluation logs EventId 9.
+  - Telemetry counts every such evaluation, without the context's identifier, name or traits.
+
 ### Fixed
 
 - A conditional rule that serves a percentage rollout now serves it to the contexts that match its

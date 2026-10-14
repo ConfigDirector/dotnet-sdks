@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 
 namespace ConfigDirector.Tests.Integration;
@@ -71,6 +72,142 @@ public sealed class TelemetryIntegrationTests : IDisposable
         captured.GetProperty("id").GetString().ShouldBe("user-1");
         captured.GetProperty("traits").GetProperty("plan").GetString().ShouldBe("pro");
         Evaluations()[0].GetProperty("event").GetProperty("contextId").GetString().ShouldBe("user-1");
+    }
+
+    [Fact]
+    public async Task CapturesAUserAndADeviceSharingAnIdentifierAsTwoContexts()
+    {
+        await using var client = Client();
+        await client.InitializeAsync(TestContext.Current.CancellationToken);
+
+        client.GetValue("integer-config", 0, new Context { Id = "42", Name = "Ada" });
+        client.GetValue("integer-config", 0, new Context { Id = "42", Kind = "device", Name = "Kitchen tablet" });
+        await FlushAsync(client);
+
+        var captured = Payload().GetProperty("discreteEvents").GetProperty("capturedContexts");
+        captured.GetArrayLength().ShouldBe(2);
+        captured[0].GetProperty("id").GetString().ShouldBe("42");
+        captured[0].GetProperty("kind").GetString().ShouldBe("user");
+        captured[0].GetProperty("name").GetString().ShouldBe("Ada");
+        captured[1].GetProperty("id").GetString().ShouldBe("42");
+        captured[1].GetProperty("kind").GetString().ShouldBe("device");
+        captured[1].GetProperty("name").GetString().ShouldBe("Kitchen tablet");
+        Evaluations().Select(entry => entry.GetProperty("event"))
+            .Select(evaluated => (evaluated.GetProperty("contextId").GetString(), evaluated.GetProperty("contextKind").GetString()))
+            .ShouldBe([("42", "user"), ("42", "device")]);
+    }
+
+    [Fact]
+    public async Task CountsEveryEvaluationSuppliedAContextWithAnInvalidKind()
+    {
+        await using var client = Client();
+        await client.InitializeAsync(TestContext.Current.CancellationToken);
+        var invalid = new Context { Id = "user-1", Kind = "Device" };
+        var notified = new List<string>();
+        client.Watch("day-of-the-week-config", "unused", notified.Add, invalid);
+
+        client.GetValue("integer-config", 0, invalid);
+        client.GetValue("temporary-feature-flag", false, invalid);
+        client.GetAllConfigs(invalid);
+        _server.Push(SampleConfigs.DayOfTheWeek("Friday"));
+        await WaitAsync(() => notified.Count == 1);
+        await FlushAsync(client);
+
+        var entry = InvalidContexts().ShouldHaveSingleItem();
+        entry.GetProperty("count").GetInt32().ShouldBe(4);
+        entry.GetProperty("event").GetProperty("reason").GetString().ShouldBe("invalid-context-kind");
+        entry.GetProperty("event").GetProperty("kindSample").GetString().ShouldBe("Device");
+        DateTimeOffset.Parse(entry.GetProperty("startTime").GetString()!, CultureInfo.InvariantCulture)
+            .ShouldBeLessThanOrEqualTo(
+                DateTimeOffset.Parse(entry.GetProperty("endTime").GetString()!, CultureInfo.InvariantCulture));
+    }
+
+    [Fact]
+    public async Task ReportsTwentyKindSamplesAndCountsFurtherSubmissionsWithoutOne()
+    {
+        await using var client = Client();
+        await client.InitializeAsync(TestContext.Current.CancellationToken);
+
+        for (var index = 0; index < 25; index++)
+        {
+            client.GetAllConfigs(new Context { Kind = $"Kind-{index}" });
+        }
+
+        client.GetAllConfigs(new Context { Kind = "Kind-0" });
+        client.GetAllConfigs(new Context { Kind = "Kind-24" });
+        await FlushAsync(client);
+
+        var entries = InvalidContexts();
+        entries.Length.ShouldBe(21);
+        entries.Take(20).Select(entry => entry.GetProperty("event").GetProperty("kindSample").GetString())
+            .ShouldBe(Enumerable.Range(0, 20).Select(index => $"Kind-{index}"));
+        entries[0].GetProperty("count").GetInt32().ShouldBe(2);
+        entries[1].GetProperty("count").GetInt32().ShouldBe(1);
+        entries[20].GetProperty("event").TryGetProperty("kindSample", out _).ShouldBeFalse();
+        entries[20].GetProperty("event").GetProperty("reason").GetString().ShouldBe("invalid-context-kind");
+        entries[20].GetProperty("count").GetInt32().ShouldBe(6);
+    }
+
+    [Fact]
+    public async Task CutsAKindSampleTo128CharactersWithoutSplittingOne()
+    {
+        await using var client = Client();
+        await client.InitializeAsync(TestContext.Current.CancellationToken);
+        var emoji = char.ConvertFromUtf32(0x1F600);
+
+        client.GetAllConfigs(new Context { Kind = new string('K', 129) });
+        client.GetAllConfigs(new Context { Kind = new string('K', 127) + emoji + "x" });
+        await FlushAsync(client);
+
+        InvalidContexts().Select(entry => entry.GetProperty("event").GetProperty("kindSample").GetString())
+            .ShouldBe([new string('K', 128), new string('K', 127) + emoji]);
+    }
+
+    [Fact]
+    public async Task CountsAnInvalidContextGivenToGetAllConfigsBeforeTheClientIsReady()
+    {
+        var client = Client();
+
+        client.GetAllConfigs(new Context { Kind = "Device" }).ShouldBeEmpty();
+        await FlushAsync(client);
+
+        InvalidContexts().ShouldHaveSingleItem().GetProperty("count").GetInt32().ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task SendsAReportHoldingOnlyInvalidContexts()
+    {
+        await using var client = Client();
+        await client.InitializeAsync(TestContext.Current.CancellationToken);
+
+        client.GetAllConfigs(new Context { Kind = "Device" });
+        await FlushAsync(client);
+
+        Evaluations().ShouldBeEmpty();
+        InvalidContexts().ShouldHaveSingleItem().GetProperty("count").GetInt32().ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task NeverReportsTheIdentifierNameOrTraitsOfAContextWithAnInvalidKind()
+    {
+        await using var client = Client();
+        await client.InitializeAsync(TestContext.Current.CancellationToken);
+
+        client.GetValue(
+            "integer-config",
+            0,
+            new Context { Id = "secret-id", Kind = "Device", Name = "Secret Name", Traits = { ["plan"] = "secret-plan" } });
+        await FlushAsync(client);
+
+        var body = _server.Bodies[_server.Paths.IndexOf("/server/telemetry/v1")];
+        body.ShouldNotContain("secret-id");
+        body.ShouldNotContain("Secret Name");
+        body.ShouldNotContain("secret-plan");
+        Payload().GetProperty("discreteEvents").GetProperty("capturedContexts").GetArrayLength().ShouldBe(0);
+        Evaluations()[0].GetProperty("event").TryGetProperty("contextKind", out _).ShouldBeFalse();
+        var entry = InvalidContexts().ShouldHaveSingleItem();
+        entry.EnumerateObject().Select(property => property.Name).ShouldBe(["startTime", "endTime", "count", "event"]);
+        entry.GetProperty("event").EnumerateObject().Select(property => property.Name).ShouldBe(["reason", "kindSample"]);
     }
 
     [Fact]
@@ -319,6 +456,9 @@ public sealed class TelemetryIntegrationTests : IDisposable
     private JsonElement Payload() =>
         JsonDocument.Parse(_server.Bodies[_server.Paths.IndexOf("/server/telemetry/v1")])
             .RootElement.Clone();
+
+    private JsonElement[] InvalidContexts() =>
+        [.. Payload().GetProperty("aggregatedEvents").GetProperty("invalidContext").EnumerateArray()];
 
     private JsonElement[] Evaluations() =>
         [.. Payload().GetProperty("aggregatedEvents").GetProperty("evaluatedConfig").EnumerateArray()];
