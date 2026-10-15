@@ -9,6 +9,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-10-14
+
 ### Changed
 
 - Requires [`ConfigDirector.ServerSdk`](https://www.nuget.org/packages/ConfigDirector.ServerSdk)
@@ -136,7 +138,8 @@ later.
 - Configuration binding runs through the source-generated binder, so the package adds no trimming
   or AOT warnings to a consuming application.
 
-[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.7.1...HEAD
+[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.8.0...HEAD
+[1.8.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.7.1...ConfigDirector.ServerSdk.AspNetCore-v1.8.0
 [1.7.1]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.7.0...ConfigDirector.ServerSdk.AspNetCore-v1.7.1
 [1.7.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.6.0...ConfigDirector.ServerSdk.AspNetCore-v1.7.0
 [1.6.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.5.1...ConfigDirector.ServerSdk.AspNetCore-v1.6.0
