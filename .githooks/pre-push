@@ -81,5 +81,6 @@ run() {
 run "dotnet build" dotnet build -c "$CONFIGURATION"
 run "dotnet test" dotnet test -c "$CONFIGURATION" --no-build --timeout 5m
 run "dotnet format" dotnet format --verify-no-changes
+run "release scripts" scripts/wait-for-package-indexed-test.sh
 
 printf '\n%spre-push checks passed%s\n' "$green" "$reset"

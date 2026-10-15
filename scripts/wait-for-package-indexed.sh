@@ -7,6 +7,10 @@
 # packages pin the SDK's exact version and are pushed right after it from the same run, so the
 # run has to wait here rather than fail and be re-run by hand.
 #
+# Once one read lists the version, the next can still miss it, because nuget.org serves the index
+# from more than one copy and they catch up at different times. So the version has to be listed on
+# several reads in a row.
+#
 #   scripts/wait-for-package-indexed.sh ConfigDirector.ServerSdk 1.6.0 [minutes]
 set -euo pipefail
 
@@ -17,10 +21,18 @@ minutes=${3:-20}
 lower=$(printf '%s' "$id" | tr '[:upper:]' '[:lower:]')
 index="https://api.nuget.org/v3-flatcontainer/$lower/index.json"
 deadline=$(( $(date +%s) + minutes * 60 ))
+reads_needed=3
+listed_in_a_row=0
 
 while :; do
   if versions=$(curl -fsSL "$index" 2>/dev/null) \
     && printf '%s' "$versions" | grep -qiF "\"$version\""; then
+    listed_in_a_row=$(( listed_in_a_row + 1 ))
+  else
+    listed_in_a_row=0
+  fi
+
+  if [ "$listed_in_a_row" -ge "$reads_needed" ]; then
     echo "$id $version is on nuget.org"
     exit 0
   fi
@@ -30,6 +42,6 @@ while :; do
     exit 1
   fi
 
-  echo "waiting for nuget.org to index $id $version"
+  echo "waiting for nuget.org to index $id $version ($listed_in_a_row of $reads_needed reads in a row list it)"
   sleep 30
 done

@@ -15,6 +15,7 @@ which overwrites the one already there and leaves a `dotnet` that macOS refuses 
 dotnet build -c Release
 dotnet test -c Release --no-build --timeout 5m
 dotnet format --verify-no-changes
+scripts/wait-for-package-indexed-test.sh
 ```
 
 The timeout bounds each test project's run, so a hung test fails the run within minutes rather than
@@ -25,7 +26,7 @@ the test assembly directly, where xunit names any test still running after 30 se
 dotnet tests/ConfigDirector.ServerSdk.Tests/bin/Release/net10.0/ConfigDirector.ServerSdk.Tests.dll
 ```
 
-Those three are what CI runs, and what the shared `pre-push` hook runs. Wire the hook up once
+Those four are what CI runs, and what the shared `pre-push` hook runs. Wire the hook up once
 per clone:
 
 ```bash

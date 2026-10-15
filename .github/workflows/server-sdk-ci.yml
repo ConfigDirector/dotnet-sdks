@@ -61,6 +61,16 @@ jobs:
       # Whitespace and ordering, which building does not check.
       - run: dotnet format --verify-no-changes
 
+  release-scripts:
+    name: Release scripts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      # The release workflow runs this script only while it publishes, so it is tested here.
+      - run: scripts/wait-for-package-indexed-test.sh
+
   os-compatibility:
     name: Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
