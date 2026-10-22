@@ -104,7 +104,7 @@ public static class ConfigDirectorServiceCollectionExtensions
         options
             .PostConfigure<IHostEnvironment>(DescribeTheApplication)
             .Validate(
-                settings => !string.IsNullOrWhiteSpace(settings.ServerSdkKey),
+                settings => settings.Connection.Mode == ConnectionMode.Offline || !string.IsNullOrWhiteSpace(settings.ServerSdkKey),
                 $"A ConfigDirector server SDK key is required. Set '{sectionPath}:{nameof(ConfigDirectorOptions.ServerSdkKey)}', "
                     + "or supply it in code with AddConfigDirector(options => options.ServerSdkKey = ...).")
             .ValidateOnStart();
@@ -119,7 +119,7 @@ public static class ConfigDirectorServiceCollectionExtensions
     {
         var settings = services.GetRequiredService<IOptions<ConfigDirectorOptions>>().Value;
 
-        return new ConfigDirectorClient(settings.ServerSdkKey!, new ConfigDirectorClientOptions
+        return new ConfigDirectorClient(settings.ServerSdkKey, new ConfigDirectorClientOptions
         {
             Metadata = MetadataFrom(settings),
             LoggerFactory = services.GetRequiredService<ILoggerFactory>(),

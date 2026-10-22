@@ -11,6 +11,13 @@ carries the SDK's version: it declares an exact dependency on that version of
 
 ## [Unreleased]
 
+### Changed
+
+- Depends on `ConfigDirector.ServerSdk.Testing` 1.9.0, and through it on
+  [`ConfigDirector.ServerSdk`](https://www.nuget.org/packages/ConfigDirector.ServerSdk) 1.9.0, which
+  adds offline mode. A value a test client cannot take is reported with the reworded messages that
+  `ConfigDirector.ServerSdk.Testing` describes. The testing API is unchanged.
+
 ## [1.8.0] - 2026-10-14
 
 ### Changed

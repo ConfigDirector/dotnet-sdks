@@ -22,8 +22,9 @@ namespace ConfigDirector;
 public interface IConfigDirectorClient : IDisposable, IAsyncDisposable
 {
     /// <summary>
-    /// Raised once, when the first config state arrives. It reports the transition, so a handler
-    /// added to an already-ready client is never called — check <see cref="IsReady"/> for that.
+    /// Raised once, when the first config state arrives, or in <see cref="ConnectionMode.Offline"/>
+    /// when the offline values are first loaded. It reports the transition, so a handler added to an
+    /// already-ready client is never called — check <see cref="IsReady"/> for that.
     /// </summary>
     event EventHandler<ClientReadyEventArgs>? ClientReady;
 
@@ -51,10 +52,22 @@ public interface IConfigDirectorClient : IDisposable, IAsyncDisposable
     /// Connects and waits for the first config state, bounded by
     /// <see cref="ConnectionOptions.Timeout"/>.
     /// </summary>
+    /// <remarks>
+    /// In <see cref="ConnectionMode.Offline"/> it never connects: it loads
+    /// <see cref="ConnectionOptions.File"/> or <see cref="ConnectionOptions.Values"/> and completes
+    /// once they are served. Calling it again loads them again, reading the file once more, and a
+    /// load that fails leaves the values loaded before in place.
+    /// </remarks>
     /// <param name="cancellationToken">Abandons the wait.</param>
     /// <returns>A task that completes once the client is ready or the timeout elapses.</returns>
     /// <exception cref="ObjectDisposedException">The client has been disposed.</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled.</exception>
+    /// <exception cref="ConfigDirectorInitializationException">
+    /// The offline values could not be loaded: the file is missing, unreadable, not JSON or not a JSON
+    /// object, a value is null or of a type the client cannot serve, both
+    /// <see cref="ConnectionOptions.File"/> and <see cref="ConnectionOptions.Values"/> are given, or
+    /// either is given while the connection mode is not <see cref="ConnectionMode.Offline"/>.
+    /// </exception>
     Task InitializeAsync(CancellationToken cancellationToken = default);
 
     /// <summary>Evaluates <paramref name="configKey"/> and reads its value as an integer.</summary>

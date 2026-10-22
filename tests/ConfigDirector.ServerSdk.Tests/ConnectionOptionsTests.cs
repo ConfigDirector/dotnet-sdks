@@ -73,6 +73,19 @@ public class ConnectionOptionsTests
     }
 
     [Fact]
+    public void AcceptsTheOfflineMode() =>
+        new ConnectionOptions { Mode = ConnectionMode.Offline }.Mode.ShouldBe(ConnectionMode.Offline);
+
+    [Fact]
+    public void HoldsNoOfflineValuesUntilGivenSome()
+    {
+        var options = new ConnectionOptions();
+
+        options.File.ShouldBeNull();
+        options.Values.ShouldBeNull();
+    }
+
+    [Fact]
     public void RejectsAModeThatIsNotOneOfTheDefinedModes() =>
         Should.Throw<ArgumentOutOfRangeException>(
             () => new ConnectionOptions { Mode = (ConnectionMode)42 });

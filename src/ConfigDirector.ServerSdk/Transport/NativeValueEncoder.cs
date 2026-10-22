@@ -8,43 +8,41 @@ using ConfigDirector.Evaluation;
 
 namespace ConfigDirector.Transport;
 
-internal static class TestValueEncoder
+internal static class NativeValueEncoder
 {
     private static readonly JsonWriterOptions CompactJson = new()
     {
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
-    internal static Config Encode(string key, object value)
+    internal static Config Encode(string key, object? value, string configId, string? valueId)
     {
         ValidateKey(key);
         if (value is null)
         {
-            throw new ArgumentNullException(
-                nameof(value), $"The test value for '{key}' must not be null. Use RemoveValue to remove a value.");
+            throw new ArgumentNullException(null, $"The value for '{key}' must not be null.");
         }
 
-        return value switch
+        var (type, encodedValue) = value switch
         {
-            bool flag => Definition(key, ConfigType.Boolean, flag ? "true" : "false"),
+            bool flag => (ConfigType.Boolean, flag ? "true" : "false"),
             sbyte or byte or short or ushort or int or uint or long =>
-                Definition(key, ConfigType.Integer, ((IFormattable)value).ToString(null, CultureInfo.InvariantCulture)),
-            float single => Definition(key, ConfigType.Float, PlainDecimal(key, single, single.ToString("R", CultureInfo.InvariantCulture))),
-            double number => Definition(key, ConfigType.Float, PlainDecimal(key, number, number.ToString("R", CultureInfo.InvariantCulture))),
-            decimal exact => Definition(key, ConfigType.Float, exact.ToString(CultureInfo.InvariantCulture)),
-            string text => Definition(key, ConfigType.String, text),
-            _ => Definition(key, ConfigType.Json, JsonText(key, value)),
+                (ConfigType.Integer, ((IFormattable)value).ToString(null, CultureInfo.InvariantCulture)),
+            float single => (ConfigType.Float, PlainDecimal(key, single, single.ToString("R", CultureInfo.InvariantCulture))),
+            double number => (ConfigType.Float, PlainDecimal(key, number, number.ToString("R", CultureInfo.InvariantCulture))),
+            decimal exact => (ConfigType.Float, exact.ToString(CultureInfo.InvariantCulture)),
+            string text => (ConfigType.String, text),
+            _ => (ConfigType.Json, JsonText(key, value)),
         };
-    }
 
-    private static Config Definition(string key, ConfigType type, string text) =>
-        new()
+        return new Config
         {
-            Id = "test-config:" + key,
+            Id = configId,
             Key = key,
             Type = type,
-            Target = new TargetingRules { DefaultValue = text, DefaultValueId = "test-value:" + key },
+            Target = new TargetingRules { DefaultValue = encodedValue, DefaultValueId = valueId },
         };
+    }
 
     private static void ValidateKey(string key)
     {
@@ -55,7 +53,7 @@ internal static class TestValueEncoder
 
         if (string.IsNullOrWhiteSpace(key))
         {
-            throw new ArgumentException("The key of a test value must not be empty.", nameof(key));
+            throw new ArgumentException("The key of a value must not be empty.");
         }
     }
 
@@ -63,7 +61,7 @@ internal static class TestValueEncoder
     {
         if (double.IsNaN(value) || double.IsInfinity(value))
         {
-            throw new ArgumentException($"The test value for '{key}' is {roundTrip}, which is not a finite number.", nameof(value));
+            throw new ArgumentException($"The value for '{key}' is {roundTrip}, which is not a finite number.");
         }
 
         var exponentAt = roundTrip.IndexOfAny(['E', 'e']);
@@ -113,10 +111,9 @@ internal static class TestValueEncoder
         if (!isDocument)
         {
             throw new ArgumentException(
-                $"The test value for '{key}' is {Describe(value)}, which is not a supported value. Use a bool, an integer, "
+                $"The value for '{key}' is {Describe(value)}, which is not a supported value. Use a bool, an integer, "
                     + "a float, double or decimal, a string, a dictionary with string keys, a list, or a JsonElement or "
-                    + "JsonNode holding an object or an array.",
-                nameof(value));
+                    + "JsonNode holding an object or an array.");
         }
 
         using var buffer = new MemoryStream();
@@ -222,7 +219,7 @@ internal static class TestValueEncoder
     {
         var location = path.Length == 0 ? string.Empty : $" at '{path}'";
         return new ArgumentException(
-            $"Invalid test value for '{key}'{location}: {problem}. JSON contents can hold bools, finite numbers, "
+            $"Invalid value for '{key}'{location}: {problem}. JSON contents can hold bools, finite numbers, "
                 + "strings, null, lists, dictionaries with string keys, and JsonElement or JsonNode values.");
     }
 

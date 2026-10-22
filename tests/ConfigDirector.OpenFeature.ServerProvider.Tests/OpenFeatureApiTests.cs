@@ -87,6 +87,36 @@ public sealed class OpenFeatureApiTests : IAsyncDisposable
         (await provider.ResolveBooleanValueAsync("show-banner", false, null, Cancellation)).Value.ShouldBeFalse();
     }
 
+    [Fact]
+    public async Task PutsTheProviderInTheErrorStateWhenItsOfflineValuesCannotBeLoaded()
+    {
+        var missing = Path.Combine(Path.GetTempPath(), $"configdirector-missing-{Guid.NewGuid():N}.json");
+        var failed = new TaskCompletionSource<ProviderEventPayload>(TaskCreationOptions.RunContinuationsAsynchronously);
+        void Handler(ProviderEventPayload? payload) => failed.TrySetResult(payload!);
+        Api.Instance.AddHandler(ProviderEventTypes.ProviderError, Handler);
+        try
+        {
+            await Api.Instance.SetProviderAsync(
+                new ConfigDirectorProvider(new ConfigDirectorClientOptions
+                {
+                    Connection = { Mode = ConnectionMode.Offline, File = missing },
+                }),
+                Cancellation);
+
+            var client = Api.Instance.GetClient();
+            var details = await client.GetBooleanDetailsAsync("new-checkout", true, cancellationToken: Cancellation);
+
+            client.ProviderStatus.ShouldBe(ProviderStatus.Error);
+            (await failed.Task.WaitAsync(Timeout, Cancellation)).Message!.ShouldContain(missing);
+            details.Value.ShouldBeTrue();
+            details.ErrorType.ShouldBe(ErrorType.ProviderNotReady);
+        }
+        finally
+        {
+            Api.Instance.RemoveHandler(ProviderEventTypes.ProviderError, Handler);
+        }
+    }
+
     public async ValueTask DisposeAsync()
     {
         await Api.Instance.ShutdownAsync();

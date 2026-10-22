@@ -94,6 +94,28 @@ public class AddConfigDirectorTests
     }
 
     [Fact]
+    public void AcceptsNoServerSdkKeyInOfflineMode()
+    {
+        var settings = Settings(
+            services => services.AddConfigDirector(),
+            ("ConfigDirector:Connection:Mode", "Offline"));
+
+        settings.ServerSdkKey.ShouldBeNull();
+        settings.Connection.Mode.ShouldBe(ConnectionMode.Offline);
+    }
+
+    [Fact]
+    public void BindsTheOfflineValuesFile()
+    {
+        var settings = Settings(
+            services => services.AddConfigDirector(),
+            ("ConfigDirector:Connection:Mode", "Offline"),
+            ("ConfigDirector:Connection:File", "./flags/new-checkout-on.json"));
+
+        settings.Connection.File.ShouldBe("./flags/new-checkout-on.json");
+    }
+
+    [Fact]
     public void NamesTheCallersOwnSectionWhenTheKeyIsMissing()
     {
         var failure = Should.Throw<OptionsValidationException>(() =>

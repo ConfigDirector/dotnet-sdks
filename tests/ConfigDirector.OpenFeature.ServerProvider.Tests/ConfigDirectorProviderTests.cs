@@ -329,8 +329,31 @@ public sealed class ConfigDirectorProviderTests : IAsyncDisposable
     [Fact]
     public void RejectsAMissingServerSdkKey()
     {
-        Should.Throw<ArgumentNullException>(() => new ConfigDirectorProvider(null!));
+        Should.Throw<ArgumentNullException>(() => new ConfigDirectorProvider((string?)null));
         Should.Throw<ArgumentException>(() => new ConfigDirectorProvider(" "));
+    }
+
+    [Fact]
+    public async Task ServesOfflineValuesWithoutAServerSdkKeyOrAConnection()
+    {
+        var provider = new ConfigDirectorProvider(new ConfigDirectorClientOptions
+        {
+            Connection =
+            {
+                Mode = ConnectionMode.Offline,
+                Values = new Dictionary<string, object> { ["new-checkout"] = true },
+                Url = _server.BaseUrl,
+            },
+        });
+        _providers.Add(provider);
+        await provider.InitializeAsync(EvaluationContext.Empty, Cancellation);
+
+        var details = await provider.ResolveBooleanValueAsync("new-checkout", false, null, Cancellation);
+        await provider.DisposeAsync();
+
+        details.Value.ShouldBeTrue();
+        details.Reason.ShouldBe(Reason.TargetingMatch);
+        _server.Requests.ShouldBe(0);
     }
 
     public async ValueTask DisposeAsync()

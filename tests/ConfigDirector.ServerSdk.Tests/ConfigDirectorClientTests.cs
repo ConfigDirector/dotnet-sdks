@@ -14,13 +14,37 @@ public sealed class ConfigDirectorClientTests : IDisposable
 
     [Fact]
     public void RejectsAMissingServerSdkKey() =>
-        Should.Throw<ArgumentNullException>(() => new ConfigDirectorClient(null!));
+        Should.Throw<ArgumentNullException>(() => new ConfigDirectorClient((string?)null));
 
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
     public void RejectsABlankServerSdkKey(string key) =>
         Should.Throw<ArgumentException>(() => new ConfigDirectorClient(key));
+
+    [Fact]
+    public void RejectsOptionsWithoutAServerSdkKeyOutsideOfflineMode() =>
+        Should.Throw<ArgumentNullException>(() => new ConfigDirectorClient(new ConfigDirectorClientOptions()));
+
+    [Fact]
+    public async Task AcceptsANullServerSdkKeyInOfflineMode()
+    {
+        await using var client = new ConfigDirectorClient((string?)null, Offline());
+
+        await client.InitializeAsync(TestContext.Current.CancellationToken);
+
+        client.IsReady.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task AcceptsAnEmptyServerSdkKeyInOfflineMode()
+    {
+        await using var client = new ConfigDirectorClient(string.Empty, Offline());
+
+        await client.InitializeAsync(TestContext.Current.CancellationToken);
+
+        client.IsReady.ShouldBeTrue();
+    }
 
     [Fact]
     public async Task PollsEveryFiveMinutesWhenNoIntervalIsGiven()
@@ -73,6 +97,9 @@ public sealed class ConfigDirectorClientTests : IDisposable
         _loggerFactory.Logger.Entries.ShouldBeEmpty();
     }
 
+    private static ConfigDirectorClientOptions Offline() =>
+        new() { Connection = { Mode = ConnectionMode.Offline } };
+
     private ConfigDirectorClientOptions Options(ConnectionMode mode, TimeSpan? pollingInterval)
     {
         var options = new ConfigDirectorClientOptions
@@ -94,7 +121,7 @@ public sealed class ConfigDirectorClientTests : IDisposable
     private ConfigDirectorClient Client(ConfigDirectorClientOptions options) =>
         new("server-sdk-key", options, SdkIdentity.ServerSdk, CaptureTransportOptions);
 
-    private IdleTransport CaptureTransportOptions(ConnectionMode mode, TransportOptions transportOptions)
+    private IdleTransport CaptureTransportOptions(LiveConnectionMode mode, TransportOptions transportOptions)
     {
         _transportOptions = transportOptions;
         return new IdleTransport();

@@ -9,6 +9,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- Offline mode. With `Connection:Mode` set to `Offline`, `ServerSdkKey` is no longer required, and
+  the client serves the values in the JSON file named by `Connection:File`, or the
+  `Connection.Values` set in code, without connecting to ConfigDirector or sending anything. A test
+  run can switch to a file of values through configuration alone, for example with the environment
+  variables `ConfigDirector__Connection__Mode=Offline` and
+  `ConfigDirector__Connection__File=./flags/new-checkout-on.json`. Give `Values` in code rather
+  than in configuration, which binds every value as a string.
+  - `RequireReadyOnStartup` is satisfied as soon as the values are loaded. If they cannot be
+    loaded, or `Connection:File` or `Connection.Values` is given in another mode, the host fails to
+    start with `ConfigDirectorInitializationException`, whether or not `RequireReadyOnStartup` is
+    set. An empty `Connection:File`, such as an environment variable left empty, counts as not
+    given.
+  - Requires [`ConfigDirector.ServerSdk`](https://www.nuget.org/packages/ConfigDirector.ServerSdk)
+    1.9.0 or later, which adds offline mode.
+
 ## [1.8.0] - 2026-10-14
 
 ### Changed

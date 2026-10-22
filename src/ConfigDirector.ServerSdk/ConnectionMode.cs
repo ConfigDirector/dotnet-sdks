@@ -11,4 +11,11 @@ public enum ConnectionMode
     /// <see cref="ConnectionOptions.PollingInterval"/>.
     /// </summary>
     Polling,
+
+    /// <summary>
+    /// The client never connects to ConfigDirector and sends nothing. It serves the values in
+    /// <see cref="ConnectionOptions.File"/> or <see cref="ConnectionOptions.Values"/>, or every
+    /// in-code default value when neither is given.
+    /// </summary>
+    Offline,
 }

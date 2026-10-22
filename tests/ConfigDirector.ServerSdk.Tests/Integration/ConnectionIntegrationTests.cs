@@ -559,8 +559,8 @@ public sealed class ConnectionIntegrationTests : IDisposable
             "server-sdk-key", settings, identity ?? SdkIdentity.ServerSdk, FastPollingTransport);
     }
 
-    private static ITransport FastPollingTransport(ConnectionMode mode, TransportOptions options) =>
-        mode == ConnectionMode.Polling
+    private static ITransport FastPollingTransport(LiveConnectionMode mode, TransportOptions options) =>
+        mode == LiveConnectionMode.Polling
             ? new PollingTransport(options, TimeSpan.FromMilliseconds(50))
             : TransportFactory.Create(mode, options);
 

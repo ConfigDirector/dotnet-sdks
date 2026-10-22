@@ -9,6 +9,45 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- Offline mode. `ConnectionMode.Offline` runs a client that never connects to ConfigDirector and
+  sends nothing, for example in UI tests that pin every flag to a known value. It serves the values
+  in a JSON file whose path is given in `ConnectionOptions.File`, resolved against the working
+  directory, or the values given in code in `ConnectionOptions.Values`. With neither, the client is
+  ready at once and every config returns its in-code default value with
+  `EvaluationReason.ConfigStateMissing`. An empty or whitespace `File` counts as no file, so an empty
+  environment variable behind it changes nothing in any mode.
+  - Each value takes its config type from the value itself. In the file, `true` or `false` is a
+    boolean, a whole number that fits in a `long`, such as `20` or `20.0`, an integer, any other
+    number a float, a string a string, and an object or array JSON. Inline values follow the test
+    client's rule: a `bool`; an `sbyte`, `byte`, `short`, `ushort`, `int`, `uint` or `long`; a
+    `float`, `double` or `decimal`; a `string`; or a dictionary with string keys, a list, or a
+    `JsonElement` or `JsonNode` holding an object or an array.
+  - Every context receives the same value, with `EvaluationReason.FoundMatch` and no value id, and
+    a value read as another type returns the in-code default value, as it does against
+    ConfigDirector. `GetAllConfigs` returns the offline values.
+  - `InitializeAsync` completes once the values are loaded, and `ClientReady` is raised once. A
+    watch registered before it is called with the loaded value, and again only when
+    `InitializeAsync` is called again, which loads the values, and reads the file, once more.
+  - `Timeout`, `PollingInterval`, `Url` and the telemetry options have no effect. One that is
+    invalid, such as a relative `Url`, still throws when it is assigned, as in every mode.
+- `new ConfigDirectorClient(ConfigDirectorClientOptions)` builds a client without a server SDK key,
+  which only offline mode allows. In offline mode, `new ConfigDirectorClient(string?,
+  ConfigDirectorClientOptions?)` also accepts a null, empty or whitespace key, and ignores any key.
+- `ConfigDirectorInitializationException`, which `InitializeAsync` throws when the offline values
+  cannot be loaded: the file is missing, unreadable, not JSON or not a JSON object; a value is
+  null, of a type the client cannot serve, or not a finite number; both `File` and `Values` are
+  given; or either is given while the mode is `Streaming` or `Polling`, in which case the client
+  never connects. A client that has not loaded values yet stays not ready, and one that has keeps
+  serving them. `InitializeAsync` still never throws for a connection that fails.
+
+### Changed
+
+- `new ConfigDirectorClient(null)` no longer compiles, because `null` now matches both
+  one-argument constructors. `new ConfigDirectorClient((string?)null)` throws
+  `ArgumentNullException` as before.
+
 ## [1.8.0] - 2026-10-14
 
 ### Added

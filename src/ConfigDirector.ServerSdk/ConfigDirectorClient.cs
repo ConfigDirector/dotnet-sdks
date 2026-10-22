@@ -43,34 +43,65 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
     /// <summary>
     /// Builds a client that has not connected yet.
     /// </summary>
-    /// <param name="serverSdkKey">A secret; do not commit it to source control.</param>
+    /// <param name="serverSdkKey">
+    /// A secret; do not commit it to source control. May be null or empty only in
+    /// <see cref="ConnectionMode.Offline"/>, which ignores it.
+    /// </param>
     /// <param name="options">The settings to build with, or null for the defaults.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="serverSdkKey"/> is null.</exception>
-    /// <exception cref="ArgumentException"><paramref name="serverSdkKey"/> is empty or whitespace.</exception>
-    public ConfigDirectorClient(string serverSdkKey, ConfigDirectorClientOptions? options = null)
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="serverSdkKey"/> is null and the connection mode is not <see cref="ConnectionMode.Offline"/>.
+    /// </exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="serverSdkKey"/> is empty or whitespace and the connection mode is not
+    /// <see cref="ConnectionMode.Offline"/>.
+    /// </exception>
+    public ConfigDirectorClient(string? serverSdkKey, ConfigDirectorClientOptions? options = null)
         : this(serverSdkKey, options, SdkIdentity.ServerSdk)
     {
     }
 
-    internal ConfigDirectorClient(string serverSdkKey, ConfigDirectorClientOptions? options, SdkIdentity identity)
+    /// <summary>
+    /// Builds a client without a server SDK key, which only <see cref="ConnectionMode.Offline"/>
+    /// allows.
+    /// </summary>
+    /// <remarks>
+    /// <code>
+    /// await using var client = new ConfigDirectorClient(new ConfigDirectorClientOptions
+    /// {
+    ///     Connection = { Mode = ConnectionMode.Offline, File = "./flags/new-checkout-on.json" },
+    /// });
+    /// await client.InitializeAsync();
+    /// </code>
+    /// </remarks>
+    /// <param name="options">The settings to build with.</param>
+    /// <exception cref="ArgumentNullException">
+    /// The connection mode in <paramref name="options"/> is not <see cref="ConnectionMode.Offline"/>,
+    /// so a server SDK key is required.
+    /// </exception>
+    public ConfigDirectorClient(ConfigDirectorClientOptions options)
+        : this(null, options, SdkIdentity.ServerSdk)
+    {
+    }
+
+    internal ConfigDirectorClient(string? serverSdkKey, ConfigDirectorClientOptions? options, SdkIdentity identity)
         : this(serverSdkKey, options, identity, TransportFactory.Create)
     {
     }
 
     internal ConfigDirectorClient(
-        string serverSdkKey,
+        string? serverSdkKey,
         ConfigDirectorClientOptions? options,
         SdkIdentity identity,
-        Func<ConnectionMode, TransportOptions, ITransport> buildTransport)
+        Func<LiveConnectionMode, TransportOptions, ITransport> buildTransport)
         : this(serverSdkKey, options, identity, buildTransport, telemetryOptions => new TelemetryCollector(telemetryOptions))
     {
     }
 
     internal ConfigDirectorClient(
-        string serverSdkKey,
+        string? serverSdkKey,
         ConfigDirectorClientOptions? options,
         SdkIdentity identity,
-        Func<ConnectionMode, TransportOptions, ITransport> buildTransport,
+        Func<LiveConnectionMode, TransportOptions, ITransport> buildTransport,
         Func<TelemetryCollectorOptions, ITelemetryCollector> buildTelemetry)
     {
         if (identity is null)
@@ -78,42 +109,19 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
             throw new ArgumentNullException(nameof(identity));
         }
 
-        if (serverSdkKey is null)
-        {
-            throw new ArgumentNullException(nameof(serverSdkKey));
-        }
-
-        if (string.IsNullOrWhiteSpace(serverSdkKey))
-        {
-            throw new ArgumentException(
-                "The client cannot be built without a server SDK key.", nameof(serverSdkKey));
-        }
-
         var settings = options ?? new ConfigDirectorClientOptions();
+        var plan = ConnectionPlan.Of(serverSdkKey, settings.Connection);
         _logger = settings.LoggerFactory.CreateLogger<ConfigDirectorClient>();
         _metadata = settings.Metadata;
         _timeout = settings.Connection.Timeout;
         _evaluator = new ConfigEvaluator(settings.LoggerFactory.CreateLogger<ConfigEvaluator>());
 
-        var connection = settings.Connection;
-        var baseUrl = connection.Url ?? Transports.DefaultBaseUrl;
-
-        _telemetry = buildTelemetry(
-            new TelemetryCollectorOptions(serverSdkKey, baseUrl, identity, settings.LoggerFactory)
-            {
-                Metadata = settings.Metadata,
-                EventQueueLimit = settings.Telemetry.EventQueueLimit,
-                FlushInterval = settings.Telemetry.FlushInterval,
-            });
-
-        _transport = buildTransport(
-            connection.Mode,
-            new TransportOptions(serverSdkKey, baseUrl, OnBundle, identity, settings.LoggerFactory)
-            {
-                Metadata = settings.Metadata,
-                PollingInterval = ResolvePollingInterval(connection),
-                RequestTimeout = connection.Timeout,
-            });
+        (_telemetry, _transport) = plan switch
+        {
+            ConnectionPlan.Connect connect => LiveConnection(connect, settings, identity, buildTransport, buildTelemetry),
+            ConnectionPlan.StayOffline offline => (DiscardingTelemetryCollector.Instance, new OfflineTransport(offline.Source, OnBundle)),
+            _ => throw new InvalidOperationException("The connection plan is not one the client knows."),
+        };
     }
 
     /// <inheritdoc/>
@@ -151,7 +159,7 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
         {
             Log.InitializationTimedOut(_logger, _timeout, null);
         }
-        catch (Exception error) when (error is not OperationCanceledException)
+        catch (Exception error) when (error is not OperationCanceledException and not ConfigDirectorInitializationException)
         {
             // Reported through IsReady rather than by throwing. An application that cannot reach
             // ConfigDirector should still start and serve its defaults, and every SDK that fronts
@@ -659,10 +667,36 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
         public void Dispose() => cancel();
     }
 
-    private TimeSpan ResolvePollingInterval(ConnectionOptions connection)
+    private (ITelemetryCollector Telemetry, ITransport Transport) LiveConnection(
+        ConnectionPlan.Connect plan,
+        ConfigDirectorClientOptions settings,
+        SdkIdentity identity,
+        Func<LiveConnectionMode, TransportOptions, ITransport> buildTransport,
+        Func<TelemetryCollectorOptions, ITelemetryCollector> buildTelemetry)
     {
-        var configuredInterval = connection.PollingInterval;
-        if (connection.Mode != ConnectionMode.Polling
+        var telemetry = buildTelemetry(
+            new TelemetryCollectorOptions(plan.ServerSdkKey, plan.BaseUrl, identity, settings.LoggerFactory)
+            {
+                Metadata = settings.Metadata,
+                EventQueueLimit = settings.Telemetry.EventQueueLimit,
+                FlushInterval = settings.Telemetry.FlushInterval,
+            });
+
+        var transport = buildTransport(
+            plan.Mode,
+            new TransportOptions(plan.ServerSdkKey, plan.BaseUrl, OnBundle, identity, settings.LoggerFactory)
+            {
+                Metadata = settings.Metadata,
+                PollingInterval = ResolvePollingInterval(plan.Mode, settings.Connection.PollingInterval),
+                RequestTimeout = settings.Connection.Timeout,
+            });
+
+        return (telemetry, transport);
+    }
+
+    private TimeSpan ResolvePollingInterval(LiveConnectionMode mode, TimeSpan configuredInterval)
+    {
+        if (mode != LiveConnectionMode.Polling
             || configuredInterval >= ConnectionOptions.MinPollingInterval)
         {
             return configuredInterval;

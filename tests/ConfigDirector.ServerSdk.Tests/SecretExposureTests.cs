@@ -19,4 +19,8 @@ public class SecretExposureTests
     public void TelemetryOptionsDoNotPrintTheServerSdkKey() =>
         new TelemetryCollectorOptions(Key, new Uri("https://example.test"), SdkIdentity.ServerSdk, NullLoggerFactory.Instance)
             .ToString().ShouldNotContain(Key);
+
+    [Fact]
+    public void AConnectionPlanDoesNotPrintTheServerSdkKey() =>
+        ConnectionPlan.Of(Key, new ConnectionOptions()).ToString().ShouldNotContain(Key);
 }

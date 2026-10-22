@@ -84,7 +84,7 @@ internal sealed class InMemoryConnection
 
     internal void SetValue(string key, object value)
     {
-        var definition = TestValueEncoder.Encode(key, value);
+        var definition = TestDefinition(key, value);
         ConfigBundle? update;
         lock (_stateLock)
         {
@@ -350,11 +350,14 @@ internal sealed class InMemoryConnection
 
         foreach (var entry in values)
         {
-            encoded[entry.Key] = TestValueEncoder.Encode(entry.Key, entry.Value);
+            encoded[entry.Key] = TestDefinition(entry.Key, entry.Value);
         }
 
         return encoded;
     }
+
+    private static Config TestDefinition(string key, object value) =>
+        NativeValueEncoder.Encode(key, value, "test-config:" + key, "test-value:" + key);
 
     private sealed class HeldAttempt
     {

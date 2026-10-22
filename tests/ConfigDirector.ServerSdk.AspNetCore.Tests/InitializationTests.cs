@@ -13,6 +13,7 @@ namespace ConfigDirector.AspNetCore.Tests;
 public sealed class InitializationTests : IDisposable
 {
     private readonly SdkServer _server = new();
+    private readonly List<string> _files = [];
 
     [Fact]
     public async Task ConnectsWhileTheHostIsStarting()
@@ -102,6 +103,31 @@ public sealed class InitializationTests : IDisposable
     }
 
     [Fact]
+    public async Task StartsOfflineWithoutAServerSdkKeyWhenReadinessIsRequired()
+    {
+        using var host = BuildOfflineHost(ValuesFile("""{ "new-checkout": true }"""), requireReady: true);
+
+        await host.StartAsync(TestContext.Current.CancellationToken);
+
+        var client = host.Services.GetRequiredService<IConfigDirectorClient>();
+        client.IsReady.ShouldBeTrue();
+        client.GetValue("new-checkout", false).ShouldBeTrue();
+
+        await host.StopAsync(TestContext.Current.CancellationToken);
+        _server.Requests.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task FailsTheHostWhenTheOfflineValuesCannotBeLoadedEvenIfReadinessIsNotRequired()
+    {
+        var missing = Path.Combine(Path.GetTempPath(), $"configdirector-missing-{Guid.NewGuid():N}.json");
+        using var host = BuildOfflineHost(missing, requireReady: false);
+
+        await Should.ThrowAsync<ConfigDirectorInitializationException>(
+            () => host.StartAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
     public async Task AppliesTheBoundTelemetryLimitToTheClient()
     {
         using var host = BuildHost(eventQueueLimit: TelemetryOptions.MinEventQueueLimit);
@@ -123,7 +149,41 @@ public sealed class InitializationTests : IDisposable
         Payload().GetProperty("droppedEvents").GetProperty("evaluatedConfig").GetInt32().ShouldBe(10);
     }
 
-    public void Dispose() => _server.Dispose();
+    public void Dispose()
+    {
+        _server.Dispose();
+        foreach (var file in _files)
+        {
+            File.Delete(file);
+        }
+    }
+
+    private string ValuesFile(string json)
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"configdirector-offline-{Guid.NewGuid():N}.json");
+        File.WriteAllText(path, json);
+        _files.Add(path);
+
+        return path;
+    }
+
+    private IHost BuildOfflineHost(string file, bool requireReady)
+    {
+        var builder = Host.CreateEmptyApplicationBuilder(
+            new HostApplicationBuilderSettings { ApplicationName = "checkout" });
+
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["ConfigDirector:RequireReadyOnStartup"] = requireReady ? "true" : "false",
+            ["ConfigDirector:Connection:Mode"] = "Offline",
+            ["ConfigDirector:Connection:File"] = file,
+            ["ConfigDirector:Connection:Url"] = _server.BaseUrl.ToString(),
+        });
+
+        builder.Services.AddConfigDirector();
+
+        return builder.Build();
+    }
 
     private IHost BuildHost(
         Action<IServiceCollection>? add = null,

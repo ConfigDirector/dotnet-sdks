@@ -11,6 +11,15 @@ tag.
 
 ## [Unreleased]
 
+### Changed
+
+- Depends on [`ConfigDirector.ServerSdk`](https://www.nuget.org/packages/ConfigDirector.ServerSdk)
+  1.9.0, which adds offline mode, serving values typed by the same rule as a test client. A value a
+  test client cannot take is now reported as "The value for '<key>' ..." or "Invalid value for
+  '<key>'" rather than "The test value ..." or "Invalid test value ...", a null value no longer
+  suggests `RemoveValue`, and these exceptions no longer name a parameter in `ParamName`. The
+  testing API is unchanged.
+
 ## [1.8.0] - 2026-10-14
 
 ### Changed

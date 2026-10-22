@@ -34,6 +34,13 @@ namespace ConfigDirector.OpenFeature;
 /// The provider keeps connecting, and emits <see cref="ProviderEventTypes.ProviderReady"/> once
 /// config state arrives.
 /// </para>
+/// <para>
+/// In <see cref="ConnectionMode.Offline"/> the provider never connects and serves the values it was
+/// given, and needs no server SDK key. If those values cannot be loaded, initialization fails:
+/// OpenFeature puts the provider in its error state and emits
+/// <see cref="ProviderEventTypes.ProviderError"/>, and evaluations return their in-code default
+/// values with the error <see cref="ErrorType.ProviderNotReady"/>.
+/// </para>
 /// </remarks>
 public sealed class ConfigDirectorProvider : FeatureProvider, IDisposable, IAsyncDisposable
 {
@@ -55,8 +62,23 @@ public sealed class ConfigDirectorProvider : FeatureProvider, IDisposable, IAsyn
     /// <param name="serverSdkKey">A secret; do not commit it to source control.</param>
     /// <exception cref="ArgumentNullException"><paramref name="serverSdkKey"/> is null.</exception>
     /// <exception cref="ArgumentException"><paramref name="serverSdkKey"/> is empty or whitespace.</exception>
-    public ConfigDirectorProvider(string serverSdkKey)
+    public ConfigDirectorProvider(string? serverSdkKey)
         : this(serverSdkKey, null)
+    {
+    }
+
+    /// <summary>
+    /// Builds a provider without a server SDK key, which only <see cref="ConnectionMode.Offline"/>
+    /// allows. <paramref name="options"/> are the same settings a <see cref="ConfigDirectorClient"/>
+    /// accepts.
+    /// </summary>
+    /// <param name="options">The settings to build the client with.</param>
+    /// <exception cref="ArgumentNullException">
+    /// The connection mode in <paramref name="options"/> is not <see cref="ConnectionMode.Offline"/>,
+    /// so a server SDK key is required.
+    /// </exception>
+    public ConfigDirectorProvider(ConfigDirectorClientOptions options)
+        : this(null, options)
     {
     }
 
@@ -64,11 +86,19 @@ public sealed class ConfigDirectorProvider : FeatureProvider, IDisposable, IAsyn
     /// Builds a provider whose client uses <paramref name="options"/>. These are the same settings
     /// a <see cref="ConfigDirectorClient"/> accepts.
     /// </summary>
-    /// <param name="serverSdkKey">A secret; do not commit it to source control.</param>
+    /// <param name="serverSdkKey">
+    /// A secret; do not commit it to source control. May be null or empty only in
+    /// <see cref="ConnectionMode.Offline"/>, which ignores it.
+    /// </param>
     /// <param name="options">The settings to build the client with, or null for the defaults.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="serverSdkKey"/> is null.</exception>
-    /// <exception cref="ArgumentException"><paramref name="serverSdkKey"/> is empty or whitespace.</exception>
-    public ConfigDirectorProvider(string serverSdkKey, ConfigDirectorClientOptions? options)
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="serverSdkKey"/> is null and the connection mode is not <see cref="ConnectionMode.Offline"/>.
+    /// </exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="serverSdkKey"/> is empty or whitespace and the connection mode is not
+    /// <see cref="ConnectionMode.Offline"/>.
+    /// </exception>
+    public ConfigDirectorProvider(string? serverSdkKey, ConfigDirectorClientOptions? options)
     {
         _client = new ConfigDirectorClient(serverSdkKey, options, Identity);
         _client.ConfigEvaluated += (_, args) => _evaluated = args.Evaluation;

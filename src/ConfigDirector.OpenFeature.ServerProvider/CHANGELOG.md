@@ -9,6 +9,24 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- Offline mode, through the SDK's `ConnectionMode.Offline`: the provider never connects to
+  ConfigDirector and serves the values it was given, from a JSON file or inline, sending nothing.
+  `new ConfigDirectorProvider(ConfigDirectorClientOptions)` builds a provider without a server SDK
+  key, which only offline mode allows, and the other constructors accept a null or empty key in
+  offline mode. If the offline values cannot be loaded, initialization fails: `SetProviderAsync`
+  still returns, OpenFeature puts the provider in its error state and emits `PROVIDER_ERROR` with
+  the reason, and evaluations return their in-code default values with `ProviderNotReady`. Requires
+  [`ConfigDirector.ServerSdk`](https://www.nuget.org/packages/ConfigDirector.ServerSdk) 1.9.0 or
+  later.
+
+### Changed
+
+- `new ConfigDirectorProvider(null)` no longer compiles, because `null` now matches both
+  one-argument constructors. `new ConfigDirectorProvider((string?)null)` throws
+  `ArgumentNullException` as before.
+
 ## [1.5.0] - 2026-10-14
 
 ### Added

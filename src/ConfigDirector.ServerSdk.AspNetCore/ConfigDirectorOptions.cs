@@ -27,7 +27,8 @@ public sealed class ConfigDirectorOptions
 
     /// <summary>
     /// Your server SDK key. A secret: supply it as an environment variable, a user secret, or from
-    /// a secret store in code, rather than committing it in <c>appsettings.json</c>.
+    /// a secret store in code, rather than committing it in <c>appsettings.json</c>. Not needed when
+    /// <see cref="ConnectionOptions.Mode"/> is <see cref="ConnectionMode.Offline"/>.
     /// </summary>
     public string? ServerSdkKey { get; set; }
 
@@ -52,6 +53,12 @@ public sealed class ConfigDirectorOptions
     public bool RequireReadyOnStartup { get; set; }
 
     /// <summary>How the client connects to ConfigDirector.</summary>
+    /// <remarks>
+    /// In <see cref="ConnectionMode.Offline"/>, give <see cref="ConnectionOptions.File"/> in
+    /// configuration and <see cref="ConnectionOptions.Values"/> in code: configuration binding reads
+    /// every value it binds as a string, so <c>true</c> in <c>appsettings.json</c> would be served as
+    /// the string <c>"true"</c>.
+    /// </remarks>
     public ConnectionOptions Connection { get; } = new();
 
     /// <summary>
