@@ -9,6 +9,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-10-22
+
 ### Added
 
 - Offline mode, through the SDK's `ConnectionMode.Offline`: the provider never connects to
@@ -124,7 +126,8 @@ later and [`OpenFeature`](https://www.nuget.org/packages/OpenFeature) 2.14.1 or 
 - The provider identifies itself to ConfigDirector as `dotnet-openfeature-server-provider` with its
   own version.
 
-[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.5.0...HEAD
+[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.6.0...HEAD
+[1.6.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.5.0...ConfigDirector.OpenFeature.ServerProvider-v1.6.0
 [1.5.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.4.1...ConfigDirector.OpenFeature.ServerProvider-v1.5.0
 [1.4.1]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.4.0...ConfigDirector.OpenFeature.ServerProvider-v1.4.1
 [1.4.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.3.0...ConfigDirector.OpenFeature.ServerProvider-v1.4.0

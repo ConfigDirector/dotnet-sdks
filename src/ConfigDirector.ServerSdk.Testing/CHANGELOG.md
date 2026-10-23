@@ -11,6 +11,8 @@ tag.
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-10-22
+
 ### Changed
 
 - Depends on [`ConfigDirector.ServerSdk`](https://www.nuget.org/packages/ConfigDirector.ServerSdk)
@@ -53,7 +55,8 @@ tag.
   `FailInitialization`. `TestClientOptions` carries the client's `Timeout` and `LoggerFactory`. No
   network connection is opened and no telemetry is sent.
 
-[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.8.0...HEAD
+[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.9.0...HEAD
+[1.9.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.8.0...ConfigDirector.ServerSdk-v1.9.0
 [1.8.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.7.1...ConfigDirector.ServerSdk-v1.8.0
 [1.7.1]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.7.0...ConfigDirector.ServerSdk-v1.7.1
 [1.7.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.6.0...ConfigDirector.ServerSdk-v1.7.0
