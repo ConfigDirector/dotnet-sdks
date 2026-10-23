@@ -232,9 +232,14 @@ version whose only difference is the floor it declares:
 4. Commit, push to `main`, and rehearse each package with `workflow_dispatch` if anything about the
    packaging changed.
 
-5. Tag the commit once per package. Push the `ConfigDirector.ServerSdk` tag first, wait for its
-   run to finish and for nuget.org to index the version, then push the
-   `ConfigDirector.ServerSdk.AspNetCore` tag:
+5. Tag the commit once per package, and release in three steps. The SDK's run cannot finish on
+   its own: `ConfigDirector.ServerSdk.AspNetCore.Testing` declares a floor on the AspNetCore
+   version in the same commit, which is not on nuget.org until the AspNetCore tag has published,
+   and the AspNetCore package needs the new SDK first. So the SDK's run pushes the SDK and
+   `ConfigDirector.ServerSdk.Testing`, then fails its dependency check having pushed nothing of
+   `ConfigDirector.ServerSdk.AspNetCore.Testing`. Push the AspNetCore tag once the SDK is listed
+   on nuget.org, and once the AspNetCore version is listed too, re-run the SDK run's failed job. It
+   skips what it pushed already, pushes the last testing package, and creates the GitHub release:
 
    ```bash
    git tag ConfigDirector.ServerSdk-v1.2.0
@@ -242,10 +247,13 @@ version whose only difference is the floor it declares:
    git push origin ConfigDirector.ServerSdk-v1.2.0
    # once ConfigDirector.ServerSdk 1.2.0 is listed on nuget.org:
    git push origin ConfigDirector.ServerSdk.AspNetCore-v1.1.0
+   # once ConfigDirector.ServerSdk.AspNetCore 1.1.0 is listed on nuget.org:
+   gh run rerun --failed "$(gh run list --workflow release.yml --branch ConfigDirector.ServerSdk-v1.2.0 --limit 1 --json databaseId --jq '.[0].databaseId')"
    ```
 
-   Pushing both at once also works; the AspNetCore `Publish` job then fails its dependency check
-   until the SDK has indexed, and is re-run rather than re-tagged. Indexing can be checked with the
+   Pushing both tags at once also works; each `Publish` job then fails its dependency check until
+   the package it waits on has indexed, and is re-run rather than re-tagged: the AspNetCore one
+   once the SDK is listed, then the SDK one once AspNetCore is. Indexing can be checked with the
    same lookup the workflow uses:
 
    ```bash
