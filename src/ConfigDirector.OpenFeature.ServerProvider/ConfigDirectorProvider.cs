@@ -1,3 +1,4 @@
+using System.Text.Json;
 using OpenFeature;
 using OpenFeature.Constant;
 using OpenFeature.Model;
@@ -176,10 +177,25 @@ public sealed class ConfigDirectorProvider : FeatureProvider, IDisposable, IAsyn
 
         var fallback = ValueMapper.ToJsonElement(defaultValue);
         var (element, evaluation) = Evaluate(flagKey, fallback, context, static (client, key, fallback, mapped) => client.GetValue(key, fallback, mapped));
-        var usedDefault = evaluation is null || evaluation.IsDefault;
+        if (evaluation is null || evaluation.IsDefault)
+        {
+            return Task.FromResult(Resolution(flagKey, defaultValue, evaluation));
+        }
 
-        return Task.FromResult(Resolution(flagKey, usedDefault ? defaultValue : ValueMapper.ToValue(element), evaluation));
+        return Task.FromResult(MissingShape(element, defaultValue) switch
+        {
+            null => Resolution(flagKey, ValueMapper.ToValue(element), evaluation),
+            var requiredShape => Resolutions.TypeMismatch(flagKey, defaultValue, requiredShape),
+        });
     }
+
+    private static string? MissingShape(JsonElement servedValue, OpenFeatureValue defaultValue) =>
+        (defaultValue, servedValue.ValueKind) switch
+        {
+            ({ IsStructure: true }, not JsonValueKind.Object) => "a JSON object",
+            ({ IsList: true }, not JsonValueKind.Array) => "a JSON array",
+            _ => null,
+        };
 
     private ResolutionDetails<T> Resolve<T>(string flagKey, T defaultValue, EvaluationContext? context, Reader<T> read)
     {

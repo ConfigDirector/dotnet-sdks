@@ -99,6 +99,95 @@ public sealed class ConfigDirectorProviderTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task ReturnsTheStructureDefaultWithTypeMismatchForAJsonConfigHoldingANumber()
+    {
+        var provider = await ReadyAsync(Bundles.Of(Bundles.Config("limits", "json", "\"42\"")));
+        var defaultValue = new OpenFeatureValue(Structure.Empty);
+
+        var details = await provider.ResolveStructureValueAsync("limits", defaultValue, null, Cancellation);
+
+        details.Value.ShouldBeSameAs(defaultValue);
+        details.Reason.ShouldBe(Reason.Error);
+        details.ErrorType.ShouldBe(ErrorType.TypeMismatch);
+        details.ErrorMessage!.ShouldContain("limits");
+    }
+
+    [Fact]
+    public async Task ReturnsTheStructureDefaultWithTypeMismatchForAJsonConfigHoldingNull()
+    {
+        var provider = await ReadyAsync(Bundles.Of(Bundles.Config("limits", "json", "\"null\"")));
+        var defaultValue = new OpenFeatureValue(Structure.Empty);
+
+        var details = await provider.ResolveStructureValueAsync("limits", defaultValue, null, Cancellation);
+
+        details.Value.ShouldBeSameAs(defaultValue);
+        details.Reason.ShouldBe(Reason.Error);
+        details.ErrorType.ShouldBe(ErrorType.TypeMismatch);
+    }
+
+    [Fact]
+    public async Task ReturnsTheStructureDefaultWithTypeMismatchForAJsonConfigHoldingAList()
+    {
+        var provider = await ReadyAsync(Bundles.Of(Bundles.Config("limits", "json", "\"[1,2]\"")));
+        var defaultValue = new OpenFeatureValue(Structure.Empty);
+
+        var details = await provider.ResolveStructureValueAsync("limits", defaultValue, null, Cancellation);
+
+        details.Value.ShouldBeSameAs(defaultValue);
+        details.Reason.ShouldBe(Reason.Error);
+        details.ErrorType.ShouldBe(ErrorType.TypeMismatch);
+    }
+
+    [Fact]
+    public async Task ReturnsTheListDefaultWithTypeMismatchForAJsonConfigHoldingAnObject()
+    {
+        var provider = await ReadyAsync(Bundles.Of(Bundles.Config("tags", "json", "\"{\\\"a\\\":1}\"")));
+        var defaultValue = new OpenFeatureValue(new List<OpenFeatureValue>());
+
+        var details = await provider.ResolveStructureValueAsync("tags", defaultValue, null, Cancellation);
+
+        details.Value.ShouldBeSameAs(defaultValue);
+        details.Reason.ShouldBe(Reason.Error);
+        details.ErrorType.ShouldBe(ErrorType.TypeMismatch);
+    }
+
+    [Fact]
+    public async Task ReportsAJsonObjectReadWithAStructureDefaultAsAMatch()
+    {
+        var provider = await ReadyAsync(Bundles.Of(Bundles.Config("limits", "json", "\"{\\\"max\\\":3}\"")));
+
+        var details = await provider.ResolveStructureValueAsync("limits", new OpenFeatureValue(Structure.Empty), null, Cancellation);
+
+        details.Value.AsStructure!.TryGetValue("max", out var max).ShouldBeTrue();
+        max!.AsInteger.ShouldBe(3);
+        details.Reason.ShouldBe(Reason.TargetingMatch);
+        details.ErrorType.ShouldBe(ErrorType.None);
+    }
+
+    [Fact]
+    public async Task ReportsAJsonListReadWithAListDefaultAsAMatch()
+    {
+        var provider = await ReadyAsync(Bundles.Of(Bundles.Config("tags", "json", "\"[\\\"a\\\"]\"")));
+
+        var details = await provider.ResolveStructureValueAsync("tags", new OpenFeatureValue(new List<OpenFeatureValue>()), null, Cancellation);
+
+        details.Value.AsList.ShouldBe([new OpenFeatureValue("a")]);
+        details.Reason.ShouldBe(Reason.TargetingMatch);
+        details.ErrorType.ShouldBe(ErrorType.None);
+    }
+
+    [Fact]
+    public async Task ResolvesAStructureFlagWithAScalarDefaultToTheJsonTheConfigHolds()
+    {
+        var provider = await ReadyAsync(Bundles.Of(Bundles.Config("limits", "json", "\"42\"")));
+
+        var details = await provider.ResolveStructureValueAsync("limits", new OpenFeatureValue(0), null, Cancellation);
+
+        details.Value.AsDouble.ShouldBe(42.0);
+        details.Reason.ShouldBe(Reason.TargetingMatch);
+    }
+
+    [Fact]
     public async Task ReturnsTheSameStructureDefaultItWasGiven()
     {
         var provider = await ReadyAsync(Bundles.Of());

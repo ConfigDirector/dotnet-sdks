@@ -9,6 +9,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- `GetObjectValueAsync` with a structure as the in-code default value now resolves to the value
+  ConfigDirector serves only when that value is a JSON object, and with a list only when it is a
+  JSON array. Any other value, such as `42`, `"text"`, `true` or `null`, gives the in-code default
+  value with `ErrorType.TypeMismatch`, so error hooks run. Before, that value reached the
+  application as the flag's value with `Reason.TargetingMatch`. With an in-code default value of
+  any other kind, the flag still resolves to whatever JSON the config holds.
+
 ## [1.6.0] - 2026-10-22
 
 ### Added

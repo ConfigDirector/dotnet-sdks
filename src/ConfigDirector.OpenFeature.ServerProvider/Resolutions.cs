@@ -28,14 +28,13 @@ internal static class Resolutions
 
             default:
                 return evaluation.IsDefault
-                    ? Error(
-                        flagKey,
-                        value,
-                        ErrorType.TypeMismatch,
-                        $"The value of '{evaluation.Key}' does not match the requested type ({EvaluationReasons.WireName(evaluation.Reason)}).")
+                    ? TypeMismatch(flagKey, value, EvaluationReasons.WireName(evaluation.Reason))
                     : new ResolutionDetails<T>(flagKey, value, ErrorType.None, null, null, null, null);
         }
     }
+
+    internal static ResolutionDetails<T> TypeMismatch<T>(string flagKey, T value, string explanation) =>
+        Error(flagKey, value, ErrorType.TypeMismatch, $"The value of '{flagKey}' does not match the requested type ({explanation}).");
 
     internal static ResolutionDetails<T> Closed<T>(string flagKey, T value) =>
         Error(flagKey, value, ErrorType.ProviderFatal, "The ConfigDirector client has been closed.");
