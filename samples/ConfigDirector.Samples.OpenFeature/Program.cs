@@ -50,6 +50,12 @@ builder.Services.AddOpenFeature(openFeature =>
         var log = services.GetRequiredService<ILoggerFactory>().CreateLogger("Sample");
         return payload => log.LogInformation("Configs updated: {Keys}", payload?.FlagsChanged);
     });
+
+    openFeature.AddHandler(ProviderEventTypes.ProviderError, services =>
+    {
+        var log = services.GetRequiredService<ILoggerFactory>().CreateLogger("Sample");
+        return payload => log.LogWarning("Starting on in-code default values until ConfigDirector sends config: {Message}", payload?.Message);
+    });
 });
 
 var app = builder.Build();

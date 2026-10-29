@@ -9,8 +9,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Changed
+
+- When no config arrives within the connection timeout, initialization now fails: the provider
+  reports the `Error` status, with a `ProviderError` event, until config arrives, then `Ready`.
+  `SetProviderAsync` still completes. Before, the provider reported `Ready` while serving in-code
+  default values, then `Ready` again once config arrived.
+
 ### Fixed
 
+- After an initialization that the caller cancelled, the provider now reports `Ready` once config
+  arrives, instead of staying in the `Error` status.
 - `GetObjectValueAsync` with a structure as the in-code default value now resolves to the value
   ConfigDirector serves only when that value is a JSON object, and with a list only when it is a
   JSON array. Any other value, such as `42`, `"text"`, `true` or `null`, gives the in-code default

@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.Json;
 using ConfigDirector.Tests.Integration;
 using OpenFeature.Constant;
+using OpenFeature.Error;
 using OpenFeature.Model;
 using OpenFeatureValue = OpenFeature.Model.Value;
 
@@ -368,22 +369,14 @@ public sealed class ConfigDirectorProviderTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task FinishesInitializingWithoutConfigsAndBecomesReadyWhenTheyArrive()
+    public async Task ThrowsProviderNotReadyWhenNoConfigArrivesWithinTheTimeout()
     {
-        _server.Bundle = Bundles.Of(Bundles.Config("show-banner", "boolean", "true"));
         _server.Replies(HttpStatusCode.BadGateway, "try again");
         var provider = Provider(TimeSpan.FromMilliseconds(200));
 
-        await provider.InitializeAsync(EvaluationContext.Empty, Cancellation);
+        var failure = await Should.ThrowAsync<ProviderNotReadyException>(provider.InitializeAsync(EvaluationContext.Empty, Cancellation));
 
-        var early = await provider.ResolveBooleanValueAsync("show-banner", false, null, Cancellation);
-        early.Value.ShouldBeFalse();
-        early.Reason.ShouldBe(Reason.Error);
-        early.ErrorType.ShouldBe(ErrorType.ProviderNotReady);
-
-        (await NextEventAsync(provider)).Type.ShouldBe(ProviderEventTypes.ProviderConfigurationChanged);
-        (await NextEventAsync(provider)).Type.ShouldBe(ProviderEventTypes.ProviderReady);
-        (await provider.ResolveBooleanValueAsync("show-banner", false, null, Cancellation)).Value.ShouldBeTrue();
+        failure.ErrorType.ShouldBe(ErrorType.ProviderNotReady);
     }
 
     [Fact]

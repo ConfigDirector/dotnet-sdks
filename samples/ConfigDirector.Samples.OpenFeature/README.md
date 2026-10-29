@@ -17,10 +17,12 @@ dotnet run --project samples/ConfigDirector.Samples.OpenFeature
 It listens on port 5002, so it and the other web samples on 5000 and 5001 can run at the same
 time.
 
-Without a usable key it still starts. Initializing the provider does not throw on a connection
-failure, so the application comes up and every evaluation returns the default the calling code
-supplied with the error code `PROVIDER_NOT_READY`, which is the behavior to design for in
-production.
+Without a usable key it still starts. When no config arrives within the connection timeout, or
+ConfigDirector rejects the key, initializing the provider fails without stopping the host:
+OpenFeature reports the `Error` status, the sample's `ProviderError` handler logs a warning, and
+every evaluation returns the in-code default value the calling code supplied with the error code
+`PROVIDER_NOT_READY`, which is the behavior to design for in production. After a timeout the
+provider keeps connecting, and OpenFeature reports it ready once config arrives.
 
 ## Which provider it builds against
 
@@ -119,6 +121,10 @@ declared exactly as they would be for the SDK on its own.
 **`AddHandler(ProviderEventTypes.ProviderConfigurationChanged, ...)`** logs the keys each update
 carried. Handlers registered this way attach once the provider has initialized, so they see the
 updates that follow startup rather than the first config state.
+
+**`AddHandler(ProviderEventTypes.ProviderError, ...)`** logs a warning when the provider could not
+start with config. OpenFeature runs an error handler as soon as it attaches to a provider that is
+already in the `Error` status, so this one still hears about a failed startup.
 
 **`Api` comes from the container.** `AddOpenFeature` drives its own `Api` instance rather than the
 static `Api.Instance`, so anything that needs the API, such as the `/health` endpoint reading the

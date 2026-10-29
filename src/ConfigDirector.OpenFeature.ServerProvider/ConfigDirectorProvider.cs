@@ -1,6 +1,7 @@
 using System.Text.Json;
 using OpenFeature;
 using OpenFeature.Constant;
+using OpenFeature.Error;
 using OpenFeature.Model;
 using OpenFeatureMetadata = OpenFeature.Model.Metadata;
 using OpenFeatureValue = OpenFeature.Model.Value;
@@ -30,10 +31,14 @@ namespace ConfigDirector.OpenFeature;
 /// its traits, and a boolean <c>anonymous</c> its anonymous flag.
 /// </para>
 /// <para>
-/// If the first config state does not arrive within the configured timeout, initialization still
-/// completes and evaluations return their defaults with the error <see cref="ErrorType.ProviderNotReady"/>.
-/// The provider keeps connecting, and emits <see cref="ProviderEventTypes.ProviderReady"/> once
-/// config state arrives.
+/// If no config arrives within the connection timeout, or ConfigDirector rejects the server SDK
+/// key, initialization fails with OpenFeature's <see cref="ProviderNotReadyException"/>.
+/// <see cref="Api.SetProviderAsync(FeatureProvider, CancellationToken)"/> still completes, and
+/// OpenFeature reports the <see cref="ProviderStatus.Error"/> status with a
+/// <see cref="ProviderEventTypes.ProviderError"/> event. Evaluations return their in-code default
+/// values with the error <see cref="ErrorType.ProviderNotReady"/> until config arrives. After a
+/// timeout, or an initialization the caller cancelled, the provider keeps connecting, and emits
+/// <see cref="ProviderEventTypes.ProviderReady"/> once config arrives.
 /// </para>
 /// <para>
 /// In <see cref="ConnectionMode.Offline"/> the provider never connects and serves the values it was
@@ -47,15 +52,24 @@ public sealed class ConfigDirectorProvider : FeatureProvider, IDisposable, IAsyn
 {
     private const string Name = "ConfigDirectorProvider";
 
+    private const string NoConfigInTime =
+        "No config arrived from ConfigDirector within the connection timeout. Flags resolve to their "
+        + "in-code default values until config arrives.";
+
     private static readonly OpenFeatureMetadata ProviderMetadata = new(Name);
 
     private static readonly SdkIdentity Identity =
         SdkIdentity.For("dotnet-openfeature-server-provider", typeof(ConfigDirectorProvider).Assembly);
 
+    private static readonly TimeSpan TimeAllowedForOpenFeatureToRecordTheFailure = TimeSpan.FromSeconds(1);
+
     [ThreadStatic]
     private static ConfigEvaluation? _evaluated;
 
     private readonly ConfigDirectorClient _client;
+    private readonly Action<Func<Task>> _startReadinessCheck;
+    private readonly object _lock = new();
+    private Startup _startup = Startup.Initializing;
 
     /// <summary>
     /// Builds a provider whose client uses the default settings.
@@ -100,7 +114,14 @@ public sealed class ConfigDirectorProvider : FeatureProvider, IDisposable, IAsyn
     /// <see cref="ConnectionMode.Offline"/>.
     /// </exception>
     public ConfigDirectorProvider(string? serverSdkKey, ConfigDirectorClientOptions? options)
+        : this(serverSdkKey, options, StartOnTheThreadPool)
     {
+    }
+
+    internal ConfigDirectorProvider(
+        string? serverSdkKey, ConfigDirectorClientOptions? options, Action<Func<Task>> startReadinessCheck)
+    {
+        _startReadinessCheck = startReadinessCheck;
         _client = new ConfigDirectorClient(serverSdkKey, options, Identity);
         _client.ConfigEvaluated += (_, args) => _evaluated = args.Evaluation;
         _client.ConfigsUpdated += (_, args) => Emit(new ProviderEventPayload
@@ -109,23 +130,39 @@ public sealed class ConfigDirectorProvider : FeatureProvider, IDisposable, IAsyn
             ProviderName = Name,
             FlagsChanged = [.. args.Keys, .. args.RemovedKeys],
         });
+        _client.ClientReady += (_, _) => ReportReadyIfConfigArrived();
     }
 
     /// <inheritdoc/>
     public override OpenFeatureMetadata GetMetadata() => ProviderMetadata;
 
     /// <inheritdoc/>
+    /// <exception cref="ProviderNotReadyException">
+    /// No config arrived within the connection timeout, or ConfigDirector rejected the server SDK key.
+    /// </exception>
     public override async Task InitializeAsync(EvaluationContext context, CancellationToken cancellationToken = default)
     {
-        await _client.InitializeAsync(cancellationToken).ConfigureAwait(false);
-        if (!_client.IsReady)
+        try
         {
-            _client.ClientReady += (_, _) => Emit(new ProviderEventPayload
-            {
-                Type = ProviderEventTypes.ProviderReady,
-                ProviderName = Name,
-            });
+            await _client.InitializeAsync(cancellationToken).ConfigureAwait(false);
         }
+        catch (OperationCanceledException)
+        {
+            ReportReadyOnceTheFailureIsRecorded();
+            throw;
+        }
+
+        lock (_lock)
+        {
+            if (_client.IsReady)
+            {
+                _startup = Startup.Ready;
+                return;
+            }
+        }
+
+        ReportReadyOnceTheFailureIsRecorded();
+        throw new ProviderNotReadyException(NoConfigInTime);
     }
 
     /// <summary>
@@ -224,6 +261,47 @@ public sealed class ConfigDirectorProvider : FeatureProvider, IDisposable, IAsyn
         }
     }
 
+    private static void StartOnTheThreadPool(Func<Task> readinessCheck) => _ = Task.Run(readinessCheck);
+
+    private void ReportReadyOnceTheFailureIsRecorded()
+    {
+        lock (_lock)
+        {
+            _startup = Startup.AwaitingRecordedFailure;
+        }
+
+        _startReadinessCheck(async () =>
+        {
+            await Task.Delay(TimeAllowedForOpenFeatureToRecordTheFailure).ConfigureAwait(false);
+            lock (_lock)
+            {
+                _startup = Startup.AwaitingConfig;
+            }
+
+            ReportReadyIfConfigArrived();
+        });
+    }
+
+    private void ReportReadyIfConfigArrived()
+    {
+        lock (_lock)
+        {
+            var configArrivedAfterTheFailure = _startup == Startup.AwaitingConfig && _client.IsReady;
+            if (!configArrivedAfterTheFailure)
+            {
+                return;
+            }
+
+            _startup = Startup.Ready;
+        }
+
+        Emit(new ProviderEventPayload
+        {
+            Type = ProviderEventTypes.ProviderReady,
+            ProviderName = Name,
+        });
+    }
+
     private void Emit(ProviderEventPayload payload)
     {
         if (!EventChannel.Writer.TryWrite(payload))
@@ -233,4 +311,12 @@ public sealed class ConfigDirectorProvider : FeatureProvider, IDisposable, IAsyn
     }
 
     private delegate T Reader<T>(IConfigDirectorClient client, string key, T defaultValue, Context? context);
+
+    private enum Startup
+    {
+        Initializing,
+        AwaitingRecordedFailure,
+        AwaitingConfig,
+        Ready,
+    }
 }
