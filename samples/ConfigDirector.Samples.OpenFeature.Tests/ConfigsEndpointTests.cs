@@ -171,7 +171,7 @@ public sealed class ConfigsEndpointTests : IClassFixture<ConfigsEndpointTests.Fa
             {
                 await base.DisposeAsync();
             }
-            catch (ChannelClosedException)
+            catch (Exception error) when (error is ChannelClosedException or SynchronizationLockException or ObjectDisposedException)
             {
             }
         }

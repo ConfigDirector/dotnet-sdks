@@ -153,8 +153,10 @@ dotnet test samples/ConfigDirector.Samples.OpenFeature.Tests
 
 Disposing the factory stops the host twice: once from the factory, and once more from the
 application's own `Run`, which waits for shutdown and then stops the host itself. The second stop
-runs the OpenFeature shutdown again, and `Api.ShutdownAsync` throws `ChannelClosedException` when
-its event channel is already closed, so the factory ignores that exception.
+runs the OpenFeature shutdown again, at the same time as the first. `Api.ShutdownAsync` then throws
+`ChannelClosedException` when its event channel is already closed, `SynchronizationLockException`
+when its lock is disposed while the other shutdown holds it, or `ObjectDisposedException` when its
+lock is entered after that, so the factory ignores those three exceptions.
 
 ## Settings
 
