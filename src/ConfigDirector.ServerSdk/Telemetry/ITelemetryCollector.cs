@@ -16,4 +16,6 @@ internal interface ITelemetryCollector : IAsyncDisposable
         string? shareId);
 
     InvalidContextLogging RecordInvalidContext(string kindSample);
+
+    void RecordTrackedEvent(TrackedEventAdmission admission);
 }

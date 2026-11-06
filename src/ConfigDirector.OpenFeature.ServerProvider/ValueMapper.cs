@@ -107,6 +107,52 @@ internal static class ValueMapper
         return TraitValue.Null;
     }
 
+    internal static TrackedEventDetails ToDetails(IEnumerable<KeyValuePair<string, OpenFeatureValue>> attributes)
+    {
+        var details = new TrackedEventDetails();
+        foreach (var attribute in attributes)
+        {
+            details[attribute.Key] = ToDetailValue(attribute.Value);
+        }
+
+        return details;
+    }
+
+    private static TrackedEventDetailValue ToDetailValue(OpenFeatureValue value)
+    {
+        if (value.IsBoolean)
+        {
+            return value.AsBoolean == true;
+        }
+
+        if (value.IsString)
+        {
+            return value.AsString;
+        }
+
+        if (value.IsNumber)
+        {
+            return value.AsDouble!.Value;
+        }
+
+        if (value.IsDateTime)
+        {
+            return value.AsDateTime!.Value.ToString("o", CultureInfo.InvariantCulture);
+        }
+
+        if (value.IsStructure)
+        {
+            return ToDetails(value.AsStructure!);
+        }
+
+        if (value.IsList)
+        {
+            return TrackedEventDetailValue.FromArray(value.AsList!.Select(ToDetailValue));
+        }
+
+        return TrackedEventDetailValue.Null;
+    }
+
     private static TraitValue ToTrait(double number) =>
         number == Math.Floor(number) && Math.Abs(number) <= LargestExactWholeNumber
             ? (long)number

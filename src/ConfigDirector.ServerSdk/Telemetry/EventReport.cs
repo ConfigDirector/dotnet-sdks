@@ -7,11 +7,12 @@ internal sealed record EventReport(
     int DroppedEvaluations,
     IReadOnlyList<Context> Contexts,
     int DroppedContexts,
-    IReadOnlyList<InvalidContextEntry> InvalidContexts)
+    IReadOnlyList<InvalidContextEntry> InvalidContexts,
+    IReadOnlyList<TrackedEventEntry> TrackedEvents)
 {
     internal bool IsEmpty =>
         Evaluations.Count == 0 && Contexts.Count == 0 && DroppedEvaluations == 0 && DroppedContexts == 0
-        && InvalidContexts.Count == 0;
+        && InvalidContexts.Count == 0 && TrackedEvents.Count == 0;
 }
 
 // The outcome of reporting a batch of events. A fatal outcome is one no later report would

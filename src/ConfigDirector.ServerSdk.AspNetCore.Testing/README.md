@@ -54,6 +54,9 @@ testClient.SetValue("new-checkout", false);
   timeout. `WebApplicationFactory.CreateClient()` blocks on host startup, so call
   `CompleteInitialization` from another task.
 
+`testClient.TrackedEvents` holds the events the application tracked through the injected client, so
+a test can assert on them after a request.
+
 Because the test client is built outside the container, it does not see the application's
 configuration: `ConfigDirector:Connection:Timeout`, the host's `ILoggerFactory`, and the `AppName`
 and `AppVersion` metadata. Pass the timeout and logger factory to `CreateTestClient` through
@@ -64,6 +67,7 @@ and `AppVersion` metadata. Pass the timeout and logger factory to `CreateTestCli
 A `WebApplicationFactory` shared by a test class through `IClassFixture` shares one test client
 across its tests. Keep the test client with the factory, register it once, and call
 `ReplaceValues` in each test's setup: it resets the values and disarms any armed hold or failure.
+Call `TrackedEvents.Clear()` there too when tests read tracked events.
 
 ```csharp
 public sealed class CheckoutTests : IClassFixture<CheckoutTests.Factory>

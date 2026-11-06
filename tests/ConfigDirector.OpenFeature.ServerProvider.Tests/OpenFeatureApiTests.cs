@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Net;
+using System.Text.Json;
 using ConfigDirector.Tests.Integration;
 using OpenFeature;
 using OpenFeature.Constant;
@@ -284,6 +285,143 @@ public sealed class OpenFeatureApiTests : IAsyncDisposable
         (await client.GetBooleanValueAsync("show-banner", false, cancellationToken: Cancellation)).ShouldBeTrue();
     }
 
+    [Fact]
+    public async Task ReportsATrackedEventWithItsValueItsAttributesAndTheEvaluationContext()
+    {
+        var client = await ClientServingAsync(Bundles.Of());
+        var context = EvaluationContext.Builder().SetTargetingKey("user-1").Set("kind", "device").Build();
+        var details = TrackingEventDetails.Builder().SetValue(49.9).Set("plan", "pro").Set("seats", 3).Build();
+
+        client.Track("checkout-completed", context, details);
+        await Api.Instance.ShutdownAsync();
+
+        var trackedEvent = TrackedEvents().ShouldHaveSingleItem();
+        trackedEvent.GetProperty("name").GetString().ShouldBe("checkout-completed");
+        trackedEvent.GetProperty("contextKind").GetString().ShouldBe("device");
+        trackedEvent.GetProperty("contextIdentifier").GetString().ShouldBe("user-1");
+        trackedEvent.GetProperty("value").GetDouble().ShouldBe(49.9);
+        var reportedDetails = trackedEvent.GetProperty("details");
+        reportedDetails.GetProperty("plan").GetString().ShouldBe("pro");
+        reportedDetails.GetProperty("seats").GetInt32().ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task ReportsAnEventTrackedWithoutDetailsOrAnEvaluationContextWithItsNameAlone()
+    {
+        var client = await ClientServingAsync(Bundles.Of());
+
+        client.Track("checkout-completed");
+        await Api.Instance.ShutdownAsync();
+
+        var trackedEvent = TrackedEvents().ShouldHaveSingleItem();
+        trackedEvent.GetProperty("name").GetString().ShouldBe("checkout-completed");
+        trackedEvent.TryGetProperty("contextKind", out _).ShouldBeFalse();
+        trackedEvent.TryGetProperty("contextIdentifier", out _).ShouldBeFalse();
+        trackedEvent.TryGetProperty("value", out _).ShouldBeFalse();
+        trackedEvent.TryGetProperty("details", out _).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task ReportsAnEventTrackedWithAValueAloneWithoutDetails()
+    {
+        var client = await ClientServingAsync(Bundles.Of());
+
+        client.Track("checkout-completed", trackingEventDetails: TrackingEventDetails.Builder().SetValue(3).Build());
+        await Api.Instance.ShutdownAsync();
+
+        var trackedEvent = TrackedEvents().ShouldHaveSingleItem();
+        trackedEvent.GetProperty("value").GetRawText().ShouldBe("3");
+        trackedEvent.TryGetProperty("details", out _).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task ReportsADateInTheAttributesAsAnIsoString()
+    {
+        var client = await ClientServingAsync(Bundles.Of());
+        var when = new DateTime(2026, 1, 2, 3, 4, 5, DateTimeKind.Utc);
+
+        client.Track("checkout-completed", trackingEventDetails: TrackingEventDetails.Builder().Set("when", when).Build());
+        await Api.Instance.ShutdownAsync();
+
+        var details = TrackedEvents().ShouldHaveSingleItem().GetProperty("details");
+        details.GetProperty("when").GetString().ShouldBe("2026-01-02T03:04:05.0000000Z");
+    }
+
+    [Fact]
+    public async Task ReportsANumberThatIsNotFiniteInTheAttributesAsNull()
+    {
+        var client = await ClientServingAsync(Bundles.Of());
+
+        client.Track("checkout-completed", trackingEventDetails: TrackingEventDetails.Builder().Set("plan", "pro").Set("ratio", double.NaN).Build());
+        await Api.Instance.ShutdownAsync();
+
+        var details = TrackedEvents().ShouldHaveSingleItem().GetProperty("details");
+        details.GetProperty("plan").GetString().ShouldBe("pro");
+        details.GetProperty("ratio").ValueKind.ShouldBe(JsonValueKind.Null);
+    }
+
+    [Fact]
+    public async Task ReportsNestedAttributesAndLists()
+    {
+        var client = await ClientServingAsync(Bundles.Of());
+        var address = Structure.Builder().Set("city", "Lisbon").Build();
+        var tags = new global::OpenFeature.Model.Value(new List<global::OpenFeature.Model.Value> { new("beta"), new(1), new(true), new() });
+
+        client.Track("checkout-completed", trackingEventDetails: TrackingEventDetails.Builder().Set("address", address).Set("tags", tags).Build());
+        await Api.Instance.ShutdownAsync();
+
+        var details = TrackedEvents().ShouldHaveSingleItem().GetProperty("details");
+        details.GetProperty("address").GetRawText().ShouldBe("""{"city":"Lisbon"}""");
+        details.GetProperty("tags").GetRawText().ShouldBe("""["beta",1,true,null]""");
+    }
+
+    [Fact]
+    public async Task LeavesOutAValueThatIsNotFiniteAndReportsTheEvent()
+    {
+        var client = await ClientServingAsync(Bundles.Of());
+
+        client.Track("checkout-completed", trackingEventDetails: TrackingEventDetails.Builder().SetValue(double.NaN).Build());
+        await Api.Instance.ShutdownAsync();
+
+        TrackedEvents().ShouldHaveSingleItem().TryGetProperty("value", out _).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task LeavesOutAttributesBeyondTheLimitsAndReportsTheEvent()
+    {
+        var client = await ClientServingAsync(Bundles.Of());
+        var tooLarge = new string('x', 1_100);
+
+        client.Track("checkout-completed", trackingEventDetails: TrackingEventDetails.Builder().Set("text", tooLarge).Build());
+        await Api.Instance.ShutdownAsync();
+
+        TrackedEvents().ShouldHaveSingleItem().TryGetProperty("details", out _).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task ReportsAnEventForTheContextSetOnTheOpenFeatureClient()
+    {
+        var client = await ClientServingAsync(Bundles.Of());
+        client.SetContext(EvaluationContext.Builder().SetTargetingKey("from-the-client").Build());
+
+        client.Track("checkout-completed");
+        await Api.Instance.ShutdownAsync();
+
+        TrackedEvents().ShouldHaveSingleItem().GetProperty("contextIdentifier").GetString().ShouldBe("from-the-client");
+    }
+
+    [Fact]
+    public async Task WithholdsTheTargetingKeyOfAContextMarkedAnonymous()
+    {
+        var client = await ClientServingAsync(Bundles.Of());
+        var context = EvaluationContext.Builder().SetTargetingKey("user-1").Set("anonymous", true).Build();
+
+        client.Track("checkout-completed", context);
+        await Api.Instance.ShutdownAsync();
+
+        TrackedEvents().ShouldHaveSingleItem().TryGetProperty("contextIdentifier", out _).ShouldBeFalse();
+    }
+
     public async ValueTask DisposeAsync()
     {
         foreach (var (type, handler) in _handlers)
@@ -302,6 +440,12 @@ public sealed class OpenFeatureApiTests : IAsyncDisposable
         {
             await Task.Delay(10, Cancellation);
         }
+    }
+
+    private JsonElement[] TrackedEvents()
+    {
+        var telemetryBody = _server.Bodies[_server.Paths.IndexOf("/server/telemetry/v1")];
+        return [.. JsonDocument.Parse(telemetryBody).RootElement.GetProperty("discreteEvents").GetProperty("trackedEvents").EnumerateArray()];
     }
 
     private ConcurrentQueue<ProviderEventPayload> RecordedEvents(ProviderEventTypes type)

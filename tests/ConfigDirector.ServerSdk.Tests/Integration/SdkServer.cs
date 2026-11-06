@@ -46,6 +46,8 @@ internal sealed class SdkServer : IDisposable
     // looks like from the client's side.
     internal bool Stalls { get; set; }
 
+    internal TimeSpan ReplyDelay { get; set; }
+
     internal List<string> Paths { get; } = [];
 
     internal List<string> Bodies { get; } = [];
@@ -204,6 +206,8 @@ internal sealed class SdkServer : IDisposable
             {
                 return;
             }
+
+            await Task.Delay(ReplyDelay).ConfigureAwait(false);
 
             if (scripted is { } reply)
             {

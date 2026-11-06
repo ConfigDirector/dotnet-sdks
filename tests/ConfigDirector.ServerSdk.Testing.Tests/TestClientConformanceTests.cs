@@ -58,6 +58,335 @@ public sealed class TestClientConformanceTests : IAsyncDisposable
             .Select(entry => entry.Message)
             .ToList();
 
+    [Fact]
+    public void RecordsTrackedEventsInCallOrderWithTheirContextValueAndDetails()
+    {
+        var testClient = Create();
+        var context = new Context { Id = "user-1" };
+
+        testClient.Client.Track("first", context, new TrackOptions { Value = 49.90m, Details = { ["plan"] = "pro" } });
+        testClient.Client.Track("second");
+
+        testClient.TrackedEvents.Count.ShouldBe(2);
+        testClient.TrackedEvents[0].ShouldBe(
+            new TrackedEvent("first", context, 49.90m, new TrackedEventDetails { ["plan"] = "pro" }));
+        testClient.TrackedEvents[1].ShouldBe(new TrackedEvent("second"));
+    }
+
+    [Fact]
+    public void RecordsAnEventTrackedWithoutAContext()
+    {
+        var testClient = Create();
+
+        testClient.Client.Track("checkout-completed", null, new TrackOptions { Value = 3 });
+
+        testClient.TrackedEvents[0].Context.ShouldBeNull();
+        testClient.TrackedEvents[0].Value.ShouldBe(3L);
+    }
+
+    [Fact]
+    public void RecordsADecimalValueAsItWasTracked()
+    {
+        var testClient = Create();
+
+        testClient.Client.Track("checkout-completed", null, new TrackOptions { Value = 49.90m });
+
+        testClient.TrackedEvents[0].Value.ShouldBe(49.90m);
+    }
+
+    [Fact]
+    public void RecordsTheIdentifierOfAnAnonymousContextForTheTestToSee()
+    {
+        var testClient = Create();
+        var context = new Context { Id = "user-1", Anonymous = true };
+
+        testClient.Client.Track("checkout-completed", context);
+
+        testClient.TrackedEvents[0].Context.ShouldBe(context);
+    }
+
+    [Fact]
+    public void DoesNotRecordAnEventWhoseNameHas151CharactersAndLogsAWarning()
+    {
+        var testClient = Create();
+
+        testClient.Client.Track(new string('n', 151));
+
+        testClient.TrackedEvents.Count.ShouldBe(0);
+        Warnings().ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public void RecordsAnEventWithoutDetailsOfMoreThan20TopLevelKeysAndLogsAWarning()
+    {
+        var testClient = Create();
+        var details = new TrackedEventDetails();
+        for (var index = 0; index < 21; index++)
+        {
+            details[$"key-{index}"] = index;
+        }
+
+        testClient.Client.Track("checkout-completed", null, new TrackOptions { Details = details });
+
+        testClient.TrackedEvents[0].Details.ShouldBeNull();
+        Warnings().ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public void RecordsAnEventWithoutAValueThatIsNotFiniteAndLogsAWarning()
+    {
+        var testClient = Create();
+
+        testClient.Client.Track("checkout-completed", null, new TrackOptions { Value = double.NaN });
+
+        testClient.TrackedEvents[0].Value.ShouldBeNull();
+        Warnings().ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public void LogsAWarningForEveryEventWithTheSameCause()
+    {
+        var testClient = Create();
+
+        testClient.Client.Track(string.Empty);
+        testClient.Client.Track(string.Empty);
+
+        Warnings().Count.ShouldBe(2);
+    }
+
+    [Fact]
+    public void RecordsAnEventWithoutTheContextWhoseKindIsInvalid()
+    {
+        var testClient = Create();
+
+        testClient.Client.Track("checkout-completed", new Context { Id = "user-1", Kind = "Not Valid" });
+
+        testClient.TrackedEvents[0].Context.ShouldBeNull();
+        Errors().ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public void RecordsMoreThanABatchOfEvents()
+    {
+        var testClient = Create();
+
+        for (var index = 0; index < 1_001; index++)
+        {
+            testClient.Client.Track("checkout-completed");
+        }
+
+        testClient.TrackedEvents.Count.ShouldBe(1_001);
+        Warnings().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task RecordsNothingForAnEventTrackedAfterDispose()
+    {
+        var testClient = Create();
+        await testClient.DisposeAsync();
+
+        testClient.Client.Track("checkout-completed");
+
+        testClient.TrackedEvents.Count.ShouldBe(0);
+    }
+
+    [Fact]
+    public void KeepsTheDetailsAsTheyWereWhenTheEventWasTracked()
+    {
+        var testClient = Create();
+        var options = new TrackOptions { Details = { ["plan"] = "pro" } };
+
+        testClient.Client.Track("checkout-completed", null, options);
+        options.Details["plan"] = "changed";
+
+        testClient.TrackedEvents[0].Details.ShouldBe(new TrackedEventDetails { ["plan"] = "pro" });
+    }
+
+    [Fact]
+    public void TrackedEventsStaysUpToDateAsEventsAreTracked()
+    {
+        var testClient = Create();
+        var trackedEvents = testClient.TrackedEvents;
+
+        testClient.Client.Track("checkout-completed");
+
+        trackedEvents.Count.ShouldBe(1);
+    }
+
+    [Fact]
+    public void TrackedEventsIsTheSameListEveryTime()
+    {
+        var testClient = Create();
+
+        testClient.TrackedEvents.ShouldBeSameAs(testClient.TrackedEvents);
+    }
+
+    [Fact]
+    public void ATestCanRemoveARecordedEvent()
+    {
+        var testClient = Create();
+        testClient.Client.Track("first");
+        testClient.Client.Track("second");
+
+        var removed = testClient.TrackedEvents.Remove(new TrackedEvent("first"));
+
+        removed.ShouldBeTrue();
+        testClient.TrackedEvents.ShouldHaveSingleItem().Name.ShouldBe("second");
+    }
+
+    [Fact]
+    public void ATestCanRemoveARecordedEventByItsPosition()
+    {
+        var testClient = Create();
+        testClient.Client.Track("first");
+        testClient.Client.Track("second");
+
+        testClient.TrackedEvents.RemoveAt(0);
+
+        testClient.TrackedEvents.ShouldHaveSingleItem().Name.ShouldBe("second");
+    }
+
+    [Fact]
+    public void ATestCanFindTheRecordedPositionOfAnEvent()
+    {
+        var testClient = Create();
+        testClient.Client.Track("first");
+        testClient.Client.Track("second");
+
+        testClient.TrackedEvents.IndexOf(new TrackedEvent("second")).ShouldBe(1);
+    }
+
+    [Fact]
+    public void ATestCanAskWhetherAnEventWasRecorded()
+    {
+        var testClient = Create();
+        testClient.Client.Track("first");
+
+        testClient.TrackedEvents.Contains(new TrackedEvent("first")).ShouldBeTrue();
+    }
+
+    [Fact]
+    public void AnEventThatWasNotTrackedIsNotInTheRecord()
+    {
+        var testClient = Create();
+        testClient.Client.Track("first");
+
+        testClient.TrackedEvents.Contains(new TrackedEvent("second")).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void ATestCanInsertAnEvent()
+    {
+        var testClient = Create();
+        testClient.Client.Track("second");
+
+        testClient.TrackedEvents.Insert(0, new TrackedEvent("first"));
+
+        testClient.TrackedEvents[0].Name.ShouldBe("first");
+    }
+
+    [Fact]
+    public void ATestCanReplaceAnEvent()
+    {
+        var testClient = Create();
+        testClient.Client.Track("first");
+
+        testClient.TrackedEvents[0] = new TrackedEvent("replaced");
+
+        testClient.TrackedEvents.ShouldHaveSingleItem().Name.ShouldBe("replaced");
+    }
+
+    [Fact]
+    public void TheRecordedEventsAreNotReadOnly()
+    {
+        Create().TrackedEvents.IsReadOnly.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void RecordsEmptyDetailsWhenTheyWereGiven()
+    {
+        var testClient = Create();
+
+        testClient.Client.Track("checkout-completed", null, new TrackOptions { Details = [] });
+
+        testClient.TrackedEvents[0].Details.ShouldBe(new TrackedEventDetails());
+    }
+
+    [Fact]
+    public void RecordsNoDetailsWhenNoneWereGiven()
+    {
+        var testClient = Create();
+
+        testClient.Client.Track("checkout-completed", null, new TrackOptions { Value = 3 });
+
+        testClient.TrackedEvents[0].Details.ShouldBeNull();
+    }
+
+    [Fact]
+    public void CopyingToAnArrayTooShortForEventsTrackedSinceItWasSizedCopiesThoseThatFit()
+    {
+        var testClient = Create();
+        testClient.Client.Track("first");
+        testClient.Client.Track("second");
+        var destination = new TrackedEvent[1];
+
+        testClient.TrackedEvents.CopyTo(destination, 0);
+
+        destination[0].Name.ShouldBe("first");
+    }
+
+    [Fact]
+    public void ClearEmptiesTheRecordedEvents()
+    {
+        var testClient = Create();
+        testClient.Client.Track("before-the-clear");
+
+        testClient.TrackedEvents.Clear();
+        testClient.Client.Track("after-the-clear");
+
+        testClient.TrackedEvents.ShouldHaveSingleItem().Name.ShouldBe("after-the-clear");
+    }
+
+    [Fact]
+    public void ReplaceValuesLeavesTheRecordedEventsAsTheyAre()
+    {
+        var testClient = Create();
+        testClient.Client.Track("checkout-completed");
+
+        testClient.ReplaceValues(Values());
+
+        testClient.TrackedEvents.ShouldHaveSingleItem().Name.ShouldBe("checkout-completed");
+    }
+
+    [Fact]
+    public async Task RecordsEventsTrackedFromManyThreadsWhileTheTestReadsThem()
+    {
+        var testClient = Create();
+        using var stop = new CancellationTokenSource();
+        var reading = Task.Run(
+            () =>
+            {
+                while (!stop.IsCancellationRequested)
+                {
+                    _ = testClient.TrackedEvents.ToList();
+                }
+            },
+            Cancellation);
+
+        await Parallel.ForEachAsync(
+            Enumerable.Range(0, 1_000),
+            Cancellation,
+            (index, _) =>
+            {
+                testClient.Client.Track($"event-{index}");
+                return default;
+            });
+        await stop.CancelAsync();
+        await reading;
+
+        testClient.TrackedEvents.Count.ShouldBe(1_000);
+    }
+
     private static List<ConfigsUpdatedEventArgs> UpdatesOf(IConfigDirectorClient client)
     {
         var updates = new List<ConfigsUpdatedEventArgs>();

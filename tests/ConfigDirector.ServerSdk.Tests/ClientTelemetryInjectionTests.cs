@@ -51,6 +51,17 @@ public sealed class ClientTelemetryInjectionTests : IDisposable
     }
 
     [Fact]
+    public async Task TrackDoesNotThrowWhenRecordingTheEventThrowsAndLogsAWarning()
+    {
+        await using var client = Client(new ConfigDirectorClientOptions { LoggerFactory = _loggerFactory });
+        _collector.ThrowsOnTrackedEvent = true;
+
+        Should.NotThrow(() => client.Track("checkout-completed"));
+
+        _loggerFactory.Logger.Entries.ShouldContain(entry => entry.EventId.Name == "TrackedEventNotRead");
+    }
+
+    [Fact]
     public async Task DisposingTheClientDisposesTheCollector()
     {
         var client = Client(new ConfigDirectorClientOptions { LoggerFactory = _loggerFactory });
@@ -81,6 +92,8 @@ public sealed class ClientTelemetryInjectionTests : IDisposable
 
         internal bool Disposed { get; private set; }
 
+        internal bool ThrowsOnTrackedEvent { get; set; }
+
         public void Record<T>(
             string key,
             T defaultValue,
@@ -96,6 +109,14 @@ public sealed class ClientTelemetryInjectionTests : IDisposable
             Recorded.Add(new RecordedEvaluation(key, defaultValue, usedDefault, reason, configType));
 
         public InvalidContextLogging RecordInvalidContext(string kindSample) => InvalidContextLogging.LogKind;
+
+        public void RecordTrackedEvent(TrackedEventAdmission admission)
+        {
+            if (ThrowsOnTrackedEvent)
+            {
+                throw new InvalidOperationException("The collector failed.");
+            }
+        }
 
         public ValueTask DisposeAsync()
         {

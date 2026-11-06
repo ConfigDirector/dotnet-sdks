@@ -11,6 +11,7 @@ namespace ConfigDirector.Telemetry;
 internal sealed class HttpEventReporter : IAsyncDisposable
 {
     private const string Path = "server/telemetry/v1";
+    private const int ReportTooLargeStatus = 413;
 
     private static readonly IReadOnlyDictionary<string, TraitValue> EmptyMembers =
         new Dictionary<string, TraitValue>(StringComparer.Ordinal);
@@ -95,7 +96,7 @@ internal sealed class HttpEventReporter : IAsyncDisposable
 
     private ReporterResponse Outcome(int status)
     {
-        if (Transports.IsFatalStatus(status))
+        if (EndsTelemetry(status))
         {
             Log.Rejected(_logger, status, null);
             return new ReporterResponse(false, Fatal: true);
@@ -111,10 +112,13 @@ internal sealed class HttpEventReporter : IAsyncDisposable
         return new ReporterResponse(false);
     }
 
+    private static bool EndsTelemetry(int status) =>
+        Transports.IsFatalStatus(status) && status != ReportTooLargeStatus;
+
     private byte[] Payload(EventReport report)
     {
         using var buffer = new MemoryStream();
-        using (var json = new Utf8JsonWriter(buffer))
+        using (var json = new Utf8JsonWriter(buffer, TelemetryWire.ReportWriterOptions))
         {
             json.WriteStartObject();
             json.WriteString("serverSdkKey", _serverSdkKey);
@@ -125,6 +129,13 @@ internal sealed class HttpEventReporter : IAsyncDisposable
             foreach (var context in report.Contexts)
             {
                 WriteContext(json, context);
+            }
+
+            json.WriteEndArray();
+            json.WriteStartArray("trackedEvents");
+            foreach (var trackedEvent in report.TrackedEvents)
+            {
+                WriteTrackedEvent(json, trackedEvent);
             }
 
             json.WriteEndArray();
@@ -180,6 +191,37 @@ internal sealed class HttpEventReporter : IAsyncDisposable
         json.WriteNumber("count", count);
         json.WritePropertyName("event");
         JsonSerializer.Serialize(json, aggregatedEvent, eventType);
+        json.WriteEndObject();
+    }
+
+    private static void WriteTrackedEvent(Utf8JsonWriter json, TrackedEventEntry trackedEvent)
+    {
+        json.WriteStartObject();
+        json.WriteString("name", trackedEvent.Name);
+
+        if (trackedEvent.Context.Kind is { } kind)
+        {
+            json.WriteString("contextKind", kind);
+        }
+
+        if (trackedEvent.Context.Identifier is { } identifier)
+        {
+            json.WriteString("contextIdentifier", identifier);
+        }
+
+        if (trackedEvent.Value?.JsonNumber is { } number)
+        {
+            json.WritePropertyName("value");
+            json.WriteRawValue(number, skipInputValidation: true);
+        }
+
+        if (trackedEvent.DetailsJson is { } detailsJson)
+        {
+            json.WritePropertyName("details");
+            json.WriteRawValue(detailsJson, skipInputValidation: true);
+        }
+
+        json.WriteString("happenedAt", Timestamp(trackedEvent.HappenedAt));
         json.WriteEndObject();
     }
 

@@ -24,7 +24,10 @@ internal sealed class InMemoryConnection
     private bool _delivering;
 
     internal InMemoryConnection(
-        IReadOnlyDictionary<string, object>? values, TimeSpan? timeout, ILoggerFactory? loggerFactory)
+        IReadOnlyDictionary<string, object>? values,
+        TimeSpan? timeout,
+        ILoggerFactory? loggerFactory,
+        Action<TrackedEventAdmission.Admitted> recordTrackedEvent)
     {
         var options = new ConfigDirectorClientOptions();
         if (loggerFactory is not null)
@@ -52,7 +55,8 @@ internal sealed class InMemoryConnection
                 _onBundle = transportOptions.OnBundle;
                 return new Attempts(this);
             },
-            _ => DiscardingTelemetryCollector.Instance);
+            telemetryOptions => new TrackedEventRecordingTelemetryCollector(
+                telemetryOptions.LoggerFactory.CreateLogger<TrackedEventRecordingTelemetryCollector>(), recordTrackedEvent));
     }
 
     private enum Armed

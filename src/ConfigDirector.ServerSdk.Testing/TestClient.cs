@@ -22,7 +22,11 @@ public sealed class TestClient : IAsyncDisposable
 {
     private readonly InMemoryConnection _connection;
 
-    internal TestClient(InMemoryConnection connection) => _connection = connection;
+    internal TestClient(InMemoryConnection connection, IList<TrackedEvent> trackedEvents)
+    {
+        _connection = connection;
+        TrackedEvents = trackedEvents;
+    }
 
     /// <summary>
     /// The SDK client to hand to the code under test. It starts uninitialized, like a production
@@ -30,6 +34,19 @@ public sealed class TestClient : IAsyncDisposable
     /// stored values unless initialization is held or armed to fail.
     /// </summary>
     public IConfigDirectorClient Client => _connection.Client;
+
+    /// <summary>
+    /// Every event the code under test tracked through the client, in call order, as the SDK would
+    /// report it: an event whose name does not have 1 to 150 characters is not recorded, and a value or
+    /// details the SDK would leave out are missing from the record. A context whose kind is invalid is
+    /// not recorded with its event. The limit of 1,000 events per telemetry batch does not apply.
+    /// </summary>
+    /// <remarks>
+    /// It is the same list every time, and safe to read while other threads track: later events are
+    /// added to it, and a test client shared across tests can <c>Clear()</c> it.
+    /// <see cref="ReplaceValues"/> leaves it as it is.
+    /// </remarks>
+    public IList<TrackedEvent> TrackedEvents { get; }
 
     internal bool IsHoldingAnAttempt => _connection.IsHoldingAnAttempt;
 

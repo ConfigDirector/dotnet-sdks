@@ -11,6 +11,16 @@ tag.
 
 ## [Unreleased]
 
+### Added
+
+- `TestClient.TrackedEvents` holds the events the code under test tracked through
+  `IConfigDirectorClient.Track`, new in `ConfigDirector.ServerSdk`, in call order, as the new
+  `TrackedEvent(Name, Context, Value, Details)` record. An event whose name the SDK would not report
+  is not recorded, and a value or details the SDK would leave out are null in the record, with a
+  warning logged each time. The limit of 1,000 events per telemetry batch does not apply to the
+  record. It is the same list every time, and safe to read while other threads track: later events
+  are added to it, and a test client shared across tests can `Clear()` it.
+
 ### Changed
 
 - A test client serves plain values without variations, so `ConfigEvaluation.Variation` is null on

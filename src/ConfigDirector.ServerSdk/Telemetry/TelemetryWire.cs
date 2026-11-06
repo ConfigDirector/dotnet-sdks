@@ -17,6 +17,11 @@ internal static class TelemetryWire
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     });
 
+    internal static JsonWriterOptions ReportWriterOptions { get; } = new()
+    {
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
+
     internal static JsonTypeInfo<EvaluatedConfigEvent> Event => Context.EvaluatedConfigEvent;
 
     internal static JsonTypeInfo<InvalidContextEvent> InvalidContext => Context.InvalidContextEvent;

@@ -48,6 +48,10 @@ public static class ConfigDirectorTesting
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static TestClient Build(IReadOnlyDictionary<string, object>? values, TestClientOptions options) =>
-        new(new InMemoryConnection(values, options.Timeout, options.LoggerFactory));
+    private static TestClient Build(IReadOnlyDictionary<string, object>? values, TestClientOptions options)
+    {
+        var trackedEvents = new RecordedTrackedEvents();
+        var connection = new InMemoryConnection(values, options.Timeout, options.LoggerFactory, trackedEvents.Record);
+        return new TestClient(connection, trackedEvents);
+    }
 }

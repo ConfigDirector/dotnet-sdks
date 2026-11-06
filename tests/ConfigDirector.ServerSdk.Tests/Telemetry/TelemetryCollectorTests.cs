@@ -50,6 +50,106 @@ public sealed class TelemetryCollectorTests : IDisposable
         Evaluations()[0].GetProperty("event").GetProperty("contextId").GetString().ShouldBe("user-1");
     }
 
+    [Fact]
+    public async Task SendsATrackedEventRecordedAfterAFullBatchWasSentOnTheFollowingBatch()
+    {
+        await using var collector = Collector();
+        for (var index = 0; index < 1_000; index++)
+        {
+            Track(collector);
+        }
+
+        await collector.FlushAsync(TestContext.Current.CancellationToken);
+        Track(collector, "after-the-full-batch");
+        await collector.FlushAsync(TestContext.Current.CancellationToken);
+
+        TrackedEvents(_server.Bodies[0]).Length.ShouldBe(1_000);
+        TrackedEvents(_server.Bodies[1]).ShouldHaveSingleItem().GetProperty("name").GetString().ShouldBe("after-the-full-batch");
+    }
+
+    [Fact]
+    public async Task LogsARepeatedTrackedEventCauseOnceUntilTheBatchIsSentAndAgainInTheFollowingBatch()
+    {
+        await using var collector = Collector();
+
+        Track(collector, string.Empty);
+        Track(collector, string.Empty);
+        await collector.FlushAsync(TestContext.Current.CancellationToken);
+        var warningsInTheFirstBatch = TrackedEventWarnings();
+        Track(collector, string.Empty);
+        Track(collector, string.Empty);
+        await collector.FlushAsync(TestContext.Current.CancellationToken);
+
+        warningsInTheFirstBatch.ShouldBe(1);
+        TrackedEventWarnings().ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task KeepsReportingTrackedEventsAfterAReportTooLargeForConfigDirector()
+    {
+        _server.Replies(HttpStatusCode.RequestEntityTooLarge);
+        await using var collector = Collector();
+
+        Track(collector, "in-the-refused-report");
+        await collector.FlushAsync(TestContext.Current.CancellationToken);
+        Track(collector, "in-the-next-report");
+        await collector.FlushAsync(TestContext.Current.CancellationToken);
+
+        TrackedEvents(_server.Bodies[1]).ShouldHaveSingleItem().GetProperty("name").GetString().ShouldBe("in-the-next-report");
+    }
+
+    [Fact]
+    public async Task ReportsATrackedEventWithoutWaitingForAnEvaluation()
+    {
+        await using var collector = Collector();
+
+        Track(collector);
+        await collector.FlushAsync(TestContext.Current.CancellationToken);
+
+        TrackedEvents(_server.Bodies[0]).ShouldHaveSingleItem();
+        Evaluations().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task LogsNoWarningForATrackedEventRecordedAfterTheServerRefusedTheSdkKey()
+    {
+        _server.Replies(HttpStatusCode.Forbidden);
+        await using var collector = Collector();
+        Track(collector);
+        await collector.FlushAsync(TestContext.Current.CancellationToken);
+
+        Track(collector, string.Empty);
+        await collector.FlushAsync(TestContext.Current.CancellationToken);
+
+        TrackedEventWarnings().ShouldBe(0);
+        _server.Requests.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task LetsAReportAlreadyBeingSentFinishWhenItIsClosed()
+    {
+        _server.ReplyDelay = TimeSpan.FromMilliseconds(300);
+        var collector = Collector(flushInterval: TimeSpan.FromMilliseconds(20));
+        Track(collector);
+        await WaitForReportAsync();
+
+        await collector.DisposeAsync();
+
+        _loggerFactory.Logger.Entries.ShouldContain(entry => entry.EventId.Name == "Sent");
+    }
+
+    [Fact]
+    public async Task IgnoresATrackedEventRecordedAfterItIsClosed()
+    {
+        var collector = Collector();
+        await collector.DisposeAsync();
+
+        Track(collector);
+        await collector.FlushAsync(TestContext.Current.CancellationToken);
+
+        _server.Requests.ShouldBe(0);
+    }
+
     // An anonymous context still targets rules, but it is not persisted and must not be
     // identifiable in what is reported.
     [Fact]
@@ -211,6 +311,15 @@ public sealed class TelemetryCollectorTests : IDisposable
     private static void Record(
         TelemetryCollector collector, string key = "my-config", Context? context = null) =>
         collector.Record(key, "default", "hello", false, EvaluationReason.FoundMatch, context, null, null, null, null, null);
+
+    private static void Track(TelemetryCollector collector, string name = "checkout-completed") =>
+        collector.RecordTrackedEvent(TrackedEventAdmission.Of(name, null, new TrackOptions(), DateTimeOffset.UtcNow));
+
+    private static JsonElement[] TrackedEvents(string body) =>
+        [.. JsonDocument.Parse(body).RootElement.GetProperty("discreteEvents").GetProperty("trackedEvents").EnumerateArray()];
+
+    private int TrackedEventWarnings() =>
+        _loggerFactory.Logger.Entries.Count(entry => entry.EventId.Name == "TrackedEventWarning");
 
     private async Task WaitForReportAsync()
     {

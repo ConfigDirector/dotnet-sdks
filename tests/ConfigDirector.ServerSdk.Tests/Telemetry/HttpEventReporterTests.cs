@@ -109,9 +109,17 @@ public sealed class HttpEventReporterTests : IDisposable
     [Fact]
     public void AReportThatOnlyCountsDropsIsNotEmpty()
     {
-        new EventReport([], 1, [], 0, []).IsEmpty.ShouldBeFalse();
-        new EventReport([], 0, [], 1, []).IsEmpty.ShouldBeFalse();
-        new EventReport([], 0, [], 0, []).IsEmpty.ShouldBeTrue();
+        new EventReport([], 1, [], 0, [], []).IsEmpty.ShouldBeFalse();
+        new EventReport([], 0, [], 1, [], []).IsEmpty.ShouldBeFalse();
+        new EventReport([], 0, [], 0, [], []).IsEmpty.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void AReportHoldingOnlyATrackedEventIsNotEmpty()
+    {
+        var trackedEvent = new TrackedEventEntry("checkout-completed", default, null, null, Start);
+
+        new EventReport([], 0, [], 0, [], [trackedEvent]).IsEmpty.ShouldBeFalse();
     }
 
     [Fact]
@@ -120,7 +128,7 @@ public sealed class HttpEventReporterTests : IDisposable
         await using var reporter = Reporter();
 
         var response = await reporter.ReportAsync(
-            new EventReport([], 0, [], 0, []), TestContext.Current.CancellationToken);
+            new EventReport([], 0, [], 0, [], []), TestContext.Current.CancellationToken);
 
         response.Success.ShouldBeTrue();
         _server.Paths.ShouldBeEmpty();
@@ -189,6 +197,28 @@ public sealed class HttpEventReporterTests : IDisposable
         _loggerFactory.Logger.Entries.ShouldContain(entry => entry.Message.Contains("No more telemetry"));
     }
 
+    [Fact]
+    public async Task StopsReportingAfterABadRequest()
+    {
+        _server.Replies(HttpStatusCode.BadRequest);
+        await using var reporter = Reporter();
+
+        var rejected = await reporter.ReportAsync(Report(), TestContext.Current.CancellationToken);
+
+        rejected.Fatal.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task StopsReportingAfterAStatusJustAboveTheOneForAReportTooLarge()
+    {
+        _server.Replies(HttpStatusCode.RequestUriTooLong);
+        await using var reporter = Reporter();
+
+        var rejected = await reporter.ReportAsync(Report(), TestContext.Current.CancellationToken);
+
+        rejected.Fatal.ShouldBeTrue();
+    }
+
     // The events in this report are lost, but a server that is merely struggling is worth
     // reporting to again on the next flush.
     [Fact]
@@ -222,6 +252,35 @@ public sealed class HttpEventReporterTests : IDisposable
     }
 
     [Fact]
+    public async Task DiscardsAReportTooLargeForConfigDirectorWithAWarningAndKeepsReporting()
+    {
+        _server.Replies(HttpStatusCode.RequestEntityTooLarge);
+        await using var reporter = Reporter();
+
+        var tooLarge = await reporter.ReportAsync(Report(), TestContext.Current.CancellationToken);
+        var afterwards = await reporter.ReportAsync(Report(), TestContext.Current.CancellationToken);
+
+        tooLarge.Success.ShouldBeFalse();
+        tooLarge.Fatal.ShouldBeFalse();
+        afterwards.Success.ShouldBeTrue();
+        _server.Paths.Count.ShouldBe(2);
+        _loggerFactory.Logger.Entries.ShouldContain(entry => entry.EventId.Name == "Discarded");
+    }
+
+    [Fact]
+    public async Task WritesTextOutsideAsciiInAReportWithoutEscapingIt()
+    {
+        await using var reporter = Reporter();
+
+        await reporter.ReportAsync(
+            Report(contexts: [new Context { Id = "user-1", Name = "é+<>&'" }]), TestContext.Current.CancellationToken);
+
+        _server.Bodies[0].ShouldContain("""
+            "name":"é+<>&'"
+            """);
+    }
+
+    [Fact]
     public async Task ReportsAFailureToReachTheServerWithoutThrowing()
     {
         await using var reporter = Reporter(SdkServer.UnreachableUrl);
@@ -247,6 +306,7 @@ public sealed class HttpEventReporterTests : IDisposable
             droppedEvaluations,
             contexts ?? [],
             droppedContexts,
+            [],
             []);
 
     private JsonElement Payload() => JsonDocument.Parse(_server.Bodies[0]).RootElement.Clone();

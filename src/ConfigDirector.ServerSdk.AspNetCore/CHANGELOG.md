@@ -17,6 +17,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   request in a rollout.
 - The injected `IConfigDirectorClient` has the new `Evaluate` and `EvaluateJson<T>` from
   `ConfigDirector.ServerSdk`, which return the value along with why it was served and its variation.
+- The injected `IConfigDirectorClient` has the new `Track` from `ConfigDirector.ServerSdk`, which
+  reports to ConfigDirector that something happened, such as a completed checkout.
 
 ## [1.9.0] - 2026-10-22
 

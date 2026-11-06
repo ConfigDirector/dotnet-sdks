@@ -11,6 +11,11 @@ carries the SDK's version: it declares an exact dependency on that version of
 
 ## [Unreleased]
 
+### Added
+
+- `TestClient.TrackedEvents`, new in `ConfigDirector.ServerSdk.Testing`, holds the events the
+  application under test tracked through the injected `IConfigDirectorClient`.
+
 ### Changed
 
 - The test client this package registers serves plain values without variations, so

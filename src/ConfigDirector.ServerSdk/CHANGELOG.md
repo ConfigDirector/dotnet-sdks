@@ -11,6 +11,26 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- `Track(eventName, context, options)` on the client reports to ConfigDirector that something
+  happened, such as a completed checkout, so ConfigDirector can show it on the live feed and count it
+  for each variation of a running experiment. The new `TrackOptions` takes a `Value`, a number of any
+  kind such as an amount of money, a count or a duration: an `int`, a `long`, a `float`, a `double` or
+  a `decimal`, which is sent with every digit. It also takes `Details`, written like a context's
+  `Traits`, whose values are strings, numbers, booleans, or nested objects and arrays. The new
+  `TrackedEventValue`, `TrackedEventDetails` and `TrackedEventDetailValue` types are public. A class
+  of your own that implements `IConfigDirectorClient`, such as a fake in your tests, has to add `Track`.
+- An event counts for an experiment only when it is tracked for a context with an `Id`, the one the
+  experiment's config was evaluated for. Without a context, or for a context without an `Id`, the
+  event is still reported. The `Id` of a context marked `Anonymous` is not sent. A context with an
+  invalid kind is logged as it is for an evaluation, and the event is sent without a context.
+- Tracked events are sent with the next telemetry batch, at most 1,000 per batch; events beyond that
+  are not reported. An event whose name does not have 1 to 150 characters is not reported. Details
+  with more than 20 top-level keys or larger than 1 KB as JSON, and a `Value` that is not a finite
+  number, are left out and the event is still reported. A number inside `Details` that is not finite
+  is sent as null. Each of these logs one warning per telemetry batch, except the null. `Track` never
+  throws, and does nothing in `ConnectionMode.Offline` or once the client is disposed. An event that
+  cannot be read, because another thread changed its details during the call, is not reported, and a
+  warning is logged.
 - `Evaluate(configKey, defaultValue, context)` on the client, with one overload for each `GetValue`
   overload, reads a config as `GetValue` does and returns the `ConfigEvaluation`: the value, the
   reason it was served, its value ID and its variation. `EvaluateJson<T>` does the same for
@@ -38,6 +58,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   an `Id` was served the rollout's first share wider than 0%. Give an anonymous context a stable `Id`,
   such as a session or device ID, to keep it in a rollout. A rule that serves a single value still
   applies to a context without an `Id`.
+- Telemetry reports now write text outside ASCII, and the characters `+`, `<`, `>`, `&` and `'`, as
+  they are rather than as escape sequences, so they are smaller. Emoji stay escaped everywhere but in
+  a tracked event's details.
+
+### Fixed
+
+- A telemetry report larger than ConfigDirector accepts is now discarded with a warning, and the next
+  report is still sent. Before, the SDK stopped sending telemetry until the application restarted.
+- Disposing the client now lets a telemetry report already being sent finish, which takes at most 5
+  seconds if ConfigDirector is not answering. Before, it was cut off and what it held could be lost.
 
 ## [1.9.0] - 2026-10-22
 

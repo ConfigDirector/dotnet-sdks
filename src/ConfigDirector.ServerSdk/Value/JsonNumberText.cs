@@ -8,6 +8,16 @@ internal static class JsonNumberText
 {
     private const double LargestPlainInteger = 1e21;
 
+    internal static string? RenderFinite(object? number) =>
+        number switch
+        {
+            long whole => whole.ToString(CultureInfo.InvariantCulture),
+            decimal exact => exact.ToString(CultureInfo.InvariantCulture),
+            double value when !double.IsNaN(value) && !double.IsInfinity(value) => Render(value),
+            float value when !float.IsNaN(value) && !float.IsInfinity(value) => Render(value),
+            _ => null,
+        };
+
     internal static string Render(double value)
     {
         if (value == 0)

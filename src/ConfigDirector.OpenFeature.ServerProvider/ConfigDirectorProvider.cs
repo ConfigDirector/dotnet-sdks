@@ -37,6 +37,20 @@ namespace ConfigDirector.OpenFeature;
 /// a name, and otherwise the value's ID.
 /// </para>
 /// <para>
+/// An OpenFeature client's <c>Track</c> reports to ConfigDirector that something happened, such as a
+/// completed checkout, with the next telemetry batch: the value of the tracking event details as the
+/// event's value, their other attributes as the event's details, and the merged evaluation context as
+/// the context the event happened for. An event counts for an experiment only when its evaluation
+/// context has the targeting key the experiment's flag was evaluated with. Without one the event is
+/// still reported, and the targeting key of a context marked <c>anonymous</c> is not sent. A telemetry
+/// batch holds at most 1,000 tracked events, and events beyond that are not reported. An event whose
+/// name does not have 1 to 150 characters is not reported. Details with more than 20 top-level keys or
+/// larger than 1 KB as JSON, and a value that is not a finite number, are left out and the event is
+/// still reported. Each of these logs one warning per telemetry batch. <c>Track</c> does nothing in
+/// <see cref="ConnectionMode.Offline"/>. OpenFeature's client throws on a null, empty or whitespace
+/// name before the provider is called.
+/// </para>
+/// <para>
 /// If no config arrives within the connection timeout, or ConfigDirector rejects the server SDK
 /// key, initialization fails with OpenFeature's <see cref="ProviderNotReadyException"/>.
 /// <see cref="Api.SetProviderAsync(FeatureProvider, CancellationToken)"/> still completes, and
@@ -219,6 +233,16 @@ public sealed class ConfigDirectorProvider : FeatureProvider, IDisposable, IAsyn
             ? Resolution(flagKey, defaultValue, evaluation)
             : Resolution(flagKey, ValueMapper.ToValue((JsonElement)evaluation.Value), evaluation));
     }
+
+    /// <inheritdoc/>
+    public override void Track(
+        string trackingEventName, EvaluationContext? evaluationContext = null, TrackingEventDetails? trackingEventDetails = null) =>
+        _client.Track(trackingEventName, ContextMapper.ToContext(evaluationContext), TrackOptionsOf(trackingEventDetails));
+
+    private static TrackOptions? TrackOptionsOf(TrackingEventDetails? details) =>
+        details is null
+            ? null
+            : new TrackOptions { Value = details.Value, Details = details.Count > 0 ? ValueMapper.ToDetails(details.AsDictionary()) : null! };
 
     private ResolutionDetails<T> Resolve<T>(string flagKey, ConfigEvaluation evaluation) =>
         Resolution(flagKey, (T)evaluation.Value, evaluation);

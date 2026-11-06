@@ -30,7 +30,7 @@ public abstract class InMemoryConnectionTests : IAsyncDisposable
 
     private InMemoryConnection Connection(IReadOnlyDictionary<string, object> values, TimeSpan? timeout = null)
     {
-        var connection = new InMemoryConnection(values, timeout, _loggerFactory);
+        var connection = new InMemoryConnection(values, timeout, _loggerFactory, _ => { });
         _connections.Add(connection);
         return connection;
     }

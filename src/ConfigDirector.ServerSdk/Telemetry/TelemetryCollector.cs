@@ -19,6 +19,7 @@ internal sealed class TelemetryCollector : ITelemetryCollector
     private readonly EventQueue _events;
     private readonly ContextRegistry _contexts;
     private readonly InvalidContextSubmissions _invalidContexts = new();
+    private readonly TrackedEventQueue _trackedEvents = new();
 
     // Held for the whole of a flush, so a report triggered by closing cannot overtake one the
     // interval already started.
@@ -64,23 +65,31 @@ internal sealed class TelemetryCollector : ITelemetryCollector
             return;
         }
 
-        // An anonymous context still targets rules, but it is not persisted and must not be
-        // identifiable in what is reported.
-        string? contextId = null;
-        string? contextKind = null;
-        if (context is { Anonymous: false, Id: { Length: > 0 } identifier })
+        var reportedContext = ReportedContext.Of(context);
+        if (context is not null && reportedContext.Identifier is { } identifier)
         {
-            contextId = identifier;
-            contextKind = ContextKinds.EffectiveKind(context);
             _contexts.Add(identifier, context);
         }
 
         _events.Push(EvaluatedConfigEvent.Create(
-            key, defaultValue, value, usedDefault, reason, contextId, configType, valueId, contextKind, variationId, ruleId, shareId));
+            key, defaultValue, value, usedDefault, reason, reportedContext.Identifier, configType, valueId, reportedContext.Kind, variationId, ruleId, shareId));
     }
 
     public InvalidContextLogging RecordInvalidContext(string kindSample) =>
         _collecting ? _invalidContexts.Record(kindSample) : InvalidContextLogging.LogKind;
+
+    public void RecordTrackedEvent(TrackedEventAdmission admission)
+    {
+        if (!_collecting)
+        {
+            return;
+        }
+
+        foreach (var warning in _trackedEvents.Add(admission))
+        {
+            Log.TrackedEventWarning(_logger, TrackedEventWarnings.MessageOf(warning), null);
+        }
+    }
 
     // Reports everything collected so far without waiting for the next interval. Nothing is sent
     // when there is nothing to report.
@@ -107,7 +116,8 @@ internal sealed class TelemetryCollector : ITelemetryCollector
                 snapshot.DroppedCount,
                 contexts,
                 droppedContexts,
-                _invalidContexts.TakeSnapshot());
+                _invalidContexts.TakeSnapshot(),
+                _trackedEvents.TakeBatch());
 
             if (report.IsEmpty)
             {
@@ -168,6 +178,7 @@ internal sealed class TelemetryCollector : ITelemetryCollector
         _events.Clear();
         _contexts.Clear();
         _invalidContexts.Clear();
+        _trackedEvents.Clear();
         _disposed = true;
         await _reporter.DisposeAsync().ConfigureAwait(false);
         _stop.Dispose();
@@ -182,7 +193,7 @@ internal sealed class TelemetryCollector : ITelemetryCollector
             while (true)
             {
                 await Task.Delay(delay, _stop.Token).ConfigureAwait(false);
-                await FlushAsync(_stop.Token).ConfigureAwait(false);
+                await FlushAsync(CancellationToken.None).ConfigureAwait(false);
                 if (!_collecting)
                 {
                     return;
@@ -204,6 +215,7 @@ internal sealed class TelemetryCollector : ITelemetryCollector
         _events.Clear();
         _contexts.Clear();
         _invalidContexts.Clear();
+        _trackedEvents.Clear();
         Log.StoppedCollecting(_logger, null);
     }
 
@@ -220,5 +232,11 @@ internal sealed class TelemetryCollector : ITelemetryCollector
                 LogLevel.Warning,
                 new EventId(2, "StoppedCollecting"),
                 "Received a fatal error while reporting telemetry. No longer collecting events.");
+
+        internal static readonly Action<ILogger, string, Exception?> TrackedEventWarning =
+            LoggerMessage.Define<string>(
+                LogLevel.Warning,
+                new EventId(3, "TrackedEventWarning"),
+                "{Warning} Further tracked events like it are not logged until the next telemetry batch is sent.");
     }
 }

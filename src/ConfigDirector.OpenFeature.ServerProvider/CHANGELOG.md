@@ -11,6 +11,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- The provider now implements OpenFeature's tracking. `client.Track(eventName, context, details)`
+  reports to ConfigDirector that something happened, such as a completed checkout, so ConfigDirector
+  can show it on the live feed and count it for each variation of a running experiment. Before, a
+  `Track` call did nothing. The `Value` of the tracking event details is sent as the event's value,
+  their other attributes as its details, and the targeting key (or `id` attribute) and `kind` of the
+  merged evaluation context as the context the event happened for. A `DateTime` in the attributes is
+  sent as ISO 8601 text.
+- An event counts for an experiment only when its evaluation context has the targeting key the
+  experiment's flag was evaluated with. Without one, the event is still reported. The targeting key
+  of a context marked `anonymous` is not sent.
+- Tracked events are sent with the next telemetry batch, at most 1,000 per batch; events beyond that
+  are not reported. An event whose name does not have 1 to 150 characters is not reported. Details
+  with more than 20 top-level keys or larger than 1 KB as JSON, and a value that is not a finite
+  number, are left out and the event is still reported. A number in the attributes that is not finite
+  is sent as null. Each of these logs one warning per telemetry batch, except the null. `Track` does
+  nothing in `ConnectionMode.Offline`. OpenFeature's client throws on a null, empty or whitespace
+  event name before the provider is called.
 - The evaluation counts the provider sends to ConfigDirector now say which variation was served, and
   which percentage rollout and share served it, so ConfigDirector can count the contexts each
   variation of an experiment reached.
@@ -26,9 +43,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   after the rollout are not tried. Before, every such context was served the rollout's first share
   wider than 0%. Give an anonymous context a stable targeting key, such as a session ID, to keep it
   in a rollout. A rule that serves a single value still applies to a context without one.
+- Telemetry reports now write text outside ASCII, and the characters `+`, `<`, `>`, `&` and `'`, as
+  they are rather than as escape sequences, so they are smaller. Emoji stay escaped everywhere but in
+  a tracked event's details.
 
 ### Fixed
 
+- A telemetry report larger than ConfigDirector accepts is now discarded with a warning, and the next
+  report is still sent. Before, the provider stopped sending telemetry until the application
+  restarted.
+- Shutting the provider down now lets a telemetry report already being sent finish, which takes at
+  most 5 seconds if ConfigDirector is not answering. Before, it was cut off and what it held could be
+  lost.
 - When `GetObjectValueAsync` returns the in-code default value because the config's JSON has another
   shape, the evaluation counts sent to ConfigDirector now say so, with the reason `invalid-json`.
   Before, they said the value from ConfigDirector was served. The error message now names

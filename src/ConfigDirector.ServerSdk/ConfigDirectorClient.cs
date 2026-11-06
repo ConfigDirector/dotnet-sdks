@@ -24,6 +24,8 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
     private static readonly IReadOnlyDictionary<string, ConfigState> EmptyState =
         new Dictionary<string, ConfigState>(StringComparer.Ordinal);
 
+    private static readonly TrackOptions NoTrackOptions = new();
+
     private readonly object _watchLock = new();
     private readonly Dictionary<string, List<Watcher>> _watchers = new(StringComparer.Ordinal);
     private readonly ILogger<ConfigDirectorClient> _logger;
@@ -32,6 +34,7 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
     private readonly ConfigEvaluator _evaluator;
     private readonly ITransport _transport;
     private readonly ITelemetryCollector _telemetry;
+    private readonly ConnectionPlan _plan;
 
     // Null until the first bundle arrives, which is what separates "not ready" from "ready but the
     // server does not know this key". Only ever swapped, never edited in place, so a read on the
@@ -110,13 +113,13 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
         }
 
         var settings = options ?? new ConfigDirectorClientOptions();
-        var plan = ConnectionPlan.Of(serverSdkKey, settings.Connection);
+        _plan = ConnectionPlan.Of(serverSdkKey, settings.Connection);
         _logger = settings.LoggerFactory.CreateLogger<ConfigDirectorClient>();
         _metadata = settings.Metadata;
         _timeout = settings.Connection.Timeout;
         _evaluator = new ConfigEvaluator(settings.LoggerFactory.CreateLogger<ConfigEvaluator>());
 
-        (_telemetry, _transport) = plan switch
+        (_telemetry, _transport) = _plan switch
         {
             ConnectionPlan.Connect connect => LiveConnection(connect, settings, identity, buildTransport, buildTelemetry),
             ConnectionPlan.StayOffline offline => (DiscardingTelemetryCollector.Instance, new OfflineTransport(offline.Source, OnBundle)),
@@ -341,6 +344,25 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
         }
 
         Raise(handlers, new ConfigEvaluatedEventArgs(evaluation.ToConfigEvaluation()), nameof(ConfigEvaluated));
+    }
+
+    /// <inheritdoc/>
+    public void Track(string eventName, Context? context = null, TrackOptions? options = null)
+    {
+        if (_closed || _plan is ConnectionPlan.StayOffline)
+        {
+            return;
+        }
+
+        try
+        {
+            _telemetry.RecordTrackedEvent(
+                TrackedEventAdmission.Of(eventName, Admit(context), options ?? NoTrackOptions, DateTimeOffset.UtcNow));
+        }
+        catch (Exception error)
+        {
+            Log.TrackedEventNotRead(_logger, error);
+        }
     }
 
     /// <inheritdoc/>
@@ -771,6 +793,12 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
 
     private static class Log
     {
+        internal static readonly Action<ILogger, Exception?> TrackedEventNotRead =
+            LoggerMessage.Define(
+                LogLevel.Warning,
+                new EventId(11, "TrackedEventNotRead"),
+                "A tracked event was not reported because it could not be read.");
+
         internal static readonly Action<ILogger, TimeSpan, TimeSpan, TimeSpan, Exception?> PollingIntervalRaised =
             LoggerMessage.Define<TimeSpan, TimeSpan, TimeSpan>(
                 LogLevel.Warning,

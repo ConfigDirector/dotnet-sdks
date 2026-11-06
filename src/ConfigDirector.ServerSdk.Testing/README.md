@@ -78,6 +78,29 @@ value with the `ValueMissing` reason. JSON objects are encoded with their keys s
 After a failed attempt, the next `InitializeAsync` succeeds and delivers the values stored in the
 meantime.
 
+### Tracked events
+
+`testClient.TrackedEvents` holds every event the code under test tracked, in call order, as
+`TrackedEvent(Name, Context, Value, Details)`, so a test can assert on them:
+
+```csharp
+await using var testClient = ConfigDirectorTesting.CreateTestClient();
+var context = new Context { Id = "user-123" };
+
+testClient.Client.Track("checkout-completed", context, new TrackOptions { Value = 49.90m });
+
+testClient.TrackedEvents[0].ShouldBe(new TrackedEvent("checkout-completed", context, 49.90m));
+```
+
+The record follows the rules of a real report: an event whose name does not have 1 to 150 characters
+is not recorded, a value or details the SDK would leave out are null in the record, and a context
+whose kind is invalid is not recorded with its event, with a warning or an error logged each time.
+The limit of 1,000 events per telemetry batch does not apply.
+
+`TrackedEvents` is the same list every time, and safe to read while other threads track: later events
+are added to it. Call `testClient.TrackedEvents.Clear()` between tests that share a test client;
+`ReplaceValues` leaves it as it is.
+
 ### Options
 
 `CreateTestClient(values, new TestClientOptions { ... })` takes `Timeout` (the client's connection

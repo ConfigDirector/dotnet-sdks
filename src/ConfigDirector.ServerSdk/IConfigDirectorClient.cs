@@ -19,6 +19,9 @@ namespace ConfigDirector;
 /// it cannot fill is a compile error rather than a surprise at runtime. Each has an
 /// <c>Evaluate</c> counterpart that returns the value along with why it was served and its variation.
 /// </para>
+/// <para>
+/// <see cref="Track"/> reports that something happened, such as a completed checkout.
+/// </para>
 /// </remarks>
 public interface IConfigDirectorClient : IDisposable, IAsyncDisposable
 {
@@ -283,6 +286,36 @@ public interface IConfigDirectorClient : IDisposable, IAsyncDisposable
     IReadOnlyDictionary<string, ConfigState> GetAllConfigs(
         Context? context = null,
         IEnumerable<string>? configKeys = null);
+
+    /// <summary>
+    /// Reports to ConfigDirector that something happened, such as a completed checkout, so it can be
+    /// counted. The event is sent with the next telemetry batch.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// It never throws, and does nothing in <see cref="ConnectionMode.Offline"/> or once the client is
+    /// disposed.
+    /// </para>
+    /// <para>
+    /// An event counts for an experiment only when it is tracked for a context with an
+    /// <see cref="Context.Id"/>, the one the experiment's config was evaluated for. Without a context,
+    /// or for a context without an <see cref="Context.Id"/>, the event is still reported. The
+    /// <see cref="Context.Id"/> of a context marked <see cref="Context.Anonymous"/> is not sent. A
+    /// context with an invalid <see cref="Context.Kind"/> is logged as it is for an evaluation, and the
+    /// event is sent without a context.
+    /// </para>
+    /// <para>
+    /// A telemetry batch holds at most 1,000 tracked events, and events beyond that are not reported.
+    /// Each cause of an event being dropped, or sent without its value or details, logs one warning per
+    /// telemetry batch.
+    /// </para>
+    /// </remarks>
+    /// <param name="eventName">
+    /// The name of the event, 1 to 150 characters. An event with any other name is not reported.
+    /// </param>
+    /// <param name="context">The context the event happened for; may be null.</param>
+    /// <param name="options">The event's value and details; may be null.</param>
+    void Track(string eventName, Context? context = null, TrackOptions? options = null);
 
     /// <summary>
     /// Calls <paramref name="onChange"/> with the newly evaluated integer whenever an update
