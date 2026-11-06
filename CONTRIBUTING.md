@@ -5,10 +5,11 @@
 Requires the .NET SDK pinned in [global.json](global.json), plus the .NET 8 and ASP.NET Core 8
 runtimes, which the test suite runs against alongside the current ones.
 
-On a machine whose SDK came from a package manager, install those two by unpacking the official
-runtime archives and copying only their `shared/Microsoft.NETCore.App/<version>` and
-`shared/Microsoft.AspNetCore.App/<version>` directories into the SDK's `shared` directory. Do not
-point `dotnet-install.sh --install-dir` at it: the archives carry their own `dotnet` host binary,
+On a machine whose SDK came from a package manager, install those two with
+[scripts/setup-dotnet8-runtimes.sh](scripts/setup-dotnet8-runtimes.sh). Upgrading the SDK with
+Homebrew removes them, so run it again after each upgrade: until then the build passes and
+`dotnet test` fails with "You must install or update .NET". Do not point
+`dotnet-install.sh --install-dir` at the SDK: the archives carry their own `dotnet` host binary,
 which overwrites the one already there and leaves a `dotnet` that macOS refuses to run.
 
 ```bash
