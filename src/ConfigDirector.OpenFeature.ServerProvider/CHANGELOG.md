@@ -9,6 +9,31 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- The evaluation counts the provider sends to ConfigDirector now say which variation was served, and
+  which percentage rollout and share served it, so ConfigDirector can count the contexts each
+  variation of an experiment reached.
+
+### Changed
+
+- The `Variant` in evaluation details is now the variation's name when the config has variations and
+  the variation served has a name, such as `treatment`. Before, it was always the value ID. It stays
+  the value ID for a config without variations and for an unnamed variation. If you send `Variant` to
+  an analytics tool, an experiment's evaluations now show up under the variation names.
+- An evaluation context with neither a targeting key nor an `id` now skips percentage rollouts. The
+  flag resolves to the default targeting rule value with `Reason.Default`, and the targeting rules
+  after the rollout are not tried. Before, every such context was served the rollout's first share
+  wider than 0%. Give an anonymous context a stable targeting key, such as a session ID, to keep it
+  in a rollout. A rule that serves a single value still applies to a context without one.
+
+### Fixed
+
+- When `GetObjectValueAsync` returns the in-code default value because the config's JSON has another
+  shape, the evaluation counts sent to ConfigDirector now say so, with the reason `invalid-json`.
+  Before, they said the value from ConfigDirector was served. The error message now names
+  `invalid-json` too, as it does for a value that is not JSON at all, instead of the shape.
+
 ## [1.7.0] - 2026-10-28
 
 ### Changed

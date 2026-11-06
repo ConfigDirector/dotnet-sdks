@@ -65,20 +65,20 @@ internal static class TelemetryJson
 
     // Every evaluation is reported, so this class is reached for every type the SDK can return --
     // but each of those has a case of its own above, and only a type the caller named itself falls
-    // through to here. That type can only have come from GetJsonValue or WatchJson: the chain is
-    // ConfigDirectorClient.Report -> TelemetryCollector.Record -> EvaluatedConfigEvent.Create ->
-    // TelemetryValue.From, generic in the caller's T the whole way, and Report is reached only from
-    // Evaluate. Both of those members are annotated as needing reflection, which is what warns
-    // their callers. TrimmingContractTests fails if a getter is added for a type the switch above
+    // through to here. That type can only have come from GetJsonValue, EvaluateJson or WatchJson: the
+    // chain is ConfigDirectorClient.Report -> TelemetryCollector.Record -> EvaluatedConfigEvent.Create
+    // -> TelemetryValue.From, generic in the caller's T the whole way, and Report is reached only from
+    // EvaluateDefinition. All three of those members are annotated as needing reflection, which is
+    // what warns their callers. TrimmingContractTests fails if a getter is added for a type the switch above
     // does not name, which is what would make this false.
     [UnconditionalSuppressMessage(
         "Trimming",
         "IL2026:RequiresUnreferencedCode",
-        Justification = "Unreachable except for a type the caller passed to GetJsonValue or WatchJson, both annotated.")]
+        Justification = "Unreachable except for a type the caller passed to GetJsonValue, EvaluateJson or WatchJson, all annotated.")]
     [UnconditionalSuppressMessage(
         "AOT",
         "IL3050:RequiresDynamicCode",
-        Justification = "Unreachable except for a type the caller passed to GetJsonValue or WatchJson, both annotated.")]
+        Justification = "Unreachable except for a type the caller passed to GetJsonValue, EvaluateJson or WatchJson, all annotated.")]
     private static string Reflectively<T>(T value) =>
         Write(JsonSerializer.SerializeToElement(value, Options));
 

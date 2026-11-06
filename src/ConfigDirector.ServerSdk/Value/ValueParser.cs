@@ -68,9 +68,22 @@ internal static class ValueParser
         }
 
         // Every type the getters can be called with is handled above. Binding to a type of the
-        // caller's own is what Bind is for, and it is reached only through GetJsonValue.
+        // caller's own is what Bind is for, and it is reached only through GetJsonValue, EvaluateJson
+        // and WatchJson.
         return UsedDefault(defaultValue, EvaluationReason.InvalidJson);
     }
+
+    internal static ParseResult<JsonElement> ParseElementShapedLikeInCodeDefaultValue(ConfigState state, JsonElement defaultValue)
+    {
+        var result = Parse(state, defaultValue);
+        return result.UsedDefault || HasTheShapeOf(defaultValue, result.Value)
+            ? result
+            : UsedDefault(defaultValue, EvaluationReason.InvalidJson);
+    }
+
+    private static bool HasTheShapeOf(JsonElement defaultValue, JsonElement servedValue) =>
+        defaultValue.ValueKind is not (JsonValueKind.Object or JsonValueKind.Array)
+        || servedValue.ValueKind == defaultValue.ValueKind;
 
     private static bool IsReadableAsString(ConfigType? type) =>
         type is not (ConfigType.Boolean or ConfigType.Integer or ConfigType.Float);
@@ -193,7 +206,7 @@ internal static class ValueParser
     }
 
     private static ParseResult<T> Matched<T>(T value, ConfigState state) =>
-        new(value, EvaluationReason.FoundMatch, state.ValueId);
+        new(value, EvaluationReason.FoundMatch, state.ValueId, state.Variation, state.RuleId, state.ShareId);
 
     private static ParseResult<T> UsedDefault<T>(T defaultValue, EvaluationReason reason) =>
         new(defaultValue, reason, null);

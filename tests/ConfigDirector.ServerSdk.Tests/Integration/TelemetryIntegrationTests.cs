@@ -57,6 +57,126 @@ public sealed class TelemetryIntegrationTests : IDisposable
     }
 
     [Fact]
+    public async Task ReportsTheRuleShareAndVariationOfARollout()
+    {
+        await using var client = await ClientWithVariationsAsync();
+
+        client.GetValue("checkout-experiment", "in-code", new Context { Id = "u582" });
+        await FlushAsync(client);
+
+        var evaluated = Evaluations()[0].GetProperty("event");
+        evaluated.GetProperty("ruleId").GetString().ShouldBe("rule-rollout");
+        evaluated.GetProperty("shareId").GetString().ShouldBe("share-treatment");
+        evaluated.GetProperty("variationId").GetString().ShouldBe("variation-treatment");
+    }
+
+    [Fact]
+    public async Task ReportsTheRuleShareAndVariationOfAnEvaluationReadThroughEvaluate()
+    {
+        await using var client = await ClientWithVariationsAsync();
+
+        client.Evaluate("checkout-experiment", "in-code", new Context { Id = "u582" });
+        await FlushAsync(client);
+
+        var evaluated = Evaluations()[0].GetProperty("event");
+        evaluated.GetProperty("key").GetString().ShouldBe("checkout-experiment");
+        evaluated.GetProperty("ruleId").GetString().ShouldBe("rule-rollout");
+        evaluated.GetProperty("shareId").GetString().ShouldBe("share-treatment");
+        evaluated.GetProperty("variationId").GetString().ShouldBe("variation-treatment");
+    }
+
+    [Fact]
+    public async Task ReportsTheVariationAloneForARuleServingOneValue()
+    {
+        await using var client = await ClientWithVariationsAsync();
+
+        client.GetValue("greeting-by-plan", "in-code", new Context { Id = "user-1", Traits = { ["plan"] = "pro" } });
+        await FlushAsync(client);
+
+        var evaluated = Evaluations()[0].GetProperty("event");
+        evaluated.GetProperty("variationId").GetString().ShouldBe("variation-welcome");
+        evaluated.TryGetProperty("ruleId", out _).ShouldBeFalse();
+        evaluated.TryGetProperty("shareId", out _).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task ReportsTheVariationAloneForTheDefaultTargetingRuleValue()
+    {
+        await using var client = await ClientWithVariationsAsync();
+
+        client.GetValue("greeting-by-plan", "in-code", new Context { Id = "user-1" });
+        await FlushAsync(client);
+
+        var evaluated = Evaluations()[0].GetProperty("event");
+        evaluated.GetProperty("variationId").GetString().ShouldBe("variation-hello");
+        evaluated.TryGetProperty("ruleId", out _).ShouldBeFalse();
+        evaluated.TryGetProperty("shareId", out _).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task ReportsTheRuleAndShareWithoutAVariationForARolloutOfAConfigWithoutVariations()
+    {
+        await using var client = await ClientWithVariationsAsync();
+
+        client.GetValue("rolled-out-flag", false, new Context { Id = "user-1" });
+        await FlushAsync(client);
+
+        var evaluated = Evaluations()[0].GetProperty("event");
+        evaluated.GetProperty("ruleId").GetString().ShouldBe("rule-flag-rollout");
+        evaluated.GetProperty("shareId").GetString().ShouldBe("share-on");
+        evaluated.TryGetProperty("variationId", out _).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task ReportsNoRuleShareOrVariationWhenTheInCodeDefaultValueIsReturned()
+    {
+        await using var client = await ClientWithVariationsAsync();
+
+        client.GetValue("checkout-experiment", 7, new Context { Id = "u582" });
+        await FlushAsync(client);
+
+        var evaluated = Evaluations()[0].GetProperty("event");
+        evaluated.GetProperty("usedDefault").GetBoolean().ShouldBeTrue();
+        evaluated.TryGetProperty("ruleId", out _).ShouldBeFalse();
+        evaluated.TryGetProperty("shareId", out _).ShouldBeFalse();
+        evaluated.TryGetProperty("variationId", out _).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task ReportsASkippedRolloutWithTheVariationOfTheDefaultTargetingRuleValue()
+    {
+        await using var client = await ClientWithVariationsAsync();
+
+        client.GetValue("checkout-experiment", "in-code", new Context { Name = "Ada" });
+        await FlushAsync(client);
+
+        var evaluated = Evaluations()[0].GetProperty("event");
+        evaluated.GetProperty("evaluationReason").GetString().ShouldBe("rollout-skipped-no-identifier");
+        evaluated.GetProperty("usedDefault").GetBoolean().ShouldBeFalse();
+        evaluated.GetProperty("evaluatedValue").GetProperty("value").GetString().ShouldBe("control");
+        evaluated.GetProperty("evaluatedValueId").GetString().ShouldBe("value-control");
+        evaluated.GetProperty("variationId").GetString().ShouldBe("variation-control");
+        evaluated.TryGetProperty("ruleId", out _).ShouldBeFalse();
+        evaluated.TryGetProperty("shareId", out _).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task CountsEvaluationsOfTheSameShareTogetherAndOfAnotherShareApart()
+    {
+        await using var client = await ClientWithVariationsAsync();
+
+        client.GetValue("checkout-experiment", "in-code", new Context { Id = "u582", Anonymous = true });
+        client.GetValue("checkout-experiment", "in-code", new Context { Id = "u582", Anonymous = true });
+        client.GetValue("checkout-experiment", "in-code", new Context { Id = "user-1", Anonymous = true });
+        await FlushAsync(client);
+
+        var counts = Evaluations()
+            .Select(entry => (entry.GetProperty("event").GetProperty("shareId").GetString(), entry.GetProperty("count").GetInt32()))
+            .OrderBy(entry => entry.Item1, StringComparer.Ordinal);
+        counts.ShouldBe([("share-control", 1), ("share-treatment", 2)]);
+    }
+
+    [Fact]
     public async Task CapturesTheContextAConfigWasEvaluatedAgainst()
     {
         await using var client = Client();
@@ -432,6 +552,14 @@ public sealed class TelemetryIntegrationTests : IDisposable
         options.Telemetry.FlushInterval = flushInterval ?? TimeSpan.FromMinutes(5);
         options.Telemetry.EventQueueLimit = eventQueueLimit;
         return new ConfigDirectorClient("sdk-key", options, identity ?? SdkIdentity.ServerSdk);
+    }
+
+    private async Task<ConfigDirectorClient> ClientWithVariationsAsync()
+    {
+        _server.Bundle = SampleConfigs.Variations;
+        var client = Client();
+        await client.InitializeAsync(TestContext.Current.CancellationToken);
+        return client;
     }
 
     // Closing reports whatever is left, which is how a test asks for a report without waiting on

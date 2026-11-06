@@ -269,7 +269,8 @@ its own, and declares whatever SDK version the project holds at that commit.
 name and version. The server SDK exposes that only to assemblies it names in `InternalsVisibleTo`,
 so the public API offers no way for an application to claim an arbitrary identity. The provider
 therefore compiles against internal members of `ConfigDirector.ServerSdk`: `SdkIdentity`, the
-internal `ConfigDirectorClient` constructor that takes one, and `EvaluationReasons`.
+internal `ConfigDirectorClient` constructor that takes one, `EvaluationReasons`, and
+`ConfigDirectorClient.EvaluateShapedLikeInCodeDefaultValue`, which reads an OpenFeature object flag.
 
 That binding is by signature, and NuGet lets a consumer restore a newer SDK than the provider was
 built against. A released provider must keep working against every later SDK within the same major

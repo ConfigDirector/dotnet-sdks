@@ -6,6 +6,10 @@ internal sealed class ConfigEvaluator
 {
     private const int Last = int.MaxValue;
 
+    private static readonly RuleServing NotMatched = new RuleNotMatched();
+
+    private static readonly RuleServing SkippedNoIdentifier = new RolloutSkippedNoIdentifier();
+
     internal static readonly IReadOnlyDictionary<string, Segment> NoSegments =
         new Dictionary<string, Segment>(StringComparer.Ordinal);
 
@@ -27,21 +31,10 @@ internal sealed class ConfigEvaluator
         Config config,
         Context? context,
         Metadata? metadata,
-        IReadOnlyDictionary<string, Segment> segments)
-    {
-        var selected = SelectValue(config, context, metadata, segments);
+        IReadOnlyDictionary<string, Segment> segments) =>
+        EvaluateWithReason(config, context, metadata, segments).State;
 
-        return new ConfigState
-        {
-            Id = config.Id,
-            Key = config.Key,
-            Type = config.Type,
-            Value = selected.Value,
-            ValueId = selected.ValueId,
-        };
-    }
-
-    private Selection SelectValue(
+    internal ServedConfig EvaluateWithReason(
         Config config,
         Context? context,
         Metadata? metadata,
@@ -49,17 +42,44 @@ internal sealed class ConfigEvaluator
     {
         foreach (var rule in config.Target.Rules.OrderBy(rule => rule.Order ?? Last))
         {
-            var selected = EvaluateRule(rule, config, context, metadata, segments);
-            if (selected.Matched)
+            switch (EvaluateRule(rule, config, context, metadata, segments))
             {
-                return selected;
+                case ServedValue servedValue:
+                    return ServedConfigOf(config, servedValue, EvaluationReason.FoundMatch);
+                case RolloutSkippedNoIdentifier:
+                    return ServedConfigOf(config, DefaultTargetingRuleValue(config), EvaluationReason.RolloutSkippedNoIdentifier);
+                case RuleNotMatched:
+                    break;
             }
         }
 
-        return Selection.From(config.Target.DefaultValue, config.Target.DefaultValueId);
+        return ServedConfigOf(config, DefaultTargetingRuleValue(config), EvaluationReason.FoundMatch);
     }
 
-    private Selection EvaluateRule(
+    private static ServedValue DefaultTargetingRuleValue(Config config) =>
+        new(config.Target.DefaultValue, config.Target.DefaultValueId, config.Target.DefaultVariationId);
+
+    private static ServedConfig ServedConfigOf(Config config, ServedValue servedValue, EvaluationReason reason) =>
+        new(
+            new ConfigState
+            {
+                Id = config.Id,
+                Key = config.Key,
+                Type = config.Type,
+                Value = servedValue.Value,
+                ValueId = servedValue.ValueId,
+                Variation = VariationWithId(config, servedValue.VariationId),
+                RuleId = servedValue.RuleId,
+                ShareId = servedValue.ShareId,
+            },
+            reason);
+
+    private static Variation? VariationWithId(Config config, string? variationId) =>
+        variationId is null
+            ? null
+            : config.Variations.FirstOrDefault(variation => variation.Id == variationId);
+
+    private RuleServing EvaluateRule(
         Rule rule,
         Config config,
         Context? context,
@@ -70,9 +90,9 @@ internal sealed class ConfigEvaluator
         {
             return rule switch
             {
-                PercentageRule percentageRule => SelectBucket(percentageRule.Percentages, config, context),
+                PercentageRule percentageRule => EvaluateRollout(percentageRule.Id, percentageRule.Percentages, config, context),
                 ConditionalRule conditionalRule => EvaluateConditionals(conditionalRule, config, context, metadata, segments),
-                _ => Selection.None,
+                _ => NotMatched,
             };
         }
         catch (Exception error)
@@ -80,11 +100,11 @@ internal sealed class ConfigEvaluator
             // Malformed rule data must not take the whole evaluation down with it, nor discard the
             // sibling rules that would have matched.
             ReportDisregardedRule(_logger, rule.Id, config.Key, error);
-            return Selection.None;
+            return NotMatched;
         }
     }
 
-    private static Selection EvaluateConditionals(
+    private static RuleServing EvaluateConditionals(
         ConditionalRule rule,
         Config config,
         Context? context,
@@ -93,15 +113,15 @@ internal sealed class ConfigEvaluator
     {
         if (!ConditionsMet(rule, context, metadata, segments))
         {
-            return Selection.None;
+            return NotMatched;
         }
 
         if (rule.Target == "percentage")
         {
-            return SelectBucket(rule.Percentages, config, context);
+            return EvaluateRollout(rule.Id, rule.Percentages, config, context);
         }
 
-        return rule.Target == "value" ? Selection.From(rule.Value, rule.ValueId) : Selection.None;
+        return rule.Target == "value" ? ServedValueOrNotMatched(rule.Value, rule.ValueId, rule.VariationId) : NotMatched;
     }
 
     private static bool ConditionsMet(
@@ -133,37 +153,59 @@ internal sealed class ConfigEvaluator
             _ => false,
         };
 
-    private static Selection SelectBucket(
-        IReadOnlyList<PercentageBucket> buckets,
+    private static RuleServing EvaluateRollout(
+        string ruleId,
+        IReadOnlyList<PercentageBucket>? buckets,
         Config config,
         Context? context)
     {
-        var assigned = context?.Id is { } identifier
-            ? PercentHashing.AssignPercentage(config.Id, identifier, ContextKinds.EffectiveKind(context))
-            : PercentHashing.PercentageWithoutIdentifier;
+        if (buckets is null)
+        {
+            return NotMatched;
+        }
+
+        if (context?.Id is not { } identifier)
+        {
+            return SkippedNoIdentifier;
+        }
+
+        var assigned = PercentHashing.AssignPercentage(config.Id, identifier, ContextKinds.EffectiveKind(context));
 
         var total = 0.0;
         foreach (var bucket in buckets)
         {
             if (assigned < bucket.Percentage + total)
             {
-                return Selection.From(bucket.Value, bucket.ValueId);
+                return ServedValueOrNotMatched(bucket.Value, bucket.ValueId, bucket.VariationId, ruleId, bucket.Id);
             }
 
             total += bucket.Percentage;
         }
 
-        return Selection.None;
+        return NotMatched;
     }
 
-    private readonly record struct Selection(bool Matched, string? Value, string? ValueId)
-    {
-        internal static Selection None => default;
+    // A rule or bucket carrying no value selects nothing, and the next rule is tried.
+    private static RuleServing ServedValueOrNotMatched(
+        TraitValue value,
+        string? valueId,
+        string? variationId,
+        string? ruleId = null,
+        string? shareId = null) =>
+        value.Kind == TraitValueKind.Null
+            ? NotMatched
+            : new ServedValue(TraitText.Render(value), valueId, variationId, ruleId, shareId);
 
-        internal static Selection From(string? value, string? valueId) => new(true, value, valueId);
+    private abstract record RuleServing;
 
-        // A rule or bucket carrying no value selects nothing, and the next rule is tried.
-        internal static Selection From(TraitValue value, string? valueId) =>
-            value.Kind == TraitValueKind.Null ? None : new Selection(true, TraitText.Render(value), valueId);
-    }
+    private sealed record ServedValue(
+        string? Value,
+        string? ValueId,
+        string? VariationId,
+        string? RuleId = null,
+        string? ShareId = null) : RuleServing;
+
+    private sealed record RuleNotMatched : RuleServing;
+
+    private sealed record RolloutSkippedNoIdentifier : RuleServing;
 }

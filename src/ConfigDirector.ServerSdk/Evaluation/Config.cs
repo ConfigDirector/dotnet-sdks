@@ -2,6 +2,8 @@ namespace ConfigDirector.Evaluation;
 
 internal sealed record Config
 {
+    private readonly IReadOnlyList<Variation> _variations = [];
+
     public string Id { get; init; } = string.Empty;
 
     public string Key { get; init; } = string.Empty;
@@ -9,6 +11,12 @@ internal sealed record Config
     public ConfigType? Type { get; init; }
 
     public TargetingRules Target { get; init; } = new();
+
+    public IReadOnlyList<Variation> Variations
+    {
+        get => _variations;
+        init => _variations = value ?? [];
+    }
 }
 
 internal sealed record TargetingRules
@@ -18,6 +26,8 @@ internal sealed record TargetingRules
     public string? DefaultValue { get; init; }
 
     public string? DefaultValueId { get; init; }
+
+    public string? DefaultVariationId { get; init; }
 
     public IReadOnlyList<Rule> Rules
     {

@@ -145,7 +145,7 @@ public class BundleParserTests
             }
             """);
 
-        rule.Percentages.Count.ShouldBe(2);
+        rule.Percentages!.Count.ShouldBe(2);
         rule.Percentages[0].Percentage.ShouldBe(40.5);
         rule.Percentages[0].ValueId.ShouldBe("v0");
         TraitText.Render(rule.Percentages[0].Value).ShouldBe("control");
@@ -173,6 +173,106 @@ public class BundleParserTests
             new PercentageBucket { Id = "b1", Percentage = 59.5, Value = "variant", ValueId = "v1" },
         ]);
     }
+
+    [Fact]
+    public void ReadsTheVariationIdOfAPercentageShare()
+    {
+        var rule = (PercentageRule)RuleOf("""
+            {
+              "id": "rule-1",
+              "type": "percentage",
+              "percentages": [{ "id": "b0", "percentage": 100, "value": "control", "valueId": "v0", "variationId": "variation-0" }]
+            }
+            """);
+
+        rule.Percentages.ShouldHaveSingleItem().VariationId.ShouldBe("variation-0");
+    }
+
+    [Fact]
+    public void ReadsTheVariationIdOfARuleServingOneValue()
+    {
+        var rule = (ConditionalRule)RuleOf("""
+            {"id": "rule-1", "type": "conditional", "value": "control", "valueId": "v0", "variationId": "variation-0"}
+            """);
+
+        rule.VariationId.ShouldBe("variation-0");
+    }
+
+    [Fact]
+    public void ReadsTheVariationIdOfTheDefaultTargetingRuleValue()
+    {
+        var config = ConfigOf("""
+            {"id": "i", "key": "k", "target": {"defaultValue": "control", "defaultValueId": "v0", "defaultVariationId": "variation-0"}}
+            """);
+
+        config.Target.DefaultVariationId.ShouldBe("variation-0");
+    }
+
+    [Fact]
+    public void ReadsTheIdAndNameOfEachVariation()
+    {
+        var config = ConfigOf("""
+            {"id": "i", "key": "k", "target": {}, "variations": [
+              {"id": "variation-0", "value": "control", "name": "Control"},
+              {"id": "variation-1", "value": "treatment", "name": "Treatment"}
+            ]}
+            """);
+
+        config.Variations.ShouldBe([
+            new Variation { Id = "variation-0", Name = "Control" },
+            new Variation { Id = "variation-1", Name = "Treatment" },
+        ]);
+    }
+
+    [Fact]
+    public void ReadsAVariationWithANullNameAsUnnamed()
+    {
+        var config = ConfigOf("""
+            {"id": "i", "key": "k", "target": {}, "variations": [{"id": "variation-0", "value": "control", "name": null}]}
+            """);
+
+        config.Variations.ShouldBe([new Variation { Id = "variation-0", Name = null }]);
+    }
+
+    [Fact]
+    public void ReadsAVariationWithAnEmptyNameAsUnnamed()
+    {
+        var config = ConfigOf("""
+            {"id": "i", "key": "k", "target": {}, "variations": [{"id": "variation-0", "value": "control", "name": ""}]}
+            """);
+
+        config.Variations.ShouldBe([new Variation { Id = "variation-0", Name = null }]);
+    }
+
+    [Fact]
+    public void LeavesOutAVariationWithoutAnIdAndKeepsTheConfig()
+    {
+        var config = ConfigOf("""
+            {"id": "i", "key": "k", "target": {}, "variations": [{"value": "control", "name": "Control"}, "not-an-object"]}
+            """);
+
+        config.Variations.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void ReadsAConfigWithoutVariationsAsHavingNone() =>
+        ConfigOf("""{"id": "i", "key": "k", "target": {}}""").Variations.ShouldBeEmpty();
+
+    [Fact]
+    public void ReadsAPercentageRuleWithoutPercentagesAsHavingNone() =>
+        ((PercentageRule)RuleOf("""{"id": "rule-1", "type": "percentage"}""")).Percentages.ShouldBeNull();
+
+    [Fact]
+    public void ReadsAConditionalRuleWithNullPercentagesAsHavingNone() =>
+        ((ConditionalRule)RuleOf("""{"id": "rule-1", "target": "percentage", "percentages": null}""")).Percentages.ShouldBeNull();
+
+    [Fact]
+    public void ReadsAPercentageRuleWithAnEmptyListOfPercentagesAsAnEmptyList() =>
+        ((PercentageRule)RuleOf("""{"id": "rule-1", "type": "percentage", "percentages": []}""")).Percentages.ShouldBe([]);
+
+    [Fact]
+    public void ReadsAConditionalRuleWithAnEmptyListOfPercentagesAsAnEmptyList() =>
+        ((ConditionalRule)RuleOf("""{"id": "rule-1", "target": "percentage", "percentages": []}""")).Percentages.ShouldBe([]);
 
     [Fact]
     public void TreatsARuleKindItDoesNotKnowAsConditional() =>

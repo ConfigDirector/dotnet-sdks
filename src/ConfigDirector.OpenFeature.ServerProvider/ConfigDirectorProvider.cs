@@ -28,7 +28,13 @@ namespace ConfigDirector.OpenFeature;
 /// The OpenFeature evaluation context maps onto the ConfigDirector <see cref="Context"/>: the
 /// targeting key, or failing that an <c>id</c> attribute, becomes the context's id, a top-level
 /// <c>kind</c> its kind (<c>user</c> when omitted), <c>name</c> its name, a <c>traits</c> structure
-/// its traits, and a boolean <c>anonymous</c> its anonymous flag.
+/// its traits, and a boolean <c>anonymous</c> its anonymous flag. A context with neither a targeting
+/// key nor an <c>id</c> skips percentage rollouts: the flag resolves to the default targeting rule
+/// value with <see cref="Reason.Default"/>, and the targeting rules after the rollout are not tried.
+/// </para>
+/// <para>
+/// The variant is the variation's name when the config has variations and the variation served has
+/// a name, and otherwise the value's ID.
 /// </para>
 /// <para>
 /// If no config arrives within the connection timeout, or ConfigDirector rejects the server SDK
@@ -62,9 +68,6 @@ public sealed class ConfigDirectorProvider : FeatureProvider, IDisposable, IAsyn
         SdkIdentity.For("dotnet-openfeature-server-provider", typeof(ConfigDirectorProvider).Assembly);
 
     private static readonly TimeSpan TimeAllowedForOpenFeatureToRecordTheFailure = TimeSpan.FromSeconds(1);
-
-    [ThreadStatic]
-    private static ConfigEvaluation? _evaluated;
 
     private readonly ConfigDirectorClient _client;
     private readonly Action<Func<Task>> _startReadinessCheck;
@@ -123,7 +126,6 @@ public sealed class ConfigDirectorProvider : FeatureProvider, IDisposable, IAsyn
     {
         _startReadinessCheck = startReadinessCheck;
         _client = new ConfigDirectorClient(serverSdkKey, options, Identity);
-        _client.ConfigEvaluated += (_, args) => _evaluated = args.Evaluation;
         _client.ConfigsUpdated += (_, args) => Emit(new ProviderEventPayload
         {
             Type = ProviderEventTypes.ProviderConfigurationChanged,
@@ -186,22 +188,22 @@ public sealed class ConfigDirectorProvider : FeatureProvider, IDisposable, IAsyn
     /// <inheritdoc/>
     public override Task<ResolutionDetails<bool>> ResolveBooleanValueAsync(
         string flagKey, bool defaultValue, EvaluationContext? context = null, CancellationToken cancellationToken = default) =>
-        Task.FromResult(Resolve(flagKey, defaultValue, context, static (client, key, fallback, mapped) => client.GetValue(key, fallback, mapped)));
+        Task.FromResult(Resolve<bool>(flagKey, _client.Evaluate(flagKey, defaultValue, ContextMapper.ToContext(context))));
 
     /// <inheritdoc/>
     public override Task<ResolutionDetails<string>> ResolveStringValueAsync(
         string flagKey, string defaultValue, EvaluationContext? context = null, CancellationToken cancellationToken = default) =>
-        Task.FromResult(Resolve(flagKey, defaultValue, context, static (client, key, fallback, mapped) => client.GetValue(key, fallback, mapped)));
+        Task.FromResult(Resolve<string>(flagKey, _client.Evaluate(flagKey, defaultValue, ContextMapper.ToContext(context))));
 
     /// <inheritdoc/>
     public override Task<ResolutionDetails<int>> ResolveIntegerValueAsync(
         string flagKey, int defaultValue, EvaluationContext? context = null, CancellationToken cancellationToken = default) =>
-        Task.FromResult(Resolve(flagKey, defaultValue, context, static (client, key, fallback, mapped) => client.GetValue(key, fallback, mapped)));
+        Task.FromResult(Resolve<int>(flagKey, _client.Evaluate(flagKey, defaultValue, ContextMapper.ToContext(context))));
 
     /// <inheritdoc/>
     public override Task<ResolutionDetails<double>> ResolveDoubleValueAsync(
         string flagKey, double defaultValue, EvaluationContext? context = null, CancellationToken cancellationToken = default) =>
-        Task.FromResult(Resolve(flagKey, defaultValue, context, static (client, key, fallback, mapped) => client.GetValue(key, fallback, mapped)));
+        Task.FromResult(Resolve<double>(flagKey, _client.Evaluate(flagKey, defaultValue, ContextMapper.ToContext(context))));
 
     /// <inheritdoc/>
     public override Task<ResolutionDetails<OpenFeatureValue>> ResolveStructureValueAsync(
@@ -212,54 +214,19 @@ public sealed class ConfigDirectorProvider : FeatureProvider, IDisposable, IAsyn
             throw new ArgumentNullException(nameof(defaultValue));
         }
 
-        var fallback = ValueMapper.ToJsonElement(defaultValue);
-        var (element, evaluation) = Evaluate(flagKey, fallback, context, static (client, key, fallback, mapped) => client.GetValue(key, fallback, mapped));
-        if (evaluation is null || evaluation.IsDefault)
-        {
-            return Task.FromResult(Resolution(flagKey, defaultValue, evaluation));
-        }
-
-        return Task.FromResult(MissingShape(element, defaultValue) switch
-        {
-            null => Resolution(flagKey, ValueMapper.ToValue(element), evaluation),
-            var requiredShape => Resolutions.TypeMismatch(flagKey, defaultValue, requiredShape),
-        });
+        var evaluation = _client.EvaluateShapedLikeInCodeDefaultValue(flagKey, ValueMapper.ToJsonElement(defaultValue), ContextMapper.ToContext(context));
+        return Task.FromResult(evaluation.IsDefault
+            ? Resolution(flagKey, defaultValue, evaluation)
+            : Resolution(flagKey, ValueMapper.ToValue((JsonElement)evaluation.Value), evaluation));
     }
 
-    private static string? MissingShape(JsonElement servedValue, OpenFeatureValue defaultValue) =>
-        (defaultValue, servedValue.ValueKind) switch
-        {
-            ({ IsStructure: true }, not JsonValueKind.Object) => "a JSON object",
-            ({ IsList: true }, not JsonValueKind.Array) => "a JSON array",
-            _ => null,
-        };
+    private ResolutionDetails<T> Resolve<T>(string flagKey, ConfigEvaluation evaluation) =>
+        Resolution(flagKey, (T)evaluation.Value, evaluation);
 
-    private ResolutionDetails<T> Resolve<T>(string flagKey, T defaultValue, EvaluationContext? context, Reader<T> read)
-    {
-        var (value, evaluation) = Evaluate(flagKey, defaultValue, context, read);
-        return Resolution(flagKey, value, evaluation);
-    }
-
-    private ResolutionDetails<T> Resolution<T>(string flagKey, T value, ConfigEvaluation? evaluation) =>
-        evaluation is null && _client.IsClosed
+    private ResolutionDetails<T> Resolution<T>(string flagKey, T value, ConfigEvaluation evaluation) =>
+        evaluation.Reason == EvaluationReason.ClientNotReady && _client.IsClosed
             ? Resolutions.Closed(flagKey, value)
             : Resolutions.Of(flagKey, value, evaluation);
-
-    private (T Value, ConfigEvaluation? Evaluation) Evaluate<T>(
-        string flagKey, T defaultValue, EvaluationContext? context, Reader<T> read)
-    {
-        var mapped = ContextMapper.ToContext(context);
-        _evaluated = null;
-        try
-        {
-            var value = read(_client, flagKey, defaultValue, mapped);
-            return (value, _evaluated);
-        }
-        finally
-        {
-            _evaluated = null;
-        }
-    }
 
     private static void StartOnTheThreadPool(Func<Task> readinessCheck) => _ = Task.Run(readinessCheck);
 
@@ -309,8 +276,6 @@ public sealed class ConfigDirectorProvider : FeatureProvider, IDisposable, IAsyn
             _ = EventChannel.Writer.WriteAsync(payload).AsTask();
         }
     }
-
-    private delegate T Reader<T>(IConfigDirectorClient client, string key, T defaultValue, Context? context);
 
     private enum Startup
     {

@@ -4,6 +4,44 @@ namespace ConfigDirector.Tests.Integration;
 // are the ones every ConfigDirector sample application uses.
 internal static class SampleConfigs
 {
+    internal const string Variations = """
+        {"kind": "full", "timestamp": "2026-08-01T12:00:00.000Z", "configs": {
+          "checkout-experiment": {"id": "11111111-1111-4111-8111-111111111111", "key": "checkout-experiment", "type": "string",
+            "variations": [
+              {"id": "variation-control", "value": "control", "name": "Control"},
+              {"id": "variation-treatment", "value": "treatment", "name": "Treatment"}],
+            "target": {"defaultValue": "control", "defaultValueId": "value-control", "defaultVariationId": "variation-control", "rules": [
+              {"id": "rule-rollout", "type": "percentage", "order": 1, "percentages": [
+                {"id": "share-control", "percentage": 50, "value": "control", "valueId": "value-control", "variationId": "variation-control"},
+                {"id": "share-treatment", "percentage": 50, "value": "treatment", "valueId": "value-treatment", "variationId": "variation-treatment"}]}]}},
+          "greeting-by-plan": {"id": "greeting-by-plan-id", "key": "greeting-by-plan", "type": "string",
+            "variations": [
+              {"id": "variation-hello", "value": "hello", "name": "Hello"},
+              {"id": "variation-welcome", "value": "welcome", "name": "Welcome"}],
+            "target": {"defaultValue": "hello", "defaultValueId": "value-hello", "defaultVariationId": "variation-hello", "rules": [
+              {"id": "rule-pro", "type": "conditional", "order": 1, "value": "welcome", "valueId": "value-welcome", "variationId": "variation-welcome",
+               "conditions": [{"id": "condition-pro", "attribute": "traits", "trait": "/plan", "operator": "=", "targetType": "text", "targetValues": ["pro"]}]}]}},
+          "unnamed-experiment": {"id": "unnamed-experiment-id", "key": "unnamed-experiment", "type": "string",
+            "variations": [{"id": "variation-unnamed", "value": "only", "name": null}],
+            "target": {"defaultValue": "only", "defaultValueId": "value-only", "defaultVariationId": "variation-unnamed", "rules": []}},
+          "rolled-out-flag": {"id": "rolled-out-flag-id", "key": "rolled-out-flag", "type": "boolean",
+            "target": {"defaultValue": false, "defaultValueId": "value-off", "rules": [
+              {"id": "rule-flag-rollout", "type": "percentage", "order": 1, "percentages": [
+                {"id": "share-on", "percentage": 100, "value": true, "valueId": "value-on"}]}]}},
+          "count-experiment": {"id": "count-experiment-id", "key": "count-experiment", "type": "integer",
+            "variations": [{"id": "variation-count", "value": 3, "name": "Three"}],
+            "target": {"defaultValue": 1, "defaultValueId": "value-1", "rules": [
+              {"id": "rule-count-rollout", "type": "percentage", "order": 1, "percentages": [
+                {"id": "share-count", "percentage": 100, "value": 3, "valueId": "value-3", "variationId": "variation-count"}]}]}},
+          "whole-number": {"id": "whole-number-id", "key": "whole-number", "type": "integer",
+            "target": {"defaultValue": 26, "defaultValueId": "value-26", "rules": []}},
+          "ratio": {"id": "ratio-id", "key": "ratio", "type": "float",
+            "target": {"defaultValue": 2.5, "defaultValueId": "value-2-5", "rules": []}},
+          "settings": {"id": "settings-id", "key": "settings", "type": "json",
+            "variations": [{"id": "variation-settings", "value": {"name": "checkout"}, "name": "Settings"}],
+            "target": {"defaultValue": {"name": "checkout"}, "defaultValueId": "value-settings", "defaultVariationId": "variation-settings", "rules": []}}}}
+        """;
+
     internal const string Bundle = """
         {
           "kind": "full",

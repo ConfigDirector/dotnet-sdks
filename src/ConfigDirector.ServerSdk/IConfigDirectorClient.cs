@@ -16,7 +16,8 @@ namespace ConfigDirector;
 /// Every <c>GetValue</c> overload takes a default and returns it rather than throwing: a config the
 /// SDK has never heard of, an unreachable server, or a value that will not read as the type asked
 /// for all produce the default. There is one overload per type the SDK can read exactly, so a type
-/// it cannot fill is a compile error rather than a surprise at runtime.
+/// it cannot fill is a compile error rather than a surprise at runtime. Each has an
+/// <c>Evaluate</c> counterpart that returns the value along with why it was served and its variation.
 /// </para>
 /// </remarks>
 public interface IConfigDirectorClient : IDisposable, IAsyncDisposable
@@ -161,6 +162,110 @@ public interface IConfigDirectorClient : IDisposable, IAsyncDisposable
     [RequiresUnreferencedCode(Reflective.BindingNeedsReflection)]
     [RequiresDynamicCode(Reflective.BindingNeedsReflection)]
     T GetJsonValue<T>(string configKey, T defaultValue, Context? context = null)
+        where T : notnull;
+
+    /// <summary>
+    /// Evaluates <paramref name="configKey"/> as <see cref="GetValue(string, int, Context)"/> does and
+    /// returns the evaluation: the value as an integer, the reason it was served, its value ID and its
+    /// variation.
+    /// </summary>
+    /// <remarks>Like every read, it raises <see cref="ConfigEvaluated"/> and is counted in telemetry.</remarks>
+    /// <param name="configKey">The config to read.</param>
+    /// <param name="defaultValue">
+    /// The in-code default value, returned when the config is missing, unreachable, or its value will
+    /// not read as this type.
+    /// </param>
+    /// <param name="context">Evaluated against targeting rules; may be null.</param>
+    /// <returns>The evaluation, whose <see cref="ConfigEvaluation.Value"/> is what <c>GetValue</c> returns.</returns>
+    /// <exception cref="ArgumentException"><paramref name="configKey"/> is empty or whitespace.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="configKey"/> is null.</exception>
+    ConfigEvaluation Evaluate(string configKey, int defaultValue, Context? context = null);
+
+    /// <summary>
+    /// Evaluates <paramref name="configKey"/> as <see cref="GetValue(string, long, Context)"/> does and
+    /// returns the evaluation: the value as a long, the reason it was served, its value ID and its
+    /// variation.
+    /// </summary>
+    /// <inheritdoc cref="Evaluate(string, int, Context)"/>
+    ConfigEvaluation Evaluate(string configKey, long defaultValue, Context? context = null);
+
+    /// <summary>
+    /// Evaluates <paramref name="configKey"/> as <see cref="GetValue(string, double, Context)"/> does
+    /// and returns the evaluation: the value as a double, the reason it was served, its value ID and
+    /// its variation.
+    /// </summary>
+    /// <inheritdoc cref="Evaluate(string, int, Context)"/>
+    ConfigEvaluation Evaluate(string configKey, double defaultValue, Context? context = null);
+
+    /// <summary>
+    /// Evaluates <paramref name="configKey"/> as <see cref="GetValue(string, float, Context)"/> does and
+    /// returns the evaluation: the value as a float, the reason it was served, its value ID and its
+    /// variation.
+    /// </summary>
+    /// <inheritdoc cref="Evaluate(string, int, Context)"/>
+    ConfigEvaluation Evaluate(string configKey, float defaultValue, Context? context = null);
+
+    /// <summary>
+    /// Evaluates <paramref name="configKey"/> as <see cref="GetValue(string, decimal, Context)"/> does
+    /// and returns the evaluation: the value as a decimal, the reason it was served, its value ID and
+    /// its variation.
+    /// </summary>
+    /// <inheritdoc cref="Evaluate(string, int, Context)"/>
+    ConfigEvaluation Evaluate(string configKey, decimal defaultValue, Context? context = null);
+
+    /// <summary>
+    /// Evaluates <paramref name="configKey"/> as <see cref="GetValue(string, bool, Context)"/> does and
+    /// returns the evaluation: the value as a boolean, the reason it was served, its value ID and its
+    /// variation.
+    /// </summary>
+    /// <inheritdoc cref="Evaluate(string, int, Context)"/>
+    ConfigEvaluation Evaluate(string configKey, bool defaultValue, Context? context = null);
+
+    /// <summary>
+    /// Evaluates <paramref name="configKey"/> as <see cref="GetValue(string, string, Context)"/> does
+    /// and returns the evaluation: the value as text, the reason it was served, its value ID and its
+    /// variation.
+    /// </summary>
+    /// <remarks>Like every read, it raises <see cref="ConfigEvaluated"/> and is counted in telemetry.</remarks>
+    /// <param name="configKey">The config to read.</param>
+    /// <param name="defaultValue">The in-code default value, returned when the config is missing or unreachable.</param>
+    /// <param name="context">Evaluated against targeting rules; may be null.</param>
+    /// <returns>The evaluation, whose <see cref="ConfigEvaluation.Value"/> is what <c>GetValue</c> returns.</returns>
+    /// <exception cref="ArgumentException"><paramref name="configKey"/> is empty or whitespace.</exception>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="configKey"/> or <paramref name="defaultValue"/> is null.
+    /// </exception>
+    ConfigEvaluation Evaluate(string configKey, string defaultValue, Context? context = null);
+
+    /// <summary>
+    /// Evaluates <paramref name="configKey"/> as <see cref="GetValue(string, JsonElement, Context)"/>
+    /// does and returns the evaluation: the value as JSON, the reason it was served, its value ID and
+    /// its variation.
+    /// </summary>
+    /// <inheritdoc cref="Evaluate(string, int, Context)"/>
+    ConfigEvaluation Evaluate(string configKey, JsonElement defaultValue, Context? context = null);
+
+    /// <summary>
+    /// Evaluates <paramref name="configKey"/> as <see cref="GetJsonValue{T}"/> does and returns the
+    /// evaluation: the value bound to <typeparamref name="T"/>, the reason it was served, its value ID
+    /// and its variation.
+    /// </summary>
+    /// <remarks>
+    /// Like every read, it raises <see cref="ConfigEvaluated"/> and is counted in telemetry. It binds on
+    /// the same terms as <see cref="GetJsonValue{T}"/>.
+    /// </remarks>
+    /// <typeparam name="T">The type to bind the config's JSON to.</typeparam>
+    /// <param name="configKey">The config to read.</param>
+    /// <param name="defaultValue">The in-code default value, returned when the config is missing or is not valid JSON.</param>
+    /// <param name="context">Evaluated against targeting rules; may be null.</param>
+    /// <returns>The evaluation, whose <see cref="ConfigEvaluation.Value"/> is what <see cref="GetJsonValue{T}"/> returns.</returns>
+    /// <exception cref="ArgumentException"><paramref name="configKey"/> is empty or whitespace.</exception>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="configKey"/> or <paramref name="defaultValue"/> is null.
+    /// </exception>
+    [RequiresUnreferencedCode(Reflective.BindingNeedsReflection)]
+    [RequiresDynamicCode(Reflective.BindingNeedsReflection)]
+    ConfigEvaluation EvaluateJson<T>(string configKey, T defaultValue, Context? context = null)
         where T : notnull;
 
     /// <summary>

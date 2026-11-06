@@ -75,8 +75,9 @@ var settings = client.GetJsonValue("json-value-config", new MySettings());
 ```
 
 `plan=pro` matches a targeting rule and turns `temporary-feature-flag` on. `id` alone decides the
-percentage bucket for `permanent-kill-switch`, so the same id always lands in the same half. A
-repeated `tags` parameter becomes an array trait, which `day-of-the-week-config` matches on:
+percentage bucket for `permanent-kill-switch`, so the same id always lands in the same half, and a
+request without an `id` skips the rollout and gets the default targeting rule value. A repeated
+`tags` parameter becomes an array trait, which `day-of-the-week-config` matches on:
 
 ```bash
 curl 'localhost:5000/configs?id=user-3&tags=beta&tags=vip'

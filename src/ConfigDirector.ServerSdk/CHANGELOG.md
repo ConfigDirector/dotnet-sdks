@@ -9,6 +9,36 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- `Evaluate(configKey, defaultValue, context)` on the client, with one overload for each `GetValue`
+  overload, reads a config as `GetValue` does and returns the `ConfigEvaluation`: the value, the
+  reason it was served, its value ID and its variation. `EvaluateJson<T>` does the same for
+  `GetJsonValue<T>`, with the same trimming annotations. `Value` is an `object` holding the type of
+  the in-code default value. Like every read, they raise `ConfigEvaluated` and are counted in
+  telemetry. A class of your own that implements `IConfigDirectorClient`, such as a fake in your
+  tests, has to add them.
+- `ConfigEvaluation.Variation` and the new `Variation` type: the `Id` and `Name` of the variation that
+  was served. It is null when the config has no variations or the in-code default value is returned,
+  and an unnamed variation has a null `Name`. `ConfigEvaluated` carries it too.
+- `ConfigState.Variation`, `RuleId` and `ShareId` on each `GetAllConfigs` entry: the variation served
+  when the config has variations, and the rule and share of the percentage rollout that served the
+  value. State you serialize for a client SDK carries them too.
+- The evaluation counts the SDK sends to ConfigDirector now say which variation was served, and which
+  percentage rollout and share served it, so ConfigDirector can count the contexts each variation of
+  an experiment reached.
+
+### Changed
+
+- A context without an `Id` now skips percentage rollouts. `GetValue`, `GetJsonValue<T>`, `Evaluate`,
+  `EvaluateJson<T>`, watches and `GetAllConfigs` serve it the default targeting rule value, and the
+  targeting rules after the rollout are not tried. This includes a call without a context and a
+  context ignored for an invalid kind. `Evaluate` and `ConfigEvaluated` report it with the new reason
+  `EvaluationReason.RolloutSkippedNoIdentifier` and `IsDefault` false. Before, every context without
+  an `Id` was served the rollout's first share wider than 0%. Give an anonymous context a stable `Id`,
+  such as a session or device ID, to keep it in a rollout. A rule that serves a single value still
+  applies to a context without an `Id`.
+
 ## [1.9.0] - 2026-10-22
 
 ### Added

@@ -77,6 +77,10 @@ builder.Services.AddConfigDirector()
     .WithContext(http => new Context { Id = http.User.FindFirst("sub")?.Value });
 ```
 
+A request with no signed-in user then has no `Id`, so it skips percentage rollouts and gets the
+default targeting rule value. Give such a request a stable identifier, such as a session ID, to keep
+it in a rollout.
+
 An omitted `Kind` means `user`. To evaluate for another kind of entity, set it:
 
 ```csharp

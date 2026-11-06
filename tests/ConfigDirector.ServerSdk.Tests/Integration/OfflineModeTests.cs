@@ -40,6 +40,20 @@ public sealed class OfflineModeTests : IDisposable
     }
 
     [Fact]
+    public async Task EvaluatesAnOfflineValueWithNoVariation()
+    {
+        await using var client = new ConfigDirectorClient(Offline(values: new Dictionary<string, object> { ["new-checkout"] = true }));
+        await client.InitializeAsync(Cancellation);
+
+        var evaluation = client.Evaluate("new-checkout", false);
+
+        evaluation.Value.ShouldBe(true);
+        evaluation.IsDefault.ShouldBeFalse();
+        evaluation.Reason.ShouldBe(EvaluationReason.FoundMatch);
+        evaluation.Variation.ShouldBeNull();
+    }
+
+    [Fact]
     public async Task ServesTheValuesInAFileWithTheConfigTypeEachValueImplies()
     {
         var file = ValuesFile("""

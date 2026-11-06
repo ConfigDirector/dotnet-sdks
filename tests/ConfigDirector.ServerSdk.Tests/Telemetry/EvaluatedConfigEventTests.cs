@@ -31,6 +31,45 @@ public class EvaluatedConfigEventTests
         RequestedTypeOf(default(JsonElement)).ShouldBe("JsonElement");
     }
 
+    [Fact]
+    public void WritesTheRuleShareAndVariationUnderTheNamesTheServerReads()
+    {
+        var built = EvaluatedConfigEvent.Create(
+            "my-config",
+            "default",
+            "hello",
+            false,
+            EvaluationReason.FoundMatch,
+            variationId: "the-variation",
+            ruleId: "the-rule",
+            shareId: "the-share");
+
+        var written = Parse(Serialize(built));
+
+        written.GetProperty("ruleId").GetString().ShouldBe("the-rule");
+        written.GetProperty("shareId").GetString().ShouldBe("the-share");
+        written.GetProperty("variationId").GetString().ShouldBe("the-variation");
+    }
+
+    [Fact]
+    public void LeavesOutARuleShareAndVariationItWasNotGiven()
+    {
+        var written = Parse(Serialize(EvaluatedConfigEvent.Create("my-config", "default", "hello", false, EvaluationReason.FoundMatch)));
+
+        written.TryGetProperty("ruleId", out _).ShouldBeFalse();
+        written.TryGetProperty("shareId", out _).ShouldBeFalse();
+        written.TryGetProperty("variationId", out _).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void WritesASkippedRolloutReasonTheWayTheServerSpellsIt()
+    {
+        var written = Parse(Serialize(
+            EvaluatedConfigEvent.Create("my-config", "default", "hello", false, EvaluationReason.RolloutSkippedNoIdentifier)));
+
+        written.GetProperty("evaluationReason").GetString().ShouldBe("rollout-skipped-no-identifier");
+    }
+
     // Otherwise a bound dictionary would report itself as "Dictionary`2".
     [Fact]
     public void NamesAGenericRequestedTypeWithoutItsArity() =>

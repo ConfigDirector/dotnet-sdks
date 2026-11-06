@@ -31,9 +31,10 @@ client with the application under test.
 ## Trimming and native AOT
 
 The package is annotated `IsAotCompatible`, so a trimmed or AOT-published application gets no
-warnings from it. The exception is `GetJsonValue<T>` and `WatchJson<T>`, which bind a config to a
-type of your own and therefore read that type reflectively; both are annotated, so the trimmer
-points at your call site. Read the config as `JsonElement` to stay fully AOT-safe.
+warnings from it. The exception is `GetJsonValue<T>`, `EvaluateJson<T>` and `WatchJson<T>`, which
+bind a config to a type of your own and therefore read that type reflectively; all three are
+annotated, so the trimmer points at your call site. Read the config as `JsonElement` to stay fully
+AOT-safe.
 
 ## Documentation
 

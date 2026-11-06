@@ -96,7 +96,7 @@ public sealed class TelemetryCollectorTests : IDisposable
         await using var collector = Collector();
 
         collector.Record(
-            "my-config", "default", oversized, false, EvaluationReason.FoundMatch, null, null, null);
+            "my-config", "default", oversized, false, EvaluationReason.FoundMatch, null, null, null, null, null, null);
         await collector.FlushAsync(TestContext.Current.CancellationToken);
 
         var evaluated = Evaluations()[0].GetProperty("event").GetProperty("evaluatedValue");
@@ -210,7 +210,7 @@ public sealed class TelemetryCollectorTests : IDisposable
 
     private static void Record(
         TelemetryCollector collector, string key = "my-config", Context? context = null) =>
-        collector.Record(key, "default", "hello", false, EvaluationReason.FoundMatch, context, null, null);
+        collector.Record(key, "default", "hello", false, EvaluationReason.FoundMatch, context, null, null, null, null, null);
 
     private async Task WaitForReportAsync()
     {

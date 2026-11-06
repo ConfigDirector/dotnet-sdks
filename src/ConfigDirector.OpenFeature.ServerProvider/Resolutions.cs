@@ -5,17 +5,15 @@ namespace ConfigDirector.OpenFeature;
 
 internal static class Resolutions
 {
-    internal static ResolutionDetails<T> Of<T>(string flagKey, T value, ConfigEvaluation? evaluation)
+    internal static ResolutionDetails<T> Of<T>(string flagKey, T value, ConfigEvaluation evaluation)
     {
-        if (evaluation is null)
-        {
-            return new ResolutionDetails<T>(flagKey, value, ErrorType.None, null, null, null, null);
-        }
-
         switch (evaluation.Reason)
         {
             case EvaluationReason.FoundMatch:
-                return new ResolutionDetails<T>(flagKey, value, ErrorType.None, Reason.TargetingMatch, evaluation.ValueId, null, null);
+                return new ResolutionDetails<T>(flagKey, value, ErrorType.None, Reason.TargetingMatch, VariantOf(evaluation), null, null);
+
+            case EvaluationReason.RolloutSkippedNoIdentifier:
+                return new ResolutionDetails<T>(flagKey, value, ErrorType.None, Reason.Default, VariantOf(evaluation), null, null);
 
             case EvaluationReason.ValueMissing:
                 return new ResolutionDetails<T>(flagKey, value, ErrorType.None, Reason.Default, null, null, null);
@@ -33,11 +31,14 @@ internal static class Resolutions
         }
     }
 
-    internal static ResolutionDetails<T> TypeMismatch<T>(string flagKey, T value, string explanation) =>
+    private static ResolutionDetails<T> TypeMismatch<T>(string flagKey, T value, string explanation) =>
         Error(flagKey, value, ErrorType.TypeMismatch, $"The value of '{flagKey}' does not match the requested type ({explanation}).");
 
     internal static ResolutionDetails<T> Closed<T>(string flagKey, T value) =>
         Error(flagKey, value, ErrorType.ProviderFatal, "The ConfigDirector client has been closed.");
+
+    private static string? VariantOf(ConfigEvaluation evaluation) =>
+        evaluation.Variation?.Name ?? evaluation.ValueId;
 
     private static ResolutionDetails<T> Error<T>(string flagKey, T value, ErrorType errorType, string message) =>
         new(flagKey, value, errorType, Reason.Error, null, message, null);

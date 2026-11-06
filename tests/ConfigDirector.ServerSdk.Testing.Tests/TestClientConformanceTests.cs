@@ -104,6 +104,32 @@ public sealed class TestClientConformanceTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task EvaluatesASeededValueWithNoVariation()
+    {
+        var client = Create(Values(("flag", true))).Client;
+        await client.InitializeAsync(Cancellation);
+
+        var evaluation = client.Evaluate("flag", false, new Context { Id = "user-a" });
+
+        evaluation.Value.ShouldBe(true);
+        evaluation.IsDefault.ShouldBeFalse();
+        evaluation.Reason.ShouldBe(EvaluationReason.FoundMatch);
+        evaluation.Variation.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task EvaluatesASeededValueTheSameWayWithoutAContextId()
+    {
+        var client = Create(Values(("flag", true))).Client;
+        await client.InitializeAsync(Cancellation);
+
+        var evaluation = client.Evaluate("flag", false);
+
+        evaluation.Value.ShouldBe(true);
+        evaluation.Reason.ShouldBe(EvaluationReason.FoundMatch);
+    }
+
+    [Fact]
     public async Task ServesTheSameValueToEveryContext()
     {
         var client = Create(Values(("flag", true))).Client;

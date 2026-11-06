@@ -10,6 +10,10 @@ public class ConfigEvaluatorTests
 
     private static readonly Context User = new() { Id = "user-1", Traits = { ["plan"] = "pro" } };
 
+    private static readonly Variation UnderVariation = new() { Id = "under-variation", Name = "Under" };
+
+    private static readonly Variation OverVariation = new() { Id = "over-variation", Name = "Over" };
+
     // SEMANTICS.md 7 -- rules evaluate in ascending order, and the first that applies wins.
     [Fact]
     public void EvaluatesRulesInAscendingOrder()
@@ -258,26 +262,267 @@ public class ConfigEvaluatorTests
     }
 
     [Fact]
-    public void AlwaysAssignsTheFirstNonEmptyBucketWithoutAnIdentifier()
+    public void ServesARolloutWithItsRuleShareAndVariation()
+    {
+        var rule = new PercentageRule
+        {
+            Id = "rollout-rule",
+            Order = 1,
+            Percentages =
+            [
+                Bucket(50, "under") with { Id = "under-share", VariationId = "under-variation" },
+                Bucket(50, "over") with { Id = "over-share", VariationId = "over-variation" },
+            ],
+        };
+
+        var state = Evaluate(Config("config-1", rule) with { Variations = [UnderVariation, OverVariation] });
+
+        state.Value.ShouldBe("over");
+        state.RuleId.ShouldBe("rollout-rule");
+        state.ShareId.ShouldBe("over-share");
+        state.Variation.ShouldBe(OverVariation);
+    }
+
+    [Fact]
+    public void ServesAConditionalRolloutWithItsRuleShareAndVariation()
+    {
+        var rule = new ConditionalRule
+        {
+            Id = "conditional-rollout-rule",
+            Order = 1,
+            Target = "percentage",
+            Conditions = [AttributeCondition("identifier", "user-1")],
+            Percentages =
+            [
+                Bucket(50, "under") with { Id = "under-share", VariationId = "under-variation" },
+                Bucket(50, "over") with { Id = "over-share", VariationId = "over-variation" },
+            ],
+        };
+
+        var state = Evaluate(Config("config-1", rule) with { Variations = [UnderVariation, OverVariation] });
+
+        state.RuleId.ShouldBe("conditional-rollout-rule");
+        state.ShareId.ShouldBe("over-share");
+        state.Variation.ShouldBe(OverVariation);
+    }
+
+    [Fact]
+    public void ServesASingleValueRuleWithItsVariationAlone()
+    {
+        var rule = Matching("matched", order: 1) with { VariationId = "under-variation" };
+
+        var state = Evaluate(Config(rule) with { Variations = [UnderVariation] });
+
+        state.Variation.ShouldBe(UnderVariation);
+        state.RuleId.ShouldBeNull();
+        state.ShareId.ShouldBeNull();
+    }
+
+    [Fact]
+    public void ServesTheDefaultTargetingRuleValueWithItsVariationAlone()
+    {
+        var config = Config() with { Variations = [UnderVariation] };
+        config = config with { Target = config.Target with { DefaultVariationId = "under-variation" } };
+
+        var state = Evaluate(config);
+
+        state.Value.ShouldBe("the default");
+        state.Variation.ShouldBe(UnderVariation);
+        state.RuleId.ShouldBeNull();
+        state.ShareId.ShouldBeNull();
+    }
+
+    [Fact]
+    public void ServesAValueOfAConfigWithoutVariationsWithNoVariation()
     {
         var config = Config("config-1", new PercentageRule
         {
-            Id = "r",
+            Id = "rollout-rule",
             Order = 1,
-            Percentages = [Bucket(0, "never"), Bucket(50, "first"), Bucket(50, "second")],
+            Percentages = [Bucket(100, "everyone") with { Id = "everyone-share" }],
         });
 
-        var evaluator = new ConfigEvaluator(NullLogger.Instance);
-        var served = Enumerable.Range(0, 50)
-            .SelectMany(_ => new[]
-            {
-                evaluator.Evaluate(config, new Context(), null).Value,
-                evaluator.Evaluate(config, null, null).Value,
-            })
-            .Distinct()
-            .ToList();
+        var state = Evaluate(config);
 
-        served.ShouldBe(["first"]);
+        state.Variation.ShouldBeNull();
+        state.RuleId.ShouldBe("rollout-rule");
+        state.ShareId.ShouldBe("everyone-share");
+    }
+
+    [Fact]
+    public void ServesNoVariationWhenTheConfigDoesNotListTheVariationServed()
+    {
+        var rule = Matching("matched", order: 1) with { VariationId = "unlisted-variation" };
+
+        Evaluate(Config(rule) with { Variations = [UnderVariation] }).Variation.ShouldBeNull();
+    }
+
+    [Fact]
+    public void ReportsAFoundMatchForARuleThatServedAValue()
+    {
+        var served = EvaluateWithReason(Config(Matching("matched", order: 1)), User);
+
+        served.State.Value.ShouldBe("matched");
+        served.Reason.ShouldBe(EvaluationReason.FoundMatch);
+    }
+
+    [Fact]
+    public void ReportsAFoundMatchForTheDefaultTargetingRuleValueWhenNoRuleMatched()
+    {
+        var served = EvaluateWithReason(Config(NotMatching("never")), User);
+
+        served.State.Value.ShouldBe("the default");
+        served.Reason.ShouldBe(EvaluationReason.FoundMatch);
+    }
+
+    [Fact]
+    public void SkipsAPercentageRuleForAContextWithoutAnIdentifier()
+    {
+        var served = EvaluateWithReason(Config("config-1", EvenRollout()), new Context());
+
+        served.State.Value.ShouldBe("the default");
+        served.State.ValueId.ShouldBe("default-value-id");
+        served.Reason.ShouldBe(EvaluationReason.RolloutSkippedNoIdentifier);
+    }
+
+    [Fact]
+    public void SkipsAPercentageRuleWithoutAContext()
+    {
+        var served = EvaluateWithReason(Config("config-1", EvenRollout()), null);
+
+        served.State.Value.ShouldBe("the default");
+        served.Reason.ShouldBe(EvaluationReason.RolloutSkippedNoIdentifier);
+    }
+
+    [Fact]
+    public void SkipsAPercentageRuleWithoutAnIdentifierWhateverTheKind()
+    {
+        var served = EvaluateWithReason(Config(BucketingConfigId, TenEqualBuckets()), new Context { Kind = "device" });
+
+        served.State.Value.ShouldBe("the default");
+        served.Reason.ShouldBe(EvaluationReason.RolloutSkippedNoIdentifier);
+    }
+
+    [Fact]
+    public void SkipsAConditionalRolloutForAContextWithoutAnIdentifier()
+    {
+        var rule = new ConditionalRule
+        {
+            Id = "r",
+            Order = 1,
+            Target = "percentage",
+            Conditions = [TraitCondition("/plan", "pro")],
+            Percentages = [Bucket(100, "everyone")],
+        };
+
+        var served = EvaluateWithReason(Config("config-1", rule), new Context { Traits = { ["plan"] = "pro" } });
+
+        served.State.Value.ShouldBe("the default");
+        served.Reason.ShouldBe(EvaluationReason.RolloutSkippedNoIdentifier);
+    }
+
+    [Fact]
+    public void ServesASkippedRolloutWithTheVariationOfTheDefaultTargetingRuleValueAlone()
+    {
+        var config = Config("config-1", EvenRollout()) with { Variations = [UnderVariation] };
+        config = config with { Target = config.Target with { DefaultVariationId = "under-variation" } };
+
+        var served = EvaluateWithReason(config, new Context());
+
+        served.State.Variation.ShouldBe(UnderVariation);
+        served.State.RuleId.ShouldBeNull();
+        served.State.ShareId.ShouldBeNull();
+    }
+
+    [Fact]
+    public void TriesNoRuleAfterASkippedRollout()
+    {
+        var everyone = Requiring() with { Order = 2 };
+        var config = Config("config-1", EvenRollout(), everyone);
+
+        var served = EvaluateWithReason(config, new Context());
+
+        served.State.Value.ShouldBe("the default");
+        served.Reason.ShouldBe(EvaluationReason.RolloutSkippedNoIdentifier);
+    }
+
+    [Fact]
+    public void AppliesASingleValueRuleToAContextWithoutAnIdentifier()
+    {
+        var everyone = Requiring() with { Order = 1 };
+        var config = Config("config-1", everyone, EvenRollout() with { Order = 2 });
+
+        var served = EvaluateWithReason(config, new Context());
+
+        served.State.Value.ShouldBe("matched");
+        served.Reason.ShouldBe(EvaluationReason.FoundMatch);
+    }
+
+    [Fact]
+    public void TriesTheNextRuleWhenAConditionalRolloutsConditionsDoNotHoldWithoutAnIdentifier()
+    {
+        var rule = new ConditionalRule
+        {
+            Id = "r",
+            Order = 1,
+            Target = "percentage",
+            Conditions = [TraitCondition("/plan", "pro")],
+            Percentages = [Bucket(100, "everyone")],
+        };
+        var config = Config("config-1", rule, Requiring() with { Order = 2 });
+
+        var served = EvaluateWithReason(config, new Context());
+
+        served.State.Value.ShouldBe("matched");
+        served.Reason.ShouldBe(EvaluationReason.FoundMatch);
+    }
+
+    [Fact]
+    public void SkipsARolloutWithNoSharesForAContextWithoutAnIdentifier()
+    {
+        var served = EvaluateWithReason(
+            Config("config-1", new PercentageRule { Id = "r", Order = 1, Percentages = [] }, Requiring() with { Order = 2 }),
+            new Context());
+
+        served.State.Value.ShouldBe("the default");
+        served.Reason.ShouldBe(EvaluationReason.RolloutSkippedNoIdentifier);
+    }
+
+    [Fact]
+    public void TriesTheNextRuleWhenARuleCarriesNoPercentagesForAContextWithoutAnIdentifier()
+    {
+        var config = Config(
+            "config-1",
+            new PercentageRule { Id = "r", Order = 1 },
+            Requiring() with { Order = 2 });
+
+        var served = EvaluateWithReason(config, new Context());
+
+        served.State.Value.ShouldBe("matched");
+        served.Reason.ShouldBe(EvaluationReason.FoundMatch);
+    }
+
+    [Fact]
+    public void TriesTheNextRuleWhenARuleCarriesNoPercentagesForAContextWithAnIdentifier()
+    {
+        var config = Config(
+            "config-1",
+            new PercentageRule { Id = "r", Order = 1 },
+            Requiring() with { Order = 2 });
+
+        var served = EvaluateWithReason(config, User);
+
+        served.State.Value.ShouldBe("matched");
+        served.Reason.ShouldBe(EvaluationReason.FoundMatch);
+    }
+
+    [Fact]
+    public void AssignsABucketToAnEmptyIdentifier()
+    {
+        var served = EvaluateWithReason(Config("config-1", EvenRollout()), new Context { Id = string.Empty });
+
+        served.Reason.ShouldBe(EvaluationReason.FoundMatch);
+        served.State.RuleId.ShouldBe("r");
     }
 
     [Theory]
@@ -290,14 +535,6 @@ public class ConfigEvaluatorTests
         var config = Config(BucketingConfigId, TenEqualBuckets());
 
         Evaluate(config, new Context { Id = "user-1", Kind = kind }).Value.ShouldBe(expected);
-    }
-
-    [Fact]
-    public void AssignsTheFirstBucketWithoutAnIdentifierWhateverTheKind()
-    {
-        var config = Config(BucketingConfigId, TenEqualBuckets());
-
-        Evaluate(config, new Context { Kind = "device" }).Value.ShouldBe("0");
     }
 
     [Theory]
@@ -449,6 +686,14 @@ public class ConfigEvaluatorTests
             Percentages = [.. Enumerable.Range(0, 10).Select(index => Bucket(10, $"{index}"))],
         };
 
+    private static PercentageRule EvenRollout() =>
+        new()
+        {
+            Id = "r",
+            Order = 1,
+            Percentages = [Bucket(50, "under"), Bucket(50, "over")],
+        };
+
     private static Config Config(params Rule[] rules) => Config("the-id", rules);
 
     private static Config Config(string id, params Rule[] rules) =>
@@ -477,4 +722,7 @@ public class ConfigEvaluatorTests
 
     private static ConfigState Evaluate(Config config, Context? context = null, ILogger? logger = null) =>
         new ConfigEvaluator(logger ?? NullLogger.Instance).Evaluate(config, context ?? User, null);
+
+    private static ServedConfig EvaluateWithReason(Config config, Context? context) =>
+        new ConfigEvaluator(NullLogger.Instance).EvaluateWithReason(config, context, null, ConfigEvaluator.NoSegments);
 }

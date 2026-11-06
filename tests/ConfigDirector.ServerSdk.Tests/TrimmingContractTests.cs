@@ -4,7 +4,7 @@ using ConfigDirector.Value;
 
 namespace ConfigDirector.Tests;
 
-// The SDK is trim and AOT clean everywhere except the two members that bind a config to a type of
+// The SDK is trim and AOT clean everywhere except the three members that bind a config to a type of
 // the caller's own, which carry RequiresUnreferencedCode. That holds only while every other getter
 // deals in types the SDK renders and parses without reflection, so the set of those types is
 // pinned here rather than left to be noticed.
@@ -24,11 +24,15 @@ public class TrimmingContractTests
 
     // An overload for a type not in the list above would reach the reflective fallback in
     // TelemetryJson.Serialize, which is suppressed on the grounds that only the annotated
-    // GetJsonValue and WatchJson can get there, and would fall out of ValueParser.Parse as a
-    // default rather than a value. Both need a case for the new type first.
+    // GetJsonValue, EvaluateJson and WatchJson can get there, and would fall out of ValueParser.Parse
+    // as a default rather than a value. Both need a case for the new type first.
     [Fact]
     public void EveryGetterDealsInATypeTheSdkHandlesWithoutReflection() =>
         DefaultValueTypesOf("GetValue").ShouldBe(HandledWithoutReflection, ignoreOrder: true);
+
+    [Fact]
+    public void EveryEvaluateDealsInATypeTheSdkHandlesWithoutReflection() =>
+        DefaultValueTypesOf("Evaluate").ShouldBe(HandledWithoutReflection, ignoreOrder: true);
 
     [Fact]
     public void EveryWatchDealsInATypeTheSdkHandlesWithoutReflection() =>
@@ -37,7 +41,7 @@ public class TrimmingContractTests
     [Fact]
     public void TheMembersThatBindToACallersTypeSayTheyNeedReflection()
     {
-        foreach (var name in new[] { nameof(IConfigDirectorClient.GetJsonValue), nameof(IConfigDirectorClient.WatchJson) })
+        foreach (var name in new[] { nameof(IConfigDirectorClient.GetJsonValue), nameof(IConfigDirectorClient.EvaluateJson), nameof(IConfigDirectorClient.WatchJson) })
         {
             var method = typeof(IConfigDirectorClient).GetMethod(name)!;
 
@@ -47,7 +51,7 @@ public class TrimmingContractTests
         }
     }
 
-    // Reached only through GetJsonValue, which calls Bind. Parse handles the types above and leaves
+    // Reached only through the members that call Bind. Parse handles the types above and leaves
     // anything else alone rather than reaching for the serializer.
     [Fact]
     public void ParsingATypeOnlyBindingCouldProduceKeepsTheDefault()

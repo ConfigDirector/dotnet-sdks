@@ -23,8 +23,10 @@ public sealed record Context
     private readonly TraitCollection _traits = [];
 
     /// <summary>
-    /// The user's identifier, which decides their bucket in a percentage rollout. Without one, a
-    /// context always lands in the rollout's first non-empty bucket.
+    /// The context's identifier, which decides its share in a percentage rollout. A context without
+    /// one skips percentage rollouts: it is served the default targeting rule value, and the targeting
+    /// rules after the rollout are not tried. For an anonymous visitor, use a stable identifier such as
+    /// a session ID.
     /// </summary>
     public string? Id { get; init; }
 

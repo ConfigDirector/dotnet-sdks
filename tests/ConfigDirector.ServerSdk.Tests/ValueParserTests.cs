@@ -1,3 +1,4 @@
+using System.Text.Json;
 using ConfigDirector.Value;
 
 namespace ConfigDirector.Tests;
@@ -189,6 +190,119 @@ public class ValueParserTests
         ValueParser.Parse(state, 0).ValueId.ShouldBe("value-id");
         ValueParser.Parse(state, false).ValueId.ShouldBeNull();
     }
+
+    [Fact]
+    public void CarriesTheVariationRuleAndShareOfWhatItMatched()
+    {
+        var variation = new Variation { Id = "variation-id", Name = "Treatment" };
+        var state = new ConfigState { Key = "k", Value = "26", Variation = variation, RuleId = "rule-id", ShareId = "share-id" };
+
+        var result = ValueParser.Parse(state, 0);
+
+        result.Variation.ShouldBe(variation);
+        result.RuleId.ShouldBe("rule-id");
+        result.ShareId.ShouldBe("share-id");
+    }
+
+    [Fact]
+    public void CarriesNoVariationRuleOrShareWhenItKeptTheInCodeDefaultValue()
+    {
+        var variation = new Variation { Id = "variation-id", Name = "Treatment" };
+        var state = new ConfigState { Key = "k", Value = "26", Variation = variation, RuleId = "rule-id", ShareId = "share-id" };
+
+        var result = ValueParser.Parse(state, false);
+
+        result.UsedDefault.ShouldBeTrue();
+        result.Variation.ShouldBeNull();
+        result.RuleId.ShouldBeNull();
+        result.ShareId.ShouldBeNull();
+    }
+
+    [Fact]
+    public void CarriesTheVariationRuleAndShareOfWhatItBound()
+    {
+        var variation = new Variation { Id = "variation-id", Name = "Treatment" };
+        var state = new ConfigState { Key = "k", Value = """{"name":"checkout"}""", Variation = variation, RuleId = "rule-id", ShareId = "share-id" };
+
+        var result = ValueParser.Bind(state, new Settings());
+
+        result.Variation.ShouldBe(variation);
+        result.RuleId.ShouldBe("rule-id");
+        result.ShareId.ShouldBe("share-id");
+    }
+
+    [Fact]
+    public void ShapedLikeAnObjectDefaultReadsAnObject()
+    {
+        var variation = new Variation { Id = "variation-id", Name = "Treatment" };
+        var state = new ConfigState { Key = "k", Value = """{"name":"checkout"}""", Variation = variation };
+
+        var result = ValueParser.ParseElementShapedLikeInCodeDefaultValue(state, Json("{}"));
+
+        result.UsedDefault.ShouldBeFalse();
+        result.Value.GetProperty("name").GetString().ShouldBe("checkout");
+        result.Variation.ShouldBe(variation);
+    }
+
+    [Fact]
+    public void ShapedLikeAnObjectDefaultKeepsTheInCodeDefaultValueForANumber()
+    {
+        var state = new ConfigState
+        {
+            Key = "k",
+            Value = "42",
+            Variation = new Variation { Id = "variation-id" },
+            RuleId = "rule-id",
+            ShareId = "share-id",
+        };
+
+        var result = ValueParser.ParseElementShapedLikeInCodeDefaultValue(state, Json("{}"));
+
+        result.UsedDefault.ShouldBeTrue();
+        result.Reason.ShouldBe(EvaluationReason.InvalidJson);
+        result.Value.ValueKind.ShouldBe(JsonValueKind.Object);
+        result.Variation.ShouldBeNull();
+        result.RuleId.ShouldBeNull();
+        result.ShareId.ShouldBeNull();
+    }
+
+    [Fact]
+    public void ShapedLikeAnObjectDefaultKeepsTheInCodeDefaultValueForAnArray()
+    {
+        var result = ValueParser.ParseElementShapedLikeInCodeDefaultValue(new ConfigState { Key = "k", Value = "[1]" }, Json("{}"));
+
+        result.Reason.ShouldBe(EvaluationReason.InvalidJson);
+        result.Value.ValueKind.ShouldBe(JsonValueKind.Object);
+    }
+
+    [Fact]
+    public void ShapedLikeAnArrayDefaultReadsAnArray()
+    {
+        var result = ValueParser.ParseElementShapedLikeInCodeDefaultValue(new ConfigState { Key = "k", Value = "[1]" }, Json("[]"));
+
+        result.UsedDefault.ShouldBeFalse();
+        result.Value.GetArrayLength().ShouldBe(1);
+    }
+
+    [Fact]
+    public void ShapedLikeAnArrayDefaultKeepsTheInCodeDefaultValueForAnObject()
+    {
+        var result = ValueParser.ParseElementShapedLikeInCodeDefaultValue(new ConfigState { Key = "k", Value = "{}" }, Json("[]"));
+
+        result.Reason.ShouldBe(EvaluationReason.InvalidJson);
+        result.Value.ValueKind.ShouldBe(JsonValueKind.Array);
+    }
+
+    [Fact]
+    public void ShapedLikeANumberDefaultReadsAnyJson()
+    {
+        var result = ValueParser.ParseElementShapedLikeInCodeDefaultValue(new ConfigState { Key = "k", Value = "{}" }, Json("7"));
+
+        result.UsedDefault.ShouldBeFalse();
+        result.Value.ValueKind.ShouldBe(JsonValueKind.Object);
+    }
+
+    private static JsonElement Json(string text) => JsonDocument.Parse(text).RootElement.Clone();
 
     private sealed record Settings
     {

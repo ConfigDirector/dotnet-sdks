@@ -36,7 +36,7 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
     // Null until the first bundle arrives, which is what separates "not ready" from "ready but the
     // server does not know this key". Only ever swapped, never edited in place, so a read on the
     // path every GetValue takes is a volatile read and a lookup.
-    private volatile ServedDefinitions? _served;
+    private volatile ServedDefinitions? _servedDefinitions;
     private volatile bool _closed;
     private int _closing;
 
@@ -134,14 +134,14 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
     public event EventHandler<ConfigEvaluatedEventArgs>? ConfigEvaluated;
 
     /// <inheritdoc/>
-    public bool IsReady => Served is not null;
+    public bool IsReady => CurrentDefinitions is not null;
 
     /// <inheritdoc/>
     public bool IsClosed => _closed;
 
     // Disposal is what makes config state unreachable, so every reader goes through here rather
     // than through the field: a bundle still in flight when the client closes cannot bring it back.
-    private ServedDefinitions? Served => _closed ? null : _served;
+    private ServedDefinitions? CurrentDefinitions => _closed ? null : _servedDefinitions;
 
     /// <inheritdoc/>
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
@@ -170,44 +170,86 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
 
     /// <inheritdoc/>
     public int GetValue(string configKey, int defaultValue, Context? context = null)
-        => Read(configKey, defaultValue, context, ValueParser.Parse);
+        => Read(configKey, defaultValue, context, ValueParser.Parse).Value;
 
     /// <inheritdoc/>
     public long GetValue(string configKey, long defaultValue, Context? context = null)
-        => Read(configKey, defaultValue, context, ValueParser.Parse);
+        => Read(configKey, defaultValue, context, ValueParser.Parse).Value;
 
     /// <inheritdoc/>
     public double GetValue(string configKey, double defaultValue, Context? context = null)
-        => Read(configKey, defaultValue, context, ValueParser.Parse);
+        => Read(configKey, defaultValue, context, ValueParser.Parse).Value;
 
     /// <inheritdoc/>
     public float GetValue(string configKey, float defaultValue, Context? context = null)
-        => Read(configKey, defaultValue, context, ValueParser.Parse);
+        => Read(configKey, defaultValue, context, ValueParser.Parse).Value;
 
     /// <inheritdoc/>
     public decimal GetValue(string configKey, decimal defaultValue, Context? context = null)
-        => Read(configKey, defaultValue, context, ValueParser.Parse);
+        => Read(configKey, defaultValue, context, ValueParser.Parse).Value;
 
     /// <inheritdoc/>
     public bool GetValue(string configKey, bool defaultValue, Context? context = null)
-        => Read(configKey, defaultValue, context, ValueParser.Parse);
+        => Read(configKey, defaultValue, context, ValueParser.Parse).Value;
 
     /// <inheritdoc/>
     public string GetValue(string configKey, string defaultValue, Context? context = null)
-        => Read(configKey, defaultValue, context, ValueParser.Parse);
+        => Read(configKey, defaultValue, context, ValueParser.Parse).Value;
 
     /// <inheritdoc/>
     public JsonElement GetValue(string configKey, JsonElement defaultValue, Context? context = null)
-        => Read(configKey, defaultValue, context, ValueParser.Parse);
+        => Read(configKey, defaultValue, context, ValueParser.Parse).Value;
 
     /// <inheritdoc/>
     [RequiresUnreferencedCode(Reflective.BindingNeedsReflection)]
     [RequiresDynamicCode(Reflective.BindingNeedsReflection)]
     public T GetJsonValue<T>(string configKey, T defaultValue, Context? context = null)
         where T : notnull =>
-        Read(configKey, defaultValue, context, ValueParser.Bind);
+        Read(configKey, defaultValue, context, ValueParser.Bind).Value;
 
-    private T Read<T>(string configKey, T defaultValue, Context? context, ValueReader<T> parse)
+    /// <inheritdoc/>
+    public ConfigEvaluation Evaluate(string configKey, int defaultValue, Context? context = null)
+        => Read(configKey, defaultValue, context, ValueParser.Parse).ToConfigEvaluation();
+
+    /// <inheritdoc/>
+    public ConfigEvaluation Evaluate(string configKey, long defaultValue, Context? context = null)
+        => Read(configKey, defaultValue, context, ValueParser.Parse).ToConfigEvaluation();
+
+    /// <inheritdoc/>
+    public ConfigEvaluation Evaluate(string configKey, double defaultValue, Context? context = null)
+        => Read(configKey, defaultValue, context, ValueParser.Parse).ToConfigEvaluation();
+
+    /// <inheritdoc/>
+    public ConfigEvaluation Evaluate(string configKey, float defaultValue, Context? context = null)
+        => Read(configKey, defaultValue, context, ValueParser.Parse).ToConfigEvaluation();
+
+    /// <inheritdoc/>
+    public ConfigEvaluation Evaluate(string configKey, decimal defaultValue, Context? context = null)
+        => Read(configKey, defaultValue, context, ValueParser.Parse).ToConfigEvaluation();
+
+    /// <inheritdoc/>
+    public ConfigEvaluation Evaluate(string configKey, bool defaultValue, Context? context = null)
+        => Read(configKey, defaultValue, context, ValueParser.Parse).ToConfigEvaluation();
+
+    /// <inheritdoc/>
+    public ConfigEvaluation Evaluate(string configKey, string defaultValue, Context? context = null)
+        => Read(configKey, defaultValue, context, ValueParser.Parse).ToConfigEvaluation();
+
+    /// <inheritdoc/>
+    public ConfigEvaluation Evaluate(string configKey, JsonElement defaultValue, Context? context = null)
+        => Read(configKey, defaultValue, context, ValueParser.Parse).ToConfigEvaluation();
+
+    /// <inheritdoc/>
+    [RequiresUnreferencedCode(Reflective.BindingNeedsReflection)]
+    [RequiresDynamicCode(Reflective.BindingNeedsReflection)]
+    public ConfigEvaluation EvaluateJson<T>(string configKey, T defaultValue, Context? context = null)
+        where T : notnull =>
+        Read(configKey, defaultValue, context, ValueParser.Bind).ToConfigEvaluation();
+
+    internal ConfigEvaluation EvaluateShapedLikeInCodeDefaultValue(string configKey, JsonElement defaultValue, Context? context)
+        => Read(configKey, defaultValue, context, ValueParser.ParseElementShapedLikeInCodeDefaultValue).ToConfigEvaluation();
+
+    private TypedEvaluation<T> Read<T>(string configKey, T defaultValue, Context? context, ValueReader<T> parse)
     {
         ValidateKey(configKey);
         if (defaultValue is null)
@@ -215,14 +257,14 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
             throw new ArgumentNullException(nameof(defaultValue));
         }
 
-        var served = Served;
+        var servedDefinitions = CurrentDefinitions;
         Config? definition = null;
-        served?.Configs.TryGetValue(configKey, out definition);
+        servedDefinitions?.Configs.TryGetValue(configKey, out definition);
 
-        return Evaluate(configKey, definition, defaultValue, Admit(context), parse, served?.Segments ?? ConfigEvaluator.NoSegments);
+        return EvaluateDefinition(configKey, definition, defaultValue, Admit(context), parse, servedDefinitions?.Segments ?? ConfigEvaluator.NoSegments);
     }
 
-    private T Evaluate<T>(
+    private TypedEvaluation<T> EvaluateDefinition<T>(
         string configKey,
         Config? definition,
         T defaultValue,
@@ -234,22 +276,25 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
         {
             Log.NoConfigState(_logger, configKey, null);
             var reason = IsReady ? EvaluationReason.ConfigStateMissing : EvaluationReason.ClientNotReady;
-            Report(configKey, defaultValue, defaultValue, true, reason, null, null, context);
-            return defaultValue;
+            var inCodeDefaultEvaluation = new TypedEvaluation<T>(configKey, defaultValue, true, reason, null, null, null, null, context);
+            Report(inCodeDefaultEvaluation, defaultValue, null);
+            return inCodeDefaultEvaluation;
         }
 
-        var state = _evaluator.Evaluate(definition, context, _metadata, segments);
-        var result = parse(state, defaultValue);
-        Report(
+        var servedConfig = _evaluator.EvaluateWithReason(definition, context, _metadata, segments);
+        var result = parse(servedConfig.State, defaultValue);
+        var evaluation = new TypedEvaluation<T>(
             configKey,
-            defaultValue,
             result.Value,
             result.UsedDefault,
-            result.Reason,
+            result.UsedDefault ? result.Reason : servedConfig.Reason,
             result.ValueId,
-            state.Type,
+            result.Variation,
+            result.RuleId,
+            result.ShareId,
             context);
-        return result.Value;
+        Report(evaluation, defaultValue, servedConfig.State.Type);
+        return evaluation;
     }
 
     private Context? Admit(Context? context)
@@ -274,17 +319,20 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
     }
 
     // Generic all the way through, so nothing is boxed for an evaluation nobody is listening to.
-    private void Report<T>(
-        string configKey,
-        T defaultValue,
-        T value,
-        bool isDefault,
-        EvaluationReason reason,
-        string? valueId,
-        ConfigType? configType,
-        Context? context)
+    private void Report<T>(TypedEvaluation<T> evaluation, T defaultValue, ConfigType? configType)
     {
-        _telemetry.Record(configKey, defaultValue, value, isDefault, reason, context, configType, valueId);
+        _telemetry.Record(
+            evaluation.Key,
+            defaultValue,
+            evaluation.Value,
+            evaluation.IsDefault,
+            evaluation.Reason,
+            evaluation.Context,
+            configType,
+            evaluation.ValueId,
+            evaluation.Variation?.Id,
+            evaluation.RuleId,
+            evaluation.ShareId);
 
         var handlers = ConfigEvaluated;
         if (handlers is null)
@@ -292,17 +340,7 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
             return;
         }
 
-        var evaluation = new ConfigEvaluation
-        {
-            Key = configKey,
-            Value = value!,
-            IsDefault = isDefault,
-            Reason = reason,
-            ValueId = valueId,
-            Context = context,
-        };
-
-        Raise(handlers, new ConfigEvaluatedEventArgs(evaluation), nameof(ConfigEvaluated));
+        Raise(handlers, new ConfigEvaluatedEventArgs(evaluation.ToConfigEvaluation()), nameof(ConfigEvaluated));
     }
 
     /// <inheritdoc/>
@@ -311,8 +349,8 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
         IEnumerable<string>? configKeys = null)
     {
         var admitted = Admit(context);
-        var served = Served;
-        var configs = served?.Configs;
+        var servedDefinitions = CurrentDefinitions;
+        var configs = servedDefinitions?.Configs;
         if (configs is null)
         {
             return EmptyState;
@@ -325,16 +363,16 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
             ? null
             : new HashSet<string>(configKeys, StringComparer.Ordinal);
 
-        var evaluated = new Dictionary<string, ConfigState>(StringComparer.Ordinal);
+        var configStates = new Dictionary<string, ConfigState>(StringComparer.Ordinal);
         foreach (var entry in configs)
         {
             if (requested is null || requested.Contains(entry.Key))
             {
-                evaluated[entry.Key] = _evaluator.Evaluate(entry.Value, admitted, _metadata, served!.Segments);
+                configStates[entry.Key] = _evaluator.Evaluate(entry.Value, admitted, _metadata, servedDefinitions!.Segments);
             }
         }
 
-        return evaluated;
+        return configStates;
     }
 
     /// <inheritdoc/>
@@ -395,7 +433,7 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
         }
 
         var watcher = new Watcher((definition, segments) =>
-            onChange(Evaluate(configKey, definition, defaultValue, Admit(context), parse, segments)));
+            onChange(EvaluateDefinition(configKey, definition, defaultValue, Admit(context), parse, segments).Value));
 
         lock (_watchLock)
         {
@@ -473,7 +511,7 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
         }
 
         _closed = true;
-        _served = null;
+        _servedDefinitions = null;
         UnwatchAll();
         ClientReady = null;
         ConfigsUpdated = null;
@@ -489,24 +527,24 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
             return;
         }
 
-        var current = _served;
+        var current = _servedDefinitions;
         var firstBundle = current is null;
 
         // A delta carries only what changed, so it is merged into what is already held. A full
         // bundle is the entire config state and replaces it, which is also how a config that was
         // deleted stops being served.
         var isDelta = bundle.Kind == BundleKind.Delta && current is not null;
-        var served = isDelta
+        var servedDefinitions = isDelta
             ? new ServedDefinitions(Merge(current!.Configs, bundle.Configs), Merge(current.Segments, bundle.Segments))
             : new ServedDefinitions(bundle.Configs, bundle.Segments);
-        _served = served;
+        _servedDefinitions = servedDefinitions;
         var removedKeys = isDelta || current is null ? [] : KeysAbsentFrom(current.Configs, bundle.Configs);
-        var keys = KeysUpdatedBy(bundle, served.Configs);
+        var keys = KeysUpdatedBy(bundle, servedDefinitions.Configs);
 
         Log.ConfigStateUpdated(_logger, keys.Length, removedKeys.Length, null);
 
         Raise(ConfigsUpdated, new ConfigsUpdatedEventArgs(keys, removedKeys), nameof(ConfigsUpdated));
-        NotifyWatchers(keys, removedKeys, served);
+        NotifyWatchers(keys, removedKeys, servedDefinitions);
 
         if (firstBundle)
         {
@@ -542,8 +580,8 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
             .OrderBy(key => key, StringComparer.Ordinal)
             .ToArray();
 
-    private static string[] KeysUpdatedBy(ConfigBundle bundle, IReadOnlyDictionary<string, Config> served) =>
-        served
+    private static string[] KeysUpdatedBy(ConfigBundle bundle, IReadOnlyDictionary<string, Config> servedConfigs) =>
+        servedConfigs
             .Where(entry => bundle.Configs.ContainsKey(entry.Key) || UsesAnySegment(entry.Value, bundle.Segments))
             .Select(entry => entry.Key)
             .OrderBy(key => key, StringComparer.Ordinal)
@@ -556,16 +594,16 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
             .OfType<SegmentCondition>()
             .Any(condition => segments.ContainsKey(condition.SegmentId));
 
-    private void NotifyWatchers(string[] updatedKeys, string[] removedKeys, ServedDefinitions served)
+    private void NotifyWatchers(string[] updatedKeys, string[] removedKeys, ServedDefinitions servedDefinitions)
     {
         foreach (var key in updatedKeys)
         {
-            NotifyWatchers(key, served.Configs[key], served.Segments);
+            NotifyWatchers(key, servedDefinitions.Configs[key], servedDefinitions.Segments);
         }
 
         foreach (var key in removedKeys)
         {
-            NotifyWatchers(key, null, served.Segments);
+            NotifyWatchers(key, null, servedDefinitions.Segments);
         }
     }
 
@@ -650,6 +688,30 @@ public sealed class ConfigDirectorClient : IConfigDirectorClient
         {
             throw new ArgumentException("The config key must not be empty.", nameof(configKey));
         }
+    }
+
+    private readonly record struct TypedEvaluation<T>(
+        string Key,
+        T Value,
+        bool IsDefault,
+        EvaluationReason Reason,
+        string? ValueId,
+        Variation? Variation,
+        string? RuleId,
+        string? ShareId,
+        Context? Context)
+    {
+        internal ConfigEvaluation ToConfigEvaluation() =>
+            new()
+            {
+                Key = Key,
+                Value = Value!,
+                IsDefault = IsDefault,
+                Reason = Reason,
+                ValueId = ValueId,
+                Context = Context,
+                Variation = Variation,
+            };
     }
 
     // Identity, not equality: two identical watches stay distinct, so cancelling one leaves the

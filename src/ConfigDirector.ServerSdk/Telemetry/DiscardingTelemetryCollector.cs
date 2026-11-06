@@ -16,7 +16,10 @@ internal sealed class DiscardingTelemetryCollector : ITelemetryCollector
         EvaluationReason reason,
         Context? context,
         ConfigType? configType,
-        string? valueId)
+        string? valueId,
+        string? variationId,
+        string? ruleId,
+        string? shareId)
     {
     }
 

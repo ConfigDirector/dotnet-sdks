@@ -49,6 +49,21 @@ public sealed class OpenFeatureApiTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task RunsAnAfterHookThatSeesTheVariationNameOfAnExperiment()
+    {
+        var client = await ClientServingAsync(SampleConfigs.Variations);
+        var hook = new RecordingHook();
+        client.AddHooks([hook]);
+        var context = EvaluationContext.Builder().SetTargetingKey("u582").Build();
+
+        await client.GetStringValueAsync("checkout-experiment", "in-code", context, cancellationToken: Cancellation);
+
+        var served = hook.Served.ShouldHaveSingleItem();
+        served.Reason.ShouldBe(Reason.TargetingMatch);
+        served.Variant.ShouldBe("Treatment");
+    }
+
+    [Fact]
     public async Task RunsAnErrorHookThatSeesFlagNotFoundForAConfigThatDoesNotExist()
     {
         var client = await ClientServingAsync(Bundles.Of());

@@ -10,7 +10,6 @@ internal abstract record Rule
 internal sealed record ConditionalRule : Rule
 {
     private readonly IReadOnlyList<Condition> _conditions = [];
-    private readonly IReadOnlyList<PercentageBucket> _percentages = [];
 
     public string Target { get; init; } = "value";
 
@@ -18,28 +17,20 @@ internal sealed record ConditionalRule : Rule
 
     public string? ValueId { get; init; }
 
+    public string? VariationId { get; init; }
+
     public IReadOnlyList<Condition> Conditions
     {
         get => _conditions;
         init => _conditions = value ?? [];
     }
 
-    public IReadOnlyList<PercentageBucket> Percentages
-    {
-        get => _percentages;
-        init => _percentages = value ?? [];
-    }
+    public IReadOnlyList<PercentageBucket>? Percentages { get; init; }
 }
 
 internal sealed record PercentageRule : Rule
 {
-    private readonly IReadOnlyList<PercentageBucket> _percentages = [];
-
-    public IReadOnlyList<PercentageBucket> Percentages
-    {
-        get => _percentages;
-        init => _percentages = value ?? [];
-    }
+    public IReadOnlyList<PercentageBucket>? Percentages { get; init; }
 }
 
 internal sealed record PercentageBucket
@@ -51,4 +42,6 @@ internal sealed record PercentageBucket
     public TraitValue Value { get; init; }
 
     public string? ValueId { get; init; }
+
+    public string? VariationId { get; init; }
 }

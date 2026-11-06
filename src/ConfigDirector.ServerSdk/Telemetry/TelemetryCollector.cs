@@ -54,7 +54,10 @@ internal sealed class TelemetryCollector : ITelemetryCollector
         EvaluationReason reason,
         Context? context,
         ConfigType? configType,
-        string? valueId)
+        string? valueId,
+        string? variationId,
+        string? ruleId,
+        string? shareId)
     {
         if (!_collecting)
         {
@@ -73,7 +76,7 @@ internal sealed class TelemetryCollector : ITelemetryCollector
         }
 
         _events.Push(EvaluatedConfigEvent.Create(
-            key, defaultValue, value, usedDefault, reason, contextId, configType, valueId, contextKind));
+            key, defaultValue, value, usedDefault, reason, contextId, configType, valueId, contextKind, variationId, ruleId, shareId));
     }
 
     public InvalidContextLogging RecordInvalidContext(string kindSample) =>

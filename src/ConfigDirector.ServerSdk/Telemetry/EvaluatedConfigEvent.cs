@@ -37,6 +37,15 @@ internal sealed record EvaluatedConfigEvent
     [JsonConverter(typeof(EvaluationReasonJsonConverter))]
     public EvaluationReason Reason { get; init; }
 
+    [JsonPropertyName("ruleId")]
+    public string? RuleId { get; init; }
+
+    [JsonPropertyName("shareId")]
+    public string? ShareId { get; init; }
+
+    [JsonPropertyName("variationId")]
+    public string? VariationId { get; init; }
+
     internal static EvaluatedConfigEvent Create<T>(
         string key,
         T defaultValue,
@@ -46,7 +55,10 @@ internal sealed record EvaluatedConfigEvent
         string? contextId = null,
         ConfigType? configType = null,
         string? valueId = null,
-        string? contextKind = null) =>
+        string? contextKind = null,
+        string? variationId = null,
+        string? ruleId = null,
+        string? shareId = null) =>
         new()
         {
             Key = key,
@@ -59,6 +71,9 @@ internal sealed record EvaluatedConfigEvent
             ContextKind = contextKind,
             Type = configType,
             EvaluatedValueId = valueId,
+            VariationId = variationId,
+            RuleId = ruleId,
+            ShareId = shareId,
         };
 
     internal EvaluatedConfigEvent Compacted() =>

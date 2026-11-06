@@ -12,6 +12,9 @@ public sealed class ConfigDirectorProviderTests : IAsyncDisposable
 {
     private static readonly TimeSpan Timeout = SdkServer.PatientTimeout;
 
+    private static readonly EvaluationContext InTheTreatmentShare =
+        EvaluationContext.Builder().SetTargetingKey("u582").Build();
+
     private readonly SdkServer _server = new();
     private readonly List<ConfigDirectorProvider> _providers = [];
 
@@ -65,6 +68,153 @@ public sealed class ConfigDirectorProviderTests : IAsyncDisposable
         details.Variant.ShouldBe("dv-greeting");
         details.ErrorType.ShouldBe(ErrorType.None);
         details.ErrorMessage.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task ReportsTheVariationNameAsTheVariantOnAnExperiment()
+    {
+        var provider = await ReadyAsync(SampleConfigs.Variations);
+
+        var details = await provider.ResolveStringValueAsync("checkout-experiment", "in-code", InTheTreatmentShare, Cancellation);
+
+        details.Value.ShouldBe("treatment");
+        details.Reason.ShouldBe(Reason.TargetingMatch);
+        details.Variant.ShouldBe("Treatment");
+        details.ErrorType.ShouldBe(ErrorType.None);
+    }
+
+    [Fact]
+    public async Task ReportsTheVariationNameAsTheVariantOfAStructure()
+    {
+        var provider = await ReadyAsync(SampleConfigs.Variations);
+
+        var details = await provider.ResolveStructureValueAsync("settings", new OpenFeatureValue(Structure.Empty), null, Cancellation);
+
+        details.Value.AsStructure!.GetValue("name").AsString.ShouldBe("checkout");
+        details.Reason.ShouldBe(Reason.TargetingMatch);
+        details.Variant.ShouldBe("Settings");
+    }
+
+    [Fact]
+    public async Task ReportsTheValueIdAsTheVariantOnAnUnnamedVariation()
+    {
+        var provider = await ReadyAsync(SampleConfigs.Variations);
+
+        var details = await provider.ResolveStringValueAsync("unnamed-experiment", "in-code", null, Cancellation);
+
+        details.Value.ShouldBe("only");
+        details.Variant.ShouldBe("value-only");
+    }
+
+    [Fact]
+    public async Task ReportsTheValueIdAsTheVariantOnARolloutOfAFlag()
+    {
+        var provider = await ReadyAsync(SampleConfigs.Variations);
+
+        var details = await provider.ResolveBooleanValueAsync("rolled-out-flag", false, InTheTreatmentShare, Cancellation);
+
+        details.Value.ShouldBeTrue();
+        details.Reason.ShouldBe(Reason.TargetingMatch);
+        details.Variant.ShouldBe("value-on");
+    }
+
+    [Fact]
+    public async Task ResolvesASkippedRolloutToTheDefaultTargetingRuleValueWithTheReasonDefault()
+    {
+        var provider = await ReadyAsync(SampleConfigs.Variations);
+
+        var details = await provider.ResolveStringValueAsync("checkout-experiment", "in-code", null, Cancellation);
+
+        details.Value.ShouldBe("control");
+        details.Reason.ShouldBe(Reason.Default);
+        details.Variant.ShouldBe("Control");
+        details.ErrorType.ShouldBe(ErrorType.None);
+        details.ErrorMessage.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task ResolvesASkippedRolloutOfAFlagWithTheValueIdAsTheVariant()
+    {
+        var provider = await ReadyAsync(SampleConfigs.Variations);
+        var withoutTargetingKey = EvaluationContext.Builder().Set("name", "Ada").Build();
+
+        var details = await provider.ResolveBooleanValueAsync("rolled-out-flag", true, withoutTargetingKey, Cancellation);
+
+        details.Value.ShouldBeFalse();
+        details.Reason.ShouldBe(Reason.Default);
+        details.Variant.ShouldBe("value-off");
+    }
+
+    [Fact]
+    public async Task ReportsNoVariantWhenTheValueOfAnExperimentDoesNotMatchTheRequestedType()
+    {
+        var provider = await ReadyAsync(SampleConfigs.Variations);
+
+        var details = await provider.ResolveIntegerValueAsync("checkout-experiment", 7, InTheTreatmentShare, Cancellation);
+
+        details.Value.ShouldBe(7);
+        details.ErrorType.ShouldBe(ErrorType.TypeMismatch);
+        details.Variant.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task SendsTheRuleShareAndVariationOfAnEvaluationToConfigDirector()
+    {
+        var provider = await ReadyAsync(SampleConfigs.Variations);
+
+        await provider.ResolveStringValueAsync("checkout-experiment", "in-code", InTheTreatmentShare, Cancellation);
+        await provider.ShutdownAsync(Cancellation);
+
+        var evaluated = await FirstReportedEvaluationAsync();
+        evaluated.GetProperty("ruleId").GetString().ShouldBe("rule-rollout");
+        evaluated.GetProperty("shareId").GetString().ShouldBe("share-treatment");
+        evaluated.GetProperty("variationId").GetString().ShouldBe("variation-treatment");
+    }
+
+    [Fact]
+    public async Task SendsTheRuleShareAndVariationOfAStructureReadThatReturnedTheValue()
+    {
+        var provider = await ReadyAsync(SampleConfigs.Variations);
+
+        await provider.ResolveStructureValueAsync("settings", new OpenFeatureValue(Structure.Empty), InTheTreatmentShare, Cancellation);
+        await provider.ShutdownAsync(Cancellation);
+
+        var evaluated = await FirstReportedEvaluationAsync();
+        evaluated.GetProperty("usedDefault").GetBoolean().ShouldBeFalse();
+        evaluated.GetProperty("evaluationReason").GetString().ShouldBe("found-match");
+        evaluated.GetProperty("variationId").GetString().ShouldBe("variation-settings");
+    }
+
+    [Fact]
+    public async Task SendsNoRuleShareOrVariationWhenAStructureDefaultIsReturnedForAnotherShape()
+    {
+        var provider = await ReadyAsync(SampleConfigs.Variations);
+
+        var details = await provider.ResolveStructureValueAsync("count-experiment", new OpenFeatureValue(Structure.Empty), InTheTreatmentShare, Cancellation);
+        await provider.ShutdownAsync(Cancellation);
+
+        details.ErrorType.ShouldBe(ErrorType.TypeMismatch);
+        details.Variant.ShouldBeNull();
+        var evaluated = await FirstReportedEvaluationAsync();
+        evaluated.GetProperty("usedDefault").GetBoolean().ShouldBeTrue();
+        evaluated.GetProperty("evaluationReason").GetString().ShouldBe("invalid-json");
+        evaluated.TryGetProperty("ruleId", out _).ShouldBeFalse();
+        evaluated.TryGetProperty("shareId", out _).ShouldBeFalse();
+        evaluated.TryGetProperty("variationId", out _).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task SendsNoVariationWhenAListDefaultIsReturnedForAnotherShape()
+    {
+        var provider = await ReadyAsync(SampleConfigs.Variations);
+
+        var details = await provider.ResolveStructureValueAsync("settings", new OpenFeatureValue(new List<OpenFeatureValue>()), null, Cancellation);
+        await provider.ShutdownAsync(Cancellation);
+
+        details.ErrorType.ShouldBe(ErrorType.TypeMismatch);
+        var evaluated = await FirstReportedEvaluationAsync();
+        evaluated.GetProperty("usedDefault").GetBoolean().ShouldBeTrue();
+        evaluated.TryGetProperty("variationId", out _).ShouldBeFalse();
     }
 
     [Fact]
@@ -476,6 +626,10 @@ public sealed class ConfigDirectorProviderTests : IAsyncDisposable
         deadline.CancelAfter(Timeout);
         return (ProviderEventPayload)await provider.GetEventChannel().Reader.ReadAsync(deadline.Token);
     }
+
+    private async Task<JsonElement> FirstReportedEvaluationAsync() =>
+        JsonDocument.Parse(await TelemetryBodyAsync()).RootElement
+            .GetProperty("aggregatedEvents").GetProperty("evaluatedConfig")[0].GetProperty("event");
 
     private async Task<string> TelemetryBodyAsync()
     {

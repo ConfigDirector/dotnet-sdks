@@ -10,7 +10,10 @@ internal interface ITelemetryCollector : IAsyncDisposable
         EvaluationReason reason,
         Context? context,
         ConfigType? configType,
-        string? valueId);
+        string? valueId,
+        string? variationId,
+        string? ruleId,
+        string? shareId);
 
     InvalidContextLogging RecordInvalidContext(string kindSample);
 }

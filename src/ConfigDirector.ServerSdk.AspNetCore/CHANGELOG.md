@@ -9,6 +9,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Changed
+
+- A request whose context has no `Id`, such as an anonymous request when `WithContext` reads the `Id`
+  from the signed-in user, now skips percentage rollouts and gets the default targeting rule value.
+  Before, it was served the rollout's first share wider than 0%. The README shows how to keep such a
+  request in a rollout.
+- The injected `IConfigDirectorClient` has the new `Evaluate` and `EvaluateJson<T>` from
+  `ConfigDirector.ServerSdk`, which return the value along with why it was served and its variation.
+
 ## [1.9.0] - 2026-10-22
 
 ### Added

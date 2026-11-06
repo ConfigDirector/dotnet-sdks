@@ -11,6 +11,12 @@ tag.
 
 ## [Unreleased]
 
+### Changed
+
+- A test client serves plain values without variations, so `ConfigEvaluation.Variation` is null on
+  every evaluation. `Evaluate` and `EvaluateJson<T>`, new in `ConfigDirector.ServerSdk`, work on
+  `Client` like every other read. The testing API is unchanged.
+
 ## [1.9.0] - 2026-10-22
 
 ### Changed

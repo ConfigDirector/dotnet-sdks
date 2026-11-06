@@ -11,6 +11,13 @@ carries the SDK's version: it declares an exact dependency on that version of
 
 ## [Unreleased]
 
+### Changed
+
+- The test client this package registers serves plain values without variations, so
+  `ConfigEvaluation.Variation` is null on every evaluation. `Evaluate` and `EvaluateJson<T>`, new in
+  `ConfigDirector.ServerSdk`, work on the injected `IConfigDirectorClient` like every other read. The
+  testing API is unchanged.
+
 ## [1.9.0] - 2026-10-22
 
 ### Changed

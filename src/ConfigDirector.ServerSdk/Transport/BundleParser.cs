@@ -107,14 +107,21 @@ internal static class BundleParser
             {
                 DefaultValue = AsText(Property(target, "defaultValue")),
                 DefaultValueId = Text(target, "defaultValueId"),
+                DefaultVariationId = Text(target, "defaultVariationId"),
                 Rules = Map(Property(target, "rules"), element => ParseRule(Object(element))),
             },
+            Variations = [.. Map(Property(raw, "variations"), ParseVariation).OfType<Variation>()],
         };
     }
 
+    private static Variation? ParseVariation(JsonElement raw) =>
+        Text(raw, "id") is { } id
+            ? new Variation { Id = id, Name = Text(raw, "name") is { Length: > 0 } name ? name : null }
+            : null;
+
     private static Rule ParseRule(JsonElement raw)
     {
-        var percentages = Map(Property(raw, "percentages"), element => ParseBucket(Object(element)));
+        var percentages = Percentages(Property(raw, "percentages"));
 
         if (Text(raw, "type") == "percentage")
         {
@@ -136,9 +143,15 @@ internal static class BundleParser
             Target = Text(raw, "target") ?? "value",
             Value = AsValue(Property(raw, "value")),
             ValueId = Text(raw, "valueId"),
+            VariationId = Text(raw, "variationId"),
             Percentages = percentages,
         };
     }
+
+    private static List<PercentageBucket>? Percentages(JsonElement raw) =>
+        raw.ValueKind == JsonValueKind.Array
+            ? Map(raw, element => ParseBucket(Object(element)))
+            : null;
 
     private static string ConditionKind(JsonElement raw) => Text(raw, "kind") ?? "attribute";
 
@@ -180,6 +193,7 @@ internal static class BundleParser
             Percentage = RequiredNumber(raw, "percentage"),
             Value = AsValue(Property(raw, "value")),
             ValueId = Text(raw, "valueId"),
+            VariationId = Text(raw, "variationId"),
         };
 
     private static JsonElement Object(JsonElement raw) =>

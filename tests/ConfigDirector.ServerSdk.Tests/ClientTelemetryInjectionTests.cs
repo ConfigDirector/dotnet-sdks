@@ -89,7 +89,10 @@ public sealed class ClientTelemetryInjectionTests : IDisposable
             EvaluationReason reason,
             Context? context,
             ConfigType? configType,
-            string? valueId) =>
+            string? valueId,
+            string? variationId,
+            string? ruleId,
+            string? shareId) =>
             Recorded.Add(new RecordedEvaluation(key, defaultValue, usedDefault, reason, configType));
 
         public InvalidContextLogging RecordInvalidContext(string kindSample) => InvalidContextLogging.LogKind;

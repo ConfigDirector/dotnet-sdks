@@ -23,4 +23,19 @@ public sealed record ConfigState
 
     /// <summary>The server's identifier for whichever value was selected, carried for telemetry.</summary>
     public string? ValueId { get; init; }
+
+    /// <summary>The variation that was selected, or null when the config has no variations.</summary>
+    public Variation? Variation { get; init; }
+
+    /// <summary>
+    /// The identifier of the targeting rule whose percentage rollout selected the value, or null when
+    /// no percentage rollout did.
+    /// </summary>
+    public string? RuleId { get; init; }
+
+    /// <summary>
+    /// The identifier of the percentage rollout's share that selected the value, or null when no
+    /// percentage rollout did.
+    /// </summary>
+    public string? ShareId { get; init; }
 }

@@ -51,10 +51,10 @@ AOT support, so it would fail here for anyone who tried.
 `GetValue` with a `JsonElement` default is the AOT-safe way to read a JSON config: the SDK parses
 it with `JsonDocument` and never looks at a type of yours.
 
-`GetJsonValue<T>` and `WatchJson<T>` bind to a type you declare, which means reading that type
-reflectively. Both carry `RequiresUnreferencedCode` and `RequiresDynamicCode`, so calling either
-from here would produce a publish warning naming the call site rather than failing silently at
-runtime. That is the whole reason this sample exists.
+`GetJsonValue<T>`, `EvaluateJson<T>` and `WatchJson<T>` bind to a type you declare, which means
+reading that type reflectively. All three carry `RequiresUnreferencedCode` and
+`RequiresDynamicCode`, so calling any of them from here would produce a publish warning naming the
+call site rather than failing silently at runtime. That is the whole reason this sample exists.
 
 ## What CI does with it
 

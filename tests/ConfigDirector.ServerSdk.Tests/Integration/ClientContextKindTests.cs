@@ -63,7 +63,7 @@ public sealed class ClientContextKindTests : IDisposable
         client.GetValue("rollout", "in-code", new Context { Id = "user-1" }).ShouldBe("0");
         client.GetValue("rollout", "in-code", new Context { Id = "user-1", Kind = "user" }).ShouldBe("0");
         client.GetValue("rollout", "in-code", new Context { Id = "user-1", Kind = "device" }).ShouldBe("5");
-        client.GetValue("rollout", "in-code", new Context { Kind = "device" }).ShouldBe("0");
+        client.GetValue("rollout", "in-code", new Context { Kind = "device" }).ShouldBe("none");
     }
 
     [Fact]
@@ -77,7 +77,7 @@ public sealed class ClientContextKindTests : IDisposable
 
         states["greeting"].Value.ShouldBe("hello");
         states["greeting"].ValueId.ShouldBe("dv-greeting");
-        states["rollout"].Value.ShouldBe("0");
+        states["rollout"].Value.ShouldBe("none");
     }
 
     [Fact]
