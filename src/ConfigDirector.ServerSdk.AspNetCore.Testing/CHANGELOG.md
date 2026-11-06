@@ -11,6 +11,8 @@ carries the SDK's version: it declares an exact dependency on that version of
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-11-06
+
 ### Added
 
 - `TestClient.TrackedEvents`, new in `ConfigDirector.ServerSdk.Testing`, holds the events the
@@ -18,6 +20,9 @@ carries the SDK's version: it declares an exact dependency on that version of
 
 ### Changed
 
+- Depends on `ConfigDirector.ServerSdk.Testing` 1.10.0, and through it on
+  [`ConfigDirector.ServerSdk`](https://www.nuget.org/packages/ConfigDirector.ServerSdk) 1.10.0, which
+  adds `Track` and `Evaluate`.
 - The test client this package registers serves plain values without variations, so
   `ConfigEvaluation.Variation` is null on every evaluation. `Evaluate` and `EvaluateJson<T>`, new in
   `ConfigDirector.ServerSdk`, work on the injected `IConfigDirectorClient` like every other read. The
@@ -65,7 +70,8 @@ carries the SDK's version: it declares an exact dependency on that version of
   key when none is configured, and leaves startup initialization in place. It works from
   `WebApplicationFactory.ConfigureTestServices`.
 
-[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.9.0...HEAD
+[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.10.0...HEAD
+[1.10.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.9.0...ConfigDirector.ServerSdk-v1.10.0
 [1.9.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.8.0...ConfigDirector.ServerSdk-v1.9.0
 [1.8.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.7.1...ConfigDirector.ServerSdk-v1.8.0
 [1.7.1]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.7.0...ConfigDirector.ServerSdk-v1.7.1

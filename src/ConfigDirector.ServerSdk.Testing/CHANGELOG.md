@@ -11,6 +11,8 @@ tag.
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-11-06
+
 ### Added
 
 - `TestClient.TrackedEvents` holds the events the code under test tracked through
@@ -23,6 +25,8 @@ tag.
 
 ### Changed
 
+- Depends on [`ConfigDirector.ServerSdk`](https://www.nuget.org/packages/ConfigDirector.ServerSdk)
+  1.10.0, which adds `Track` and `Evaluate`.
 - A test client serves plain values without variations, so `ConfigEvaluation.Variation` is null on
   every evaluation. `Evaluate` and `EvaluateJson<T>`, new in `ConfigDirector.ServerSdk`, work on
   `Client` like every other read. The testing API is unchanged.
@@ -71,7 +75,8 @@ tag.
   `FailInitialization`. `TestClientOptions` carries the client's `Timeout` and `LoggerFactory`. No
   network connection is opened and no telemetry is sent.
 
-[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.9.0...HEAD
+[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.10.0...HEAD
+[1.10.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.9.0...ConfigDirector.ServerSdk-v1.10.0
 [1.9.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.8.0...ConfigDirector.ServerSdk-v1.9.0
 [1.8.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.7.1...ConfigDirector.ServerSdk-v1.8.0
 [1.7.1]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.7.0...ConfigDirector.ServerSdk-v1.7.1

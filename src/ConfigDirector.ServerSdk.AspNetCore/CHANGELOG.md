@@ -9,8 +9,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-11-06
+
 ### Changed
 
+- Requires [`ConfigDirector.ServerSdk`](https://www.nuget.org/packages/ConfigDirector.ServerSdk)
+  1.10.0 or later, which adds `Track` and `Evaluate`.
 - A request whose context has no `Id`, such as an anonymous request when `WithContext` reads the `Id`
   from the signed-in user, now skips percentage rollouts and gets the default targeting rule value.
   Before, it was served the rollout's first share wider than 0%. The README shows how to keep such a
@@ -168,7 +172,8 @@ later.
 - Configuration binding runs through the source-generated binder, so the package adds no trimming
   or AOT warnings to a consuming application.
 
-[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.9.0...HEAD
+[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.10.0...HEAD
+[1.10.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.9.0...ConfigDirector.ServerSdk.AspNetCore-v1.10.0
 [1.9.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.8.0...ConfigDirector.ServerSdk.AspNetCore-v1.9.0
 [1.8.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.7.1...ConfigDirector.ServerSdk.AspNetCore-v1.8.0
 [1.7.1]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.7.0...ConfigDirector.ServerSdk.AspNetCore-v1.7.1

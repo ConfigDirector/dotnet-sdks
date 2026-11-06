@@ -9,6 +9,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-11-06
+
 ### Added
 
 - The provider now implements OpenFeature's tracking. `client.Track(eventName, context, details)`
@@ -34,6 +36,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- Requires [`ConfigDirector.ServerSdk`](https://www.nuget.org/packages/ConfigDirector.ServerSdk)
+  1.10.0 or later, which adds `Track` and `Evaluate`.
 - The `Variant` in evaluation details is now the variation's name when the config has variations and
   the variation served has a name, such as `treatment`. Before, it was always the value ID. It stays
   the value ID for a config without variations and for an unnamed variation. If you send `Variant` to
@@ -197,7 +201,8 @@ later and [`OpenFeature`](https://www.nuget.org/packages/OpenFeature) 2.14.1 or 
 - The provider identifies itself to ConfigDirector as `dotnet-openfeature-server-provider` with its
   own version.
 
-[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.7.0...HEAD
+[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.8.0...HEAD
+[1.8.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.7.0...ConfigDirector.OpenFeature.ServerProvider-v1.8.0
 [1.7.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.6.0...ConfigDirector.OpenFeature.ServerProvider-v1.7.0
 [1.6.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.5.0...ConfigDirector.OpenFeature.ServerProvider-v1.6.0
 [1.5.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.4.1...ConfigDirector.OpenFeature.ServerProvider-v1.5.0
