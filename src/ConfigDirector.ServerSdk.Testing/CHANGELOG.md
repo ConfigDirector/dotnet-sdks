@@ -11,6 +11,15 @@ tag.
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-11-07
+
+### Changed
+
+- Depends on [`ConfigDirector.ServerSdk`](https://www.nuget.org/packages/ConfigDirector.ServerSdk)
+  1.11.0, which accepts a date inside tracked event details and serves a context without an `Id`
+  by the targeting rules after a skipped percentage rollout. `TestClient.TrackedEvents` holds a
+  date as the ISO 8601 text the SDK sends.
+
 ## [1.10.0] - 2026-11-06
 
 ### Added
@@ -75,7 +84,8 @@ tag.
   `FailInitialization`. `TestClientOptions` carries the client's `Timeout` and `LoggerFactory`. No
   network connection is opened and no telemetry is sent.
 
-[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.10.0...HEAD
+[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.11.0...HEAD
+[1.11.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.10.0...ConfigDirector.ServerSdk-v1.11.0
 [1.10.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.9.0...ConfigDirector.ServerSdk-v1.10.0
 [1.9.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.8.0...ConfigDirector.ServerSdk-v1.9.0
 [1.8.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.7.1...ConfigDirector.ServerSdk-v1.8.0

@@ -11,6 +11,15 @@ carries the SDK's version: it declares an exact dependency on that version of
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-11-07
+
+### Changed
+
+- Depends on `ConfigDirector.ServerSdk.Testing` 1.11.0, and through it on
+  [`ConfigDirector.ServerSdk`](https://www.nuget.org/packages/ConfigDirector.ServerSdk) 1.11.0, which
+  accepts a date inside tracked event details and serves a context without an `Id` by the targeting
+  rules after a skipped percentage rollout.
+
 ## [1.10.0] - 2026-11-06
 
 ### Added
@@ -70,7 +79,8 @@ carries the SDK's version: it declares an exact dependency on that version of
   key when none is configured, and leaves startup initialization in place. It works from
   `WebApplicationFactory.ConfigureTestServices`.
 
-[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.10.0...HEAD
+[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.11.0...HEAD
+[1.11.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.10.0...ConfigDirector.ServerSdk-v1.11.0
 [1.10.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.9.0...ConfigDirector.ServerSdk-v1.10.0
 [1.9.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.8.0...ConfigDirector.ServerSdk-v1.9.0
 [1.8.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk-v1.7.1...ConfigDirector.ServerSdk-v1.8.0

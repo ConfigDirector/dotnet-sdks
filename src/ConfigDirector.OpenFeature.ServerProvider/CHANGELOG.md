@@ -9,6 +9,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.8.1] - 2026-11-07
+
 ### Fixed
 
 - An evaluation context with neither a targeting key nor an `id` that skips a percentage rollout is
@@ -17,6 +19,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   rule value, even when a later rule matched the context. A later rule that applies resolves with the
   reason `TARGETING_MATCH`; `DEFAULT` stays for a context resolved to the default targeting rule
   value after a skipped rollout.
+- Requires [`ConfigDirector.ServerSdk`](https://www.nuget.org/packages/ConfigDirector.ServerSdk)
+  1.11.0 or later, which carries the fix.
 
 ## [1.8.0] - 2026-11-06
 
@@ -210,7 +214,8 @@ later and [`OpenFeature`](https://www.nuget.org/packages/OpenFeature) 2.14.1 or 
 - The provider identifies itself to ConfigDirector as `dotnet-openfeature-server-provider` with its
   own version.
 
-[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.8.0...HEAD
+[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.8.1...HEAD
+[1.8.1]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.8.0...ConfigDirector.OpenFeature.ServerProvider-v1.8.1
 [1.8.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.7.0...ConfigDirector.OpenFeature.ServerProvider-v1.8.0
 [1.7.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.6.0...ConfigDirector.OpenFeature.ServerProvider-v1.7.0
 [1.6.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.OpenFeature.ServerProvider-v1.5.0...ConfigDirector.OpenFeature.ServerProvider-v1.6.0

@@ -9,12 +9,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-11-07
+
+### Changed
+
+- Requires [`ConfigDirector.ServerSdk`](https://www.nuget.org/packages/ConfigDirector.ServerSdk)
+  1.11.0 or later, which accepts a `DateTime` or a `DateTimeOffset` inside the `Details` of a
+  tracked event.
+
 ### Fixed
 
 - A request without an `Id` that skips a percentage rollout is now served by the targeting rules
   after it, as it is after a conditional rule it does not match. Since 1.10.0 the skipped rollout
   ended the evaluation and the default targeting rule value was served, even when a later rule
-  matched the request. The fix is in `ConfigDirector.ServerSdk`, which this package depends on.
+  matched the request. The fix is in `ConfigDirector.ServerSdk` 1.11.0.
 
 ## [1.10.0] - 2026-11-06
 
@@ -179,7 +187,8 @@ later.
 - Configuration binding runs through the source-generated binder, so the package adds no trimming
   or AOT warnings to a consuming application.
 
-[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.10.0...HEAD
+[Unreleased]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.11.0...HEAD
+[1.11.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.10.0...ConfigDirector.ServerSdk.AspNetCore-v1.11.0
 [1.10.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.9.0...ConfigDirector.ServerSdk.AspNetCore-v1.10.0
 [1.9.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.8.0...ConfigDirector.ServerSdk.AspNetCore-v1.9.0
 [1.8.0]: https://github.com/ConfigDirector/dotnet-sdks/compare/ConfigDirector.ServerSdk.AspNetCore-v1.7.1...ConfigDirector.ServerSdk.AspNetCore-v1.8.0
