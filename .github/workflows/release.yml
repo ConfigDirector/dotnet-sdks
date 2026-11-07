@@ -25,8 +25,13 @@ on:
   workflow_dispatch:
     inputs:
       package:
-        description: "Package id to release at the version its project declares, e.g. ConfigDirector.ServerSdk, ConfigDirector.ServerSdk.AspNetCore or ConfigDirector.OpenFeature.ServerProvider."
+        description: "Package to release, at the version its project declares. The SDK's release carries both testing packages."
+        type: choice
         required: true
+        options:
+          - ConfigDirector.ServerSdk
+          - ConfigDirector.ServerSdk.AspNetCore
+          - ConfigDirector.OpenFeature.ServerProvider
       rehearsal:
         description: "Pack and upload the packages as a workflow artifact without publishing or tagging anything."
         type: boolean

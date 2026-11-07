@@ -69,7 +69,7 @@ dotnet test tests/ConfigDirector.ServerSdk.SlowTests/ConfigDirector.ServerSdk.Sl
 ## Releasing
 
 The [release](.github/workflows/release.yml) workflow publishes. It is manual (`workflow_dispatch`)
-by design, as in every other SDK repository: run it against `main` with the package id, and it
+by design, as in every other SDK repository: run it against `main`, pick the package, and it
 releases whatever version that package's project declares, then tags the released commit as
 `<PackageId>-v<version>` once nuget.org has what the tag names. The tag is the workflow's last
 step, never the trigger, so a tag always names a version that was published and checked.
