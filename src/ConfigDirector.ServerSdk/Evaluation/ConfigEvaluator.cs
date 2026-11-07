@@ -40,6 +40,7 @@ internal sealed class ConfigEvaluator
         Metadata? metadata,
         IReadOnlyDictionary<string, Segment> segments)
     {
+        var aRolloutWasSkipped = false;
         foreach (var rule in config.Target.Rules.OrderBy(rule => rule.Order ?? Last))
         {
             switch (EvaluateRule(rule, config, context, metadata, segments))
@@ -47,13 +48,15 @@ internal sealed class ConfigEvaluator
                 case ServedValue servedValue:
                     return ServedConfigOf(config, servedValue, EvaluationReason.FoundMatch);
                 case RolloutSkippedNoIdentifier:
-                    return ServedConfigOf(config, DefaultTargetingRuleValue(config), EvaluationReason.RolloutSkippedNoIdentifier);
+                    aRolloutWasSkipped = true;
+                    break;
                 case RuleNotMatched:
                     break;
             }
         }
 
-        return ServedConfigOf(config, DefaultTargetingRuleValue(config), EvaluationReason.FoundMatch);
+        var reason = aRolloutWasSkipped ? EvaluationReason.RolloutSkippedNoIdentifier : EvaluationReason.FoundMatch;
+        return ServedConfigOf(config, DefaultTargetingRuleValue(config), reason);
     }
 
     private static ServedValue DefaultTargetingRuleValue(Config config) =>

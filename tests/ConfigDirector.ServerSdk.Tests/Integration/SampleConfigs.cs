@@ -42,6 +42,21 @@ internal static class SampleConfigs
             "target": {"defaultValue": {"name": "checkout"}, "defaultValueId": "value-settings", "defaultVariationId": "variation-settings", "rules": []}}}}
         """;
 
+    /// <summary>The checkout experiment with a rule after its rollout that serves pro plans "new copy".</summary>
+    internal const string CheckoutExperimentWithARuleAfterItsRollout = """
+        {"kind": "full", "timestamp": "2026-08-01T12:00:00.000Z", "configs": {
+          "checkout-experiment": {"id": "11111111-1111-4111-8111-111111111111", "key": "checkout-experiment", "type": "string",
+            "variations": [
+              {"id": "variation-control", "value": "control", "name": "Control"},
+              {"id": "variation-treatment", "value": "treatment", "name": "Treatment"},
+              {"id": "variation-new-copy", "value": "new copy", "name": "New copy"}],
+            "target": {"defaultValue": "control", "defaultValueId": "value-control", "defaultVariationId": "variation-control", "rules": [
+              {"id": "rule-rollout", "type": "percentage", "order": 1, "percentages": [
+                {"id": "share-treatment", "percentage": 100, "value": "treatment", "valueId": "value-treatment", "variationId": "variation-treatment"}]},
+              {"id": "rule-pro", "type": "conditional", "order": 2, "value": "new copy", "valueId": "value-new-copy", "variationId": "variation-new-copy",
+               "conditions": [{"id": "condition-pro", "attribute": "traits", "trait": "/plan", "operator": "=", "targetType": "text", "targetValues": ["pro"]}]}]}}}}
+        """;
+
     internal const string Bundle = """
         {
           "kind": "full",

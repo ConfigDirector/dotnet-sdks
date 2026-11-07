@@ -24,9 +24,9 @@ public sealed record Context
 
     /// <summary>
     /// The context's identifier, which decides its share in a percentage rollout. A context without
-    /// one skips percentage rollouts: it is served the default targeting rule value, and the targeting
-    /// rules after the rollout are not tried. For an anonymous visitor, use a stable identifier such as
-    /// a session ID.
+    /// one skips percentage rollouts: the targeting rules after the rollout are tried, and it is served
+    /// the default targeting rule value when none applies. For an anonymous visitor, use a stable
+    /// identifier such as a session ID.
     /// </summary>
     public string? Id { get; init; }
 

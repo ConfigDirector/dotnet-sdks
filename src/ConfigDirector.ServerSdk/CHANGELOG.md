@@ -18,6 +18,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   text. It keeps the offset it has: a `DateTime` of `Local` kind is sent with the machine's offset,
   and one of `Unspecified` kind with none.
 
+### Fixed
+
+- A context without an `Id` that skips a percentage rollout is now served by the targeting rules
+  after it, as it is after a conditional rule it does not match. Since 1.10.0 the skipped rollout
+  ended the evaluation and the default targeting rule value was served, even when a later rule, such
+  as one on the app version, matched the context. `GetValue`, `GetJsonValue<T>`, `Evaluate`,
+  `EvaluateJson<T>`, watches and `GetAllConfigs` serve the later rule's value with the reason
+  `EvaluationReason.FoundMatch`; `RolloutSkippedNoIdentifier` stays for a context served the default
+  targeting rule value after a skipped rollout.
+
 ## [1.10.0] - 2026-11-06
 
 ### Added

@@ -340,6 +340,21 @@ public sealed class ClientVariationTests : IDisposable
     }
 
     [Fact]
+    public async Task EvaluateServesAContextWithoutAnIdTheRuleAfterASkippedRollout()
+    {
+        _server.Bundle = SampleConfigs.CheckoutExperimentWithARuleAfterItsRollout;
+        await using var client = Client();
+        await client.InitializeAsync(Cancellation);
+
+        var evaluation = client.Evaluate("checkout-experiment", "in-code", new Context { Traits = { ["plan"] = "pro" } });
+
+        evaluation.Value.ShouldBe("new copy");
+        evaluation.IsDefault.ShouldBeFalse();
+        evaluation.Reason.ShouldBe(EvaluationReason.FoundMatch);
+        evaluation.Variation.ShouldBe(new Variation { Id = "variation-new-copy", Name = "New copy" });
+    }
+
+    [Fact]
     public async Task EvaluateReportsASkippedRolloutForAContextWithoutAnId()
     {
         await using var client = await ReadyClientAsync();

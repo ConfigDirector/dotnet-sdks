@@ -9,6 +9,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- A request without an `Id` that skips a percentage rollout is now served by the targeting rules
+  after it, as it is after a conditional rule it does not match. Since 1.10.0 the skipped rollout
+  ended the evaluation and the default targeting rule value was served, even when a later rule
+  matched the request. The fix is in `ConfigDirector.ServerSdk`, which this package depends on.
+
 ## [1.10.0] - 2026-11-06
 
 ### Changed

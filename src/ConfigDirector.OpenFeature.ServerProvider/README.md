@@ -77,10 +77,10 @@ var newCheckout = await client.GetBooleanValueAsync("new-checkout", false, conte
 
 A match reports the reason `TARGETING_MATCH`. Its variant is the variation's name when the config
 has variations and the variation served has a name, and otherwise the ConfigDirector value id. A
-context with neither a targeting key nor an `id` skips percentage rollouts: the flag resolves to the
-default targeting rule value with the reason `DEFAULT`, and the targeting rules after the rollout
-are not tried. Give an anonymous context a stable targeting key, such as a session ID, to keep it in
-a rollout.
+context with neither a targeting key nor an `id` skips percentage rollouts: the targeting rules after
+the rollout are tried, and when none applies the flag resolves to the default targeting rule value
+with the reason `DEFAULT`. Give an anonymous context a stable targeting key, such as a session ID, to
+keep it in a rollout.
 
 A config the server does not know reports `FLAG_NOT_FOUND`, a value that does not match the requested
 type reports `TYPE_MISMATCH`, and an evaluation made before the first config state has arrived

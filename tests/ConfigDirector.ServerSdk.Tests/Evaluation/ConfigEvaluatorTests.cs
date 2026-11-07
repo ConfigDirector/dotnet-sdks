@@ -435,10 +435,51 @@ public class ConfigEvaluatorTests
     }
 
     [Fact]
-    public void TriesNoRuleAfterASkippedRollout()
+    public void TriesTheRulesAfterASkippedRollout()
     {
         var everyone = Requiring() with { Order = 2 };
         var config = Config("config-1", EvenRollout(), everyone);
+
+        var served = EvaluateWithReason(config, new Context());
+
+        served.State.Value.ShouldBe("matched");
+        served.Reason.ShouldBe(EvaluationReason.FoundMatch);
+    }
+
+    [Fact]
+    public void ServesALaterRuleOnTheAppVersionToAContextWithoutAnIdentifierMatchingAConditionalRollout()
+    {
+        var proPlansGetTheTreatment = new ConditionalRule
+        {
+            Id = "r",
+            Order = 1,
+            Target = "percentage",
+            Conditions = [TraitCondition("/plan", "pro")],
+            Percentages = [Bucket(100, "everyone")],
+        };
+        var version2GetsNewCopy = new ConditionalRule
+        {
+            Id = "r2",
+            Order = 2,
+            Value = "new copy for 2.x",
+            Conditions = [new AttributeCondition { Attribute = "appVersion", Operator = ">=", TargetType = "semver", TargetValues = ["2.0.0"] }],
+        };
+        var config = Config("config-1", proPlansGetTheTreatment, version2GetsNewCopy);
+
+        var served = new ConfigEvaluator(NullLogger.Instance).EvaluateWithReason(
+            config,
+            new Context { Traits = { ["plan"] = "pro" } },
+            new Metadata { AppVersion = "2.1.0" },
+            ConfigEvaluator.NoSegments);
+
+        served.State.Value.ShouldBe("new copy for 2.x");
+        served.Reason.ShouldBe(EvaluationReason.FoundMatch);
+    }
+
+    [Fact]
+    public void KeepsTheSkipReasonWhenNoRuleAfterTheSkippedRolloutMatches()
+    {
+        var config = Config("config-1", EvenRollout(), NotMatching("never") with { Order = 2 });
 
         var served = EvaluateWithReason(config, new Context());
 
@@ -478,14 +519,14 @@ public class ConfigEvaluatorTests
     }
 
     [Fact]
-    public void SkipsARolloutWithNoSharesForAContextWithoutAnIdentifier()
+    public void SkipsARolloutWithNoSharesForAContextWithoutAnIdentifierAndTriesTheNextRule()
     {
         var served = EvaluateWithReason(
             Config("config-1", new PercentageRule { Id = "r", Order = 1, Percentages = [] }, Requiring() with { Order = 2 }),
             new Context());
 
-        served.State.Value.ShouldBe("the default");
-        served.Reason.ShouldBe(EvaluationReason.RolloutSkippedNoIdentifier);
+        served.State.Value.ShouldBe("matched");
+        served.Reason.ShouldBe(EvaluationReason.FoundMatch);
     }
 
     [Fact]
