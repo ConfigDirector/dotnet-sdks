@@ -78,7 +78,7 @@ public sealed class TrackedEventDetails : IReadOnlyDictionary<string, TrackedEve
 
     /// <summary>Adds one top-level key.</summary>
     /// <param name="name">The key.</param>
-    /// <param name="value">The key's value. Strings, numbers, booleans and arrays convert implicitly.</param>
+    /// <param name="value">The key's value. Strings, numbers, booleans, arrays of those, and dates convert implicitly.</param>
     /// <exception cref="ArgumentException">The details already hold that key.</exception>
     public void Add(string name, TrackedEventDetailValue value) => _members.Add(name, value);
 

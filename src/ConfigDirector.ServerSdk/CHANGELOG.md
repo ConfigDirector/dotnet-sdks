@@ -9,6 +9,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- `Details` of `TrackOptions` accepts a `DateTime` or a `DateTimeOffset`, written as
+  `["endsAt"] = order.EndsAt`, in a nested `TrackedEventDetails` and through
+  `TrackedEventDetailValue.FromArray` as well. Before, a date did not compile there. A date is sent
+  as ISO 8601 text, such as `2026-12-01T00:00:00.0000000Z`, and counts toward the 1 KB limit as that
+  text. It keeps the offset it has: a `DateTime` of `Local` kind is sent with the machine's offset,
+  and one of `Unspecified` kind with none.
+
 ## [1.10.0] - 2026-11-06
 
 ### Added

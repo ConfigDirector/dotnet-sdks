@@ -203,6 +203,17 @@ public sealed class TestClientConformanceTests : IAsyncDisposable
     }
 
     [Fact]
+    public void RecordsADateInTheDetailsAsTheTextTheSdkWouldReport()
+    {
+        var testClient = Create();
+        var endsAt = new DateTime(2026, 12, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        testClient.Client.Track("checkout-completed", null, new TrackOptions { Details = { ["endsAt"] = endsAt } });
+
+        testClient.TrackedEvents[0].Details.ShouldBe(new TrackedEventDetails { ["endsAt"] = "2026-12-01T00:00:00.0000000Z" });
+    }
+
+    [Fact]
     public void TrackedEventsStaysUpToDateAsEventsAreTracked()
     {
         var testClient = Create();

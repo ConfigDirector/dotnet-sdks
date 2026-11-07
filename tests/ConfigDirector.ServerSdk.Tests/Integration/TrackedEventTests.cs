@@ -615,6 +615,108 @@ public sealed class TrackedEventTests : IDisposable
     }
 
     [Fact]
+    public async Task SendsAUtcDateTimeInsideDetailsAsIsoTextAndLogsNothing()
+    {
+        await using var client = Client();
+        var endsAt = new DateTime(2026, 12, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        client.Track("checkout-completed", null, new TrackOptions { Details = { ["endsAt"] = endsAt } });
+        await FlushAsync(client);
+
+        TelemetryBody().ShouldContain("""
+            "details":{"endsAt":"2026-12-01T00:00:00.0000000Z"}
+            """);
+        Warnings().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task SendsADateTimeOffsetInsideDetailsAsIsoTextKeepingItsOffset()
+    {
+        await using var client = Client();
+        var endsAt = new DateTimeOffset(2026, 12, 1, 0, 0, 0, TimeSpan.FromHours(2));
+
+        client.Track("checkout-completed", null, new TrackOptions { Details = { ["endsAt"] = endsAt } });
+        await FlushAsync(client);
+
+        TelemetryBody().ShouldContain("""
+            "details":{"endsAt":"2026-12-01T00:00:00.0000000+02:00"}
+            """);
+        Warnings().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task SendsADateTimeOfUnspecifiedKindInsideDetailsAsIsoTextWithoutAnOffset()
+    {
+        await using var client = Client();
+        var endsAt = new DateTime(2026, 12, 1, 0, 0, 0, DateTimeKind.Unspecified);
+
+        client.Track("checkout-completed", null, new TrackOptions { Details = { ["endsAt"] = endsAt } });
+        await FlushAsync(client);
+
+        TelemetryBody().ShouldContain("""
+            "details":{"endsAt":"2026-12-01T00:00:00.0000000"}
+            """);
+    }
+
+    [Fact]
+    public async Task SendsADateNestedInDetailsAsIsoText()
+    {
+        await using var client = Client();
+        var endsAt = new DateTime(2026, 12, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        client.Track("checkout-completed", null, new TrackOptions { Details = { ["plan"] = new TrackedEventDetails { ["endsAt"] = endsAt } } });
+        await FlushAsync(client);
+
+        TelemetryBody().ShouldContain("""
+            "details":{"plan":{"endsAt":"2026-12-01T00:00:00.0000000Z"}}
+            """);
+    }
+
+    [Fact]
+    public async Task SendsDatesInAnArrayBuiltFromValuesAsIsoText()
+    {
+        await using var client = Client();
+        var dateTime = new DateTime(2026, 12, 1, 0, 0, 0, DateTimeKind.Utc);
+        var dateTimeOffset = new DateTimeOffset(2026, 12, 1, 0, 0, 0, TimeSpan.FromHours(2));
+
+        client.Track("checkout-completed", null, new TrackOptions { Details = { ["dates"] = TrackedEventDetailValue.FromArray([dateTime, dateTimeOffset]) } });
+        await FlushAsync(client);
+
+        TelemetryBody().ShouldContain("""
+            "details":{"dates":["2026-12-01T00:00:00.0000000Z","2026-12-01T00:00:00.0000000+02:00"]}
+            """);
+    }
+
+    [Fact]
+    public async Task SendsDetailsThatADateBringsToExactly1024BytesAsJson()
+    {
+        await using var client = Client();
+        var text = new string('x', 973);
+        var endsAt = new DateTime(2026, 12, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        client.Track("checkout-completed", null, new TrackOptions { Details = { ["text"] = text, ["endsAt"] = endsAt } });
+        await FlushAsync(client);
+
+        TelemetryBody().ShouldContain($$"""
+            "details":{"text":"{{text}}","endsAt":"2026-12-01T00:00:00.0000000Z"}
+            """);
+        Warnings().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task LeavesOutDetailsThatADateBringsTo1025BytesAsJsonSendsTheEventAndLogsAWarning()
+    {
+        await using var client = Client();
+        var endsAt = new DateTime(2026, 12, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        client.Track("checkout-completed", null, new TrackOptions { Details = { ["text"] = new string('x', 974), ["endsAt"] = endsAt } });
+        await FlushAsync(client);
+
+        TrackedEvents().ShouldHaveSingleItem().TryGetProperty("details", out _).ShouldBeFalse();
+        Warnings().ShouldHaveSingleItem();
+    }
+
+    [Fact]
     public async Task LeavesOutDetailsNestedFarBeyondTheLimitWithoutThrowing()
     {
         await using var client = Client();

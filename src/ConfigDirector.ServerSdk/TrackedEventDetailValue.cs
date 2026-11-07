@@ -1,15 +1,17 @@
+using System.Globalization;
 using ConfigDirector.Telemetry;
 
 namespace ConfigDirector;
 
 /// <summary>
-/// A value in the details of a tracked event: a string, a number, a boolean, or a nested object or
-/// list of such values.
+/// A value in the details of a tracked event: a string, a number, a boolean, a date, or a nested
+/// object or list of such values.
 /// </summary>
 /// <remarks>
-/// Strings, numbers, booleans, arrays and <see cref="TrackedEventDetails"/> convert implicitly, so a
-/// value can be written as <c>["seats"] = 3</c>. A number that is not finite becomes
-/// <see cref="Null"/>, since JSON has no way to write it.
+/// Strings, numbers, booleans, arrays of those, dates and <see cref="TrackedEventDetails"/> convert
+/// implicitly, so a value can be written as <c>["seats"] = 3</c>. Build an array of anything else with
+/// <see cref="FromArray"/>. A date is sent as ISO 8601 text and counts toward the 1 KB limit as that
+/// text. A number that is not finite becomes <see cref="Null"/>, since JSON has no way to write it.
 /// </remarks>
 public readonly struct TrackedEventDetailValue : IEquatable<TrackedEventDetailValue>
 {
@@ -45,6 +47,23 @@ public readonly struct TrackedEventDetailValue : IEquatable<TrackedEventDetailVa
     /// <summary>Wraps a boolean.</summary>
     /// <param name="value">The boolean to wrap.</param>
     public static implicit operator TrackedEventDetailValue(bool value) => new(value);
+
+    /// <summary>
+    /// Wraps a date as ISO 8601 text, such as <c>2026-12-01T00:00:00.0000000Z</c>. A date of
+    /// <see cref="DateTimeKind.Local"/> kind is sent with this machine's offset, and one of
+    /// <see cref="DateTimeKind.Unspecified"/> kind with none.
+    /// </summary>
+    /// <param name="value">The date to wrap.</param>
+    public static implicit operator TrackedEventDetailValue(DateTime value) =>
+        new(value.ToString("o", CultureInfo.InvariantCulture));
+
+    /// <summary>
+    /// Wraps a date as ISO 8601 text that keeps its offset, such as
+    /// <c>2026-12-01T00:00:00.0000000+02:00</c>.
+    /// </summary>
+    /// <param name="value">The date to wrap.</param>
+    public static implicit operator TrackedEventDetailValue(DateTimeOffset value) =>
+        new(value.ToString("o", CultureInfo.InvariantCulture));
 
     /// <summary>
     /// Wraps a copy of a nested object, or <see cref="Null"/> when it is <see langword="null"/>. A
