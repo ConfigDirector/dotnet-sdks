@@ -1,41 +1,51 @@
 name: release
 
-# Tagging is what publishes. The tag names the package and the version it is releasing:
+# Manual by design, as in every other SDK repository: releases whatever version the chosen
+# package's project declares on the chosen branch, and tags the released commit last, once nuget.org
+# has what the tag names. The tag names the package and the version:
 #
-#   ConfigDirector.ServerSdk-v1.1.0
-#   ConfigDirector.ServerSdk.AspNetCore-v1.0.0
-#   ConfigDirector.OpenFeature.ServerProvider-v1.0.0
+#   ConfigDirector.ServerSdk-v1.11.0
+#   ConfigDirector.ServerSdk.AspNetCore-v1.11.0
+#   ConfigDirector.OpenFeature.ServerProvider-v1.8.1
 #
-# The version itself lives in the project, and this workflow checks the tag against it rather than
-# passing one in. A -p:Version override is a global MSBuild property: it flows across a
-# ProjectReference, so packing one package would stamp the wrong dependency version on the package
-# it depends on.
+# The version itself lives in the project and is never passed in. A -p:Version override is a global
+# MSBuild property: it flows across a ProjectReference, so packing one package would stamp the wrong
+# dependency version on the package it depends on.
 #
-# One workflow serves every package, since a package's project path follows its id. Releases before
-# this scheme were tagged v1.0.0, which this workflow deliberately no longer matches.
+# One workflow serves every package, since a package's project path follows its id. What a release
+# publishes and tags is decided by scripts/release-plan.sh: a release of ConfigDirector.ServerSdk
+# also publishes ConfigDirector.ServerSdk.Testing and ConfigDirector.ServerSdk.AspNetCore.Testing,
+# which carry the SDK's version, and ConfigDirector.ServerSdk.AspNetCore when the version it
+# declares is new. The packages are pushed in dependency order, each once nuget.org has indexed
+# what it depends on, so one run releases the whole set without failing on the way.
 #
-# The ConfigDirector.ServerSdk tag also releases ConfigDirector.ServerSdk.Testing and
-# ConfigDirector.ServerSdk.AspNetCore.Testing. They rely on the SDK's internals, carry its version,
-# and pin it exactly, so they are packed with it and pushed after it, one at a time, as nuget.org
-# indexes each one. They cannot be tagged on their own.
+# Releases before 2026-11-07 were published by pushing the tag; releases before that scheme were
+# tagged v1.0.0. The tag names are unchanged, so the changelogs' compare links keep working.
 on:
-  push:
-    tags:
-      - "*-v*"
   workflow_dispatch:
     inputs:
       package:
-        description: "Package id to rehearse, e.g. ConfigDirector.ServerSdk. Packs and uploads at the version in the project, and publishes nothing."
+        description: "Package id to release at the version its project declares, e.g. ConfigDirector.ServerSdk, ConfigDirector.ServerSdk.AspNetCore or ConfigDirector.OpenFeature.ServerProvider."
         required: true
+      rehearsal:
+        description: "Pack and upload the packages as a workflow artifact without publishing or tagging anything."
+        type: boolean
+        default: false
 
 permissions:
   contents: read
+
+# One release at a time: two could otherwise plan against the same nuget.org state.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
 
 env:
   CONFIGURATION: Release
   # The build that gates a release checks the samples against the code being released, not against
   # whatever version is already on nuget.org.
   UseLocalSdk: true
+  PACKAGE: ${{ inputs.package }}
 
 defaults:
   run:
@@ -46,122 +56,55 @@ jobs:
     name: Pack
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    outputs:
-      package: ${{ steps.release.outputs.package }}
-      packages: ${{ steps.release.outputs.packages }}
-      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v7
 
       - uses: ./.github/actions/setup-dotnet
 
-      - name: Resolve the package
-        id: release
-        run: |
-          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
-            package="${{ inputs.package }}"
-            tagged=""
-          else
-            tag="$GITHUB_REF_NAME"
-
-            # Split at the last "-v". Two parameter expansions rather than one pattern: a package
-            # id carries dots and may carry hyphens, and each half is checked on its own below.
-            package="${tag%-v*}"
-            tagged="${tag##*-v}"
-
-            if [ "$package" = "$tag" ]; then
-              echo "::error::'$tag' is not a release tag. Tag releases as <PackageId>-v1.2.3."
-              exit 1
-            fi
-
-            # A malformed version would otherwise publish a package nobody can refer to.
-            if ! printf '%s' "$tagged" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
-              echo "::error::'$tagged' is not a semantic version. Tag releases as <PackageId>-v1.2.3 or <PackageId>-v1.2.3-beta.1."
-              exit 1
-            fi
-          fi
-
-          # Also what keeps the package id out of the path below.
-          if ! printf '%s' "$package" | grep -Eq '^[A-Za-z0-9._-]+$'; then
-            echo "::error::'$package' is not a package id."
-            exit 1
-          fi
-
-          project="src/$package/$package.csproj"
-          if [ ! -f "$project" ]; then
-            echo "::error::'$package' names no package in this repository: $project does not exist."
-            exit 1
-          fi
-
-          # The testing packages ship from the SDK's tag, in dependency order.
-          case "$package" in
-            ConfigDirector.ServerSdk.Testing | ConfigDirector.ServerSdk.AspNetCore.Testing)
-              echo "::error::$package is released with ConfigDirector.ServerSdk and carries its version. Tag ConfigDirector.ServerSdk-v<version> instead, which publishes all three."
-              exit 1
-              ;;
-            ConfigDirector.ServerSdk)
-              packages="$package ConfigDirector.ServerSdk.Testing ConfigDirector.ServerSdk.AspNetCore.Testing"
-              ;;
-            *)
-              packages="$package"
-              ;;
-          esac
-
-          echo "package=$package" >> "$GITHUB_OUTPUT"
-          echo "packages=$packages" >> "$GITHUB_OUTPUT"
-          echo "tagged=$tagged" >> "$GITHUB_OUTPUT"
-          echo "project=$project" >> "$GITHUB_OUTPUT"
-
       # A release is never published from code that does not build clean or pass. The whole
       # solution, not just the package being released: a package here can depend on another.
       - run: dotnet build -c "$CONFIGURATION"
 
-      # After the build, so the project has restored before it is evaluated. The version comes
-      # from the project; a tag that disagrees with it is the tag being wrong.
-      - name: Resolve the version
-        id: version
-        run: |
-          project="${{ steps.release.outputs.project }}"
-          tagged="${{ steps.release.outputs.tagged }}"
-          declared="$(dotnet msbuild "$project" -getProperty:Version -nologo)"
-
-          if [ -n "$tagged" ] && [ "$tagged" != "$declared" ]; then
-            echo "::error::'$GITHUB_REF_NAME' releases $tagged but $project declares $declared. Bump VersionPrefix, and VersionSuffix for a prerelease, in a commit and tag that commit."
-            exit 1
-          fi
-
-          echo "version=$declared" >> "$GITHUB_OUTPUT"
+      # After the build, so the projects have restored before their versions are read. Decides
+      # what this release publishes and tags, and refuses a version that is on nuget.org or tagged
+      # already, or that has no changelog section to publish as its release notes.
+      - name: Plan the release
+        run: scripts/release-plan.sh "$PACKAGE" artifacts/release-plan
 
       - run: dotnet test -c "$CONFIGURATION" --no-build --timeout 5m
 
-      # Every package, not just the one being released, so a package that depends on another one
+      # Every package, not just the ones being released, so a package that depends on another one
       # here is restored against the sibling it was built with rather than what nuget.org has.
       - run: dotnet pack -c "$CONFIGURATION" -o restore-check
 
       - run: scripts/verify-packages-restore.sh restore-check/*.nupkg
 
-      - run: |
-          for package in ${{ steps.release.outputs.packages }}; do
-            dotnet pack "src/$package/$package.csproj" -c "$CONFIGURATION" -o artifacts
-          done
+      - name: Pack the packages the plan publishes
+        run: |
+          while read -r decision id _version; do
+            [ "$decision" = publish ] || continue
+            dotnet pack "src/$id/$id.csproj" -c "$CONFIGURATION" -o artifacts
+          done < artifacts/release-plan
 
       - uses: actions/upload-artifact@v7
         with:
-          name: nupkg
+          name: release
           path: |
+            artifacts/release-plan
             artifacts/*.nupkg
             artifacts/*.snupkg
 
   publish:
     name: Publish
     needs: pack
-    if: github.event_name == 'push'
+    if: ${{ !inputs.rehearsal }}
     runs-on: ubuntu-latest
-    # Room for nuget.org to index each of the SDK's companion packages before the next is pushed.
+    # Room for nuget.org to index each package before the one depending on it is pushed.
     timeout-minutes: 60
     permissions:
       # id-token lets nuget.org verify this workflow through OIDC and hand back a short-lived key,
-      # so no long-lived credential is stored anywhere. contents is for the GitHub release.
+      # so no long-lived credential is stored anywhere. contents is for the tags and the GitHub
+      # releases.
       id-token: write
       contents: write
     steps:
@@ -171,51 +114,80 @@ jobs:
 
       - uses: actions/download-artifact@v7
         with:
-          name: nupkg
+          name: release
           path: artifacts
 
-      # Before the credential is fetched, so an out-of-order release fails having published
-      # nothing. Two release tags pushed together run in parallel and in no particular order. The
-      # first package is the tagged one; the packages after it depend on it and are checked again
-      # below, once it has been pushed and indexed.
-      - run: scripts/verify-dependencies-published.sh "artifacts/$(echo "${{ needs.pack.outputs.packages }}" | cut -d' ' -f1).${{ needs.pack.outputs.version }}.nupkg"
+      # Before the credential is fetched, since the key it yields expires within the hour: a package
+      # released on its own may depend on a release that nuget.org is still indexing. The packages
+      # after the first depend on it and wait their turn below.
+      - name: Wait for what the first package depends on
+        run: |
+          read -r _decision id version < artifacts/release-plan
+          scripts/wait-for-dependencies-indexed.sh "artifacts/$id.$version.nupkg"
 
       # Exchanges this run's OIDC token for a key that expires within the hour. The trusted
-      # publishing policy on nuget.org decides whether to issue one, matching on this repository,
-      # this workflow file, and the tag it was triggered by. Each package id needs its own policy.
+      # publishing policy on nuget.org decides whether to issue one, matching on this repository and
+      # this workflow's file name. Each package id needs its own policy.
       - uses: NuGet/login@v1
         id: nuget-login
         with:
           user: ${{ vars.NUGET_USER }}
 
-      # In dependency order. The symbol package next to each one is pushed with it. A package that
-      # pins the one before it exactly is pushed only once nuget.org has indexed that one, since
-      # nuget.org would otherwise accept a package nobody can restore. --skip-duplicate lets a
-      # failed run be re-run: what was pushed already is skipped and the rest continues.
-      - run: |
-          version="${{ needs.pack.outputs.version }}"
-          packages=(${{ needs.pack.outputs.packages }})
-          last=$(( ${#packages[@]} - 1 ))
+      # In dependency order. The symbol package next to each one is pushed with it. A package is
+      # pushed only once nuget.org has indexed every package here it depends on, since nuget.org
+      # would otherwise accept a package nobody can restore. --skip-duplicate lets a run that
+      # failed partway, for a reason outside this repository, be re-run from its failed job: what
+      # was pushed already is skipped and the rest continues.
+      - name: Push the packages
+        run: |
+          while read -r decision id version; do
+            [ "$decision" = publish ] || continue
+            nupkg="artifacts/$id.$version.nupkg"
 
-          for index in "${!packages[@]}"; do
-            package="${packages[$index]}"
-            nupkg="artifacts/$package.$version.nupkg"
-
-            scripts/verify-dependencies-published.sh "$nupkg"
+            scripts/wait-for-dependencies-indexed.sh "$nupkg"
 
             dotnet nuget push "$nupkg" \
               --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" \
               --source https://api.nuget.org/v3/index.json \
               --skip-duplicate
+          done < artifacts/release-plan
 
-            if [ "$index" -lt "$last" ]; then
-              scripts/wait-for-package-indexed.sh "$package" "$version"
-            fi
-          done
+      - name: Tag the released commit
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
 
-      - run: |
-          gh release create "$GITHUB_REF_NAME" artifacts/*.nupkg \
-            --title "${{ needs.pack.outputs.package }} ${{ needs.pack.outputs.version }}" \
-            --generate-notes --verify-tag
+          while read -r decision tag id version; do
+            [ "$decision" = tag ] || continue
+            git tag -a "$tag" -m "$id $version"
+            git push origin "$tag"
+          done < artifacts/release-plan
+
+      # One GitHub release per tag, with the package's changelog section as its notes and the
+      # packages it ships attached: the SDK's carries the two testing packages. --verify-tag
+      # refuses to invent a tag should the push above not have landed.
+      - name: Create the GitHub releases from the changelog sections
         env:
           GH_TOKEN: ${{ github.token }}
+        run: |
+          while read -r decision tag id version; do
+            [ "$decision" = tag ] || continue
+
+            scripts/release-notes.sh "$id" "$version" > "$RUNNER_TEMP/$tag.md"
+
+            files=("artifacts/$id.$version.nupkg")
+            if [ "$id" = ConfigDirector.ServerSdk ]; then
+              files+=("artifacts/ConfigDirector.ServerSdk.Testing.$version.nupkg" "artifacts/ConfigDirector.ServerSdk.AspNetCore.Testing.$version.nupkg")
+            fi
+
+            prerelease=()
+            case "$version" in
+              *-*) prerelease=(--prerelease) ;;
+            esac
+
+            gh release create "$tag" "${files[@]}" \
+              --verify-tag \
+              --title "$id $version" \
+              --notes-file "$RUNNER_TEMP/$tag.md" \
+              "${prerelease[@]}"
+          done < artifacts/release-plan

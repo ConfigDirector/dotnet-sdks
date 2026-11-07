@@ -16,6 +16,7 @@ which overwrites the one already there and leaves a `dotnet` that macOS refuses 
 dotnet build -c Release
 dotnet test -c Release --no-build --timeout 5m
 dotnet format --verify-no-changes
+scripts/release-plan-test.sh
 scripts/wait-for-package-indexed-test.sh
 ```
 
@@ -27,7 +28,7 @@ the test assembly directly, where xunit names any test still running after 30 se
 dotnet tests/ConfigDirector.ServerSdk.Tests/bin/Release/net10.0/ConfigDirector.ServerSdk.Tests.dll
 ```
 
-Those four are what CI runs, and what the shared `pre-push` hook runs. Wire the hook up once
+Those five are what CI runs, and what the shared `pre-push` hook runs. Wire the hook up once
 per clone:
 
 ```bash
@@ -67,22 +68,27 @@ dotnet test tests/ConfigDirector.ServerSdk.SlowTests/ConfigDirector.ServerSdk.Sl
 
 ## Releasing
 
-Tagging publishes. Every package is versioned and tagged on its own, as `<PackageId>-v<version>`:
+The [release](.github/workflows/release.yml) workflow publishes. It is manual (`workflow_dispatch`)
+by design, as in every other SDK repository: run it against `main` with the package id, and it
+releases whatever version that package's project declares, then tags the released commit as
+`<PackageId>-v<version>` once nuget.org has what the tag names. The tag is the workflow's last
+step, never the trigger, so a tag always names a version that was published and checked.
 
 ```bash
-git tag ConfigDirector.ServerSdk-v1.2.0
-git push origin ConfigDirector.ServerSdk-v1.2.0
+gh workflow run release.yml -f package=ConfigDirector.ServerSdk
 ```
 
-[release.yml](.github/workflows/release.yml) serves every package. It derives the project from the
-tag, so a package living in `src/<PackageId>/<PackageId>.csproj` needs no workflow of its own.
-Releases cut before this scheme were tagged `v1.2.3`, which the workflow no longer matches.
+One workflow serves every package: a package living in `src/<PackageId>/<PackageId>.csproj` needs
+no workflow of its own. What a release publishes and tags is decided by
+[scripts/release-plan.sh](scripts/release-plan.sh), which
+[scripts/release-plan-test.sh](scripts/release-plan-test.sh) covers. Releases before 2026-11-07
+were published by pushing the tag by hand, and releases before that scheme were tagged `v1.2.3`;
+the tag names are unchanged, so the changelogs' compare links keep working.
 
 The version lives in the package's project file, as `VersionPrefix` plus `VersionSuffix` for a
 prerelease; the SDK's lives in `src/ConfigDirector.ServerSdk/Version.props`, which its project and
-the two testing packages import. The workflow reads it from there and refuses a tag that disagrees
-with it. It is
-deliberately not passed in on the command line: `-p:Version` is a global MSBuild property, so it
+the two testing packages import. The workflow reads it from there, and refuses a version that is on nuget.org or tagged already.
+It is deliberately not passed in on the command line: `-p:Version` is a global MSBuild property, so it
 flows across a `ProjectReference` and would stamp the wrong dependency version on a package that
 depends on another one here.
 
@@ -110,47 +116,48 @@ The same steps apply to every package; `ConfigDirector.ServerSdk` stands in for 
    same version and link to the same tags.
 
 4. **Check the version the workflow will see.** A local build appends `-dev`; setting `CI` shows
-   the version as the workflow evaluates it, which is what the tag has to match:
+   the version as the workflow evaluates it, which is what it releases and tags:
 
    ```bash
    CI=true dotnet msbuild src/ConfigDirector.ServerSdk/ConfigDirector.ServerSdk.csproj -getProperty:Version
    ```
 
-5. **Build, test, and format** with the three commands under [Development](#development), then
-   commit and push to `main`. Anything a tag points at should already be on `main`, so the release
-   is reproducible from the branch.
+5. **Build, test, and format** with the commands under [Development](#development), then commit
+   and push to `main`. The workflow releases the commit it runs against, so the release is
+   reproducible from the branch.
 
-6. **Rehearse.** Run the workflow by hand, from the Actions tab or with the CLI:
+6. **Rehearse, if anything about the packaging changed.** Run the workflow with `rehearsal` set,
+   from the Actions tab or with the CLI:
+
+   ```bash
+   gh workflow run release.yml -f package=ConfigDirector.ServerSdk -f rehearsal=true
+   ```
+
+   It plans the release, builds and tests the solution, packs the packages the plan publishes at
+   the versions in their projects, and uploads the plan, the `.nupkg` and the `.snupkg` files as a
+   workflow artifact without publishing or tagging anything. Download the artifact and check what
+   would ship: the version, the README, and the dependencies in the `.nuspec`.
+
+7. **Run the workflow.**
 
    ```bash
    gh workflow run release.yml -f package=ConfigDirector.ServerSdk
    ```
 
-   It builds and tests the solution, packs the package at the version in the project (for the
-   SDK, the two testing packages as well), and uploads the `.nupkg` and `.snupkg` as a workflow
-   artifact without publishing anything. Download the
-   artifact and check what would ship: the version, the README, and the dependencies in the
-   `.nuspec`. The rehearsal does not run the dependency check described below; that runs only when
-   publishing.
-
-7. **Tag the commit and push the tag.**
-
-   ```bash
-   git tag ConfigDirector.ServerSdk-v1.2.0
-   git push origin ConfigDirector.ServerSdk-v1.2.0
-   ```
-
-8. **Watch the run.** The `Pack` job rejects a tag whose version disagrees with the project, and
-   it restores every packed package into a throwaway consumer project on each supported runtime
+8. **Watch the run.** The `Pack` job plans the release first: it refuses a version that is on
+   nuget.org or tagged already, a version a local build would produce, and a package whose
+   changelog has no section for its version, since that section becomes the release notes. It
+   then restores every packed package into a throwaway consumer project on each supported runtime
    (`scripts/verify-packages-restore.sh`), so a `.nuspec` that declares a dependency graph NuGet
-   rejects, such as a downgrade, fails here rather than in a user's build. The
-   `Publish` job checks that every dependency on another package here is already on nuget.org,
-   pushes the package and its symbols, and creates a GitHub release named after the tag with
-   generated notes. For the SDK it then pushes the two testing packages, each after nuget.org has
-   indexed the one before it (see [The testing packages](#the-testing-packages)). If `Pack` fails,
-   fix the cause, delete the tag, and start again from step 5. If `Publish` fails before pushing,
-   nothing has been published and the job can simply be re-run; a push of what is already on
-   nuget.org is skipped, so a re-run after a partial failure resumes where it stopped.
+   rejects, such as a downgrade, fails here rather than in a user's build. The `Publish` job pushes
+   each package and its symbols in dependency order, waiting for nuget.org to index every package
+   here that one depends on before pushing it (see [The testing packages](#the-testing-packages)),
+   then tags the commit once per released package and creates a GitHub release per tag with the
+   package's changelog section as its notes. If `Pack` fails, fix the cause, commit, and run the
+   workflow again. If `Publish` fails partway, for a reason outside this repository such as a
+   nuget.org outage, re-run its failed job rather than the workflow: the plan is kept with the
+   packages, a push of what is already on nuget.org is skipped, and the run resumes where it
+   stopped. A new run would refuse the version as already on nuget.org.
 
 9. **Confirm on nuget.org.** Indexing takes a few minutes. The package page shows the new version
    once it has been indexed, and a consumer can restore it from then on.
@@ -180,13 +187,14 @@ together three ways:
   its own before touching any internal member, and throws an `InvalidOperationException` naming
   both when they differ.
 
-They release from the SDK's tag: `release.yml` packs all three on `ConfigDirector.ServerSdk-v*`,
-pushes the SDK, waits for nuget.org to index it (`scripts/wait-for-package-indexed.sh`), pushes
+They release with the SDK: a release of `ConfigDirector.ServerSdk` pushes the SDK, waits for
+nuget.org to index it (`scripts/wait-for-package-indexed.sh`), pushes
 `ConfigDirector.ServerSdk.Testing`, waits again, and pushes
 `ConfigDirector.ServerSdk.AspNetCore.Testing`. The waits are what keep the exact dependencies
-restorable: nuget.org accepts a package whose dependencies it has not indexed yet. A tag naming a
-testing package on its own is rejected. Every SDK release therefore releases both testing packages
-too, with a changelog entry in each, if only to say that they now require the new SDK version.
+restorable: nuget.org accepts a package whose dependencies it has not indexed yet. The plan refuses
+a release of a testing package on its own, and both ship from the SDK's tag. Every SDK release
+therefore releases both testing packages too, with a changelog entry in each, if only to say that
+they now require the new SDK version.
 
 ### A package that depends on another package here
 
@@ -201,10 +209,11 @@ direct reference to the SDK itself.
 That has two consequences for releasing.
 
 **Order.** A package is published after everything it depends on, because it declares a dependency
-on the version it was built against. `Publish` enforces it: before fetching a credential, it reads
-the packed `.nuspec` and fails if any dependency on another package here is not yet on nuget.org.
-Two tags pushed at once run in parallel and in no particular order, so the dependent package's job
-can fail this way even when both tags are correct. Re-run that job once the dependency has indexed.
+on the version it was built against. `Publish` enforces it: before pushing a package, it reads the
+packed `.nuspec` and waits for nuget.org to list every dependency on another package here
+(`scripts/wait-for-dependencies-indexed.sh`), for up to 20 minutes each. A release of the provider
+run right after the SDK's therefore waits for the SDK to index instead of failing; a dependency that
+was never published fails the job once the deadline passes, having pushed nothing.
 
 **Carrying consumers forward.** If only `ConfigDirector.ServerSdk` changes and the AspNetCore
 package is left alone, its consumers stay on the older SDK. To move them, release a new AspNetCore
@@ -230,39 +239,24 @@ version whose only difference is the floor it declares:
 
    The `ConfigDirector.ServerSdk` dependency should show the version being released.
 
-4. Commit, push to `main`, and rehearse each package with `workflow_dispatch` if anything about the
-   packaging changed.
+4. Commit, push to `main`, and rehearse if anything about the packaging changed.
 
-5. Tag the commit once per package, and release in three steps. The SDK's run cannot finish on
-   its own: `ConfigDirector.ServerSdk.AspNetCore.Testing` declares a floor on the AspNetCore
-   version in the same commit, which is not on nuget.org until the AspNetCore tag has published,
-   and the AspNetCore package needs the new SDK first. So the SDK's run pushes the SDK and
-   `ConfigDirector.ServerSdk.Testing`, then fails its dependency check having pushed nothing of
-   `ConfigDirector.ServerSdk.AspNetCore.Testing`. Push the AspNetCore tag once the SDK is listed
-   on nuget.org, and once the AspNetCore version is listed too, re-run the SDK run's failed job. It
-   skips what it pushed already, pushes the last testing package, and creates the GitHub release:
-
-   ```bash
-   git tag ConfigDirector.ServerSdk-v1.2.0
-   git tag ConfigDirector.ServerSdk.AspNetCore-v1.1.0
-   git push origin ConfigDirector.ServerSdk-v1.2.0
-   # once ConfigDirector.ServerSdk 1.2.0 is listed on nuget.org:
-   git push origin ConfigDirector.ServerSdk.AspNetCore-v1.1.0
-   # once ConfigDirector.ServerSdk.AspNetCore 1.1.0 is listed on nuget.org:
-   gh run rerun --failed "$(gh run list --workflow release.yml --branch ConfigDirector.ServerSdk-v1.2.0 --limit 1 --json databaseId --jq '.[0].databaseId')"
-   ```
-
-   Pushing both tags at once also works; each `Publish` job then fails its dependency check until
-   the package it waits on has indexed, and is re-run rather than re-tagged: the AspNetCore one
-   once the SDK is listed, then the SDK one once AspNetCore is. Indexing can be checked with the
-   same lookup the workflow uses:
+5. Release `ConfigDirector.ServerSdk`. One run publishes the whole set: the plan sees that the
+   AspNetCore version is not on nuget.org yet and includes the package, because
+   `ConfigDirector.ServerSdk.AspNetCore.Testing` requires that version. The run pushes the SDK,
+   then `ConfigDirector.ServerSdk.Testing` and `ConfigDirector.ServerSdk.AspNetCore` once the SDK
+   is indexed, then `ConfigDirector.ServerSdk.AspNetCore.Testing` once those two are, and tags the
+   commit as both `ConfigDirector.ServerSdk-v1.2.0` and `ConfigDirector.ServerSdk.AspNetCore-v1.1.0`,
+   each with its own GitHub release. An AspNetCore version that is on nuget.org already is left as
+   it is, so an SDK release that did not bump it releases the SDK and the testing packages alone.
 
    ```bash
-   curl -s https://api.nuget.org/v3-flatcontainer/configdirector.serversdk/index.json
+   gh workflow run release.yml -f package=ConfigDirector.ServerSdk
    ```
 
 The reverse case needs nothing special. A change to the AspNetCore package alone is released on
-its own, and declares whatever SDK version the project holds at that commit.
+its own, with `package=ConfigDirector.ServerSdk.AspNetCore`, and declares whatever SDK version the
+project holds at that commit.
 
 ### The OpenFeature provider and the SDK's internals
 
@@ -280,7 +274,8 @@ version, so those members are a compatibility contract:
 - Do not change or remove them in a minor or patch release of the SDK. Add a new overload and leave
   the existing one in place.
 - When one of them does change in a major release, bump the provider in the same commit and
-  release it right after the SDK, as described above for the AspNetCore package. Its changelog
-  should say it requires the new SDK.
+  release it right after the SDK, with `package=ConfigDirector.OpenFeature.ServerProvider`; its
+  run waits for the SDK version it declares to be on nuget.org. Its changelog should say it
+  requires the new SDK.
 - A wrapper that is new to the repository needs its assembly name added to the SDK's
   `InternalsVisibleTo` list before it can build.

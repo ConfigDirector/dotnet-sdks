@@ -3,9 +3,9 @@
 # be pushed next.
 #
 # nuget.org accepts a push within seconds but indexes it minutes later, and until then a package
-# depending on the pushed version fails scripts/verify-dependencies-published.sh. The testing
-# packages pin the SDK's exact version and are pushed right after it from the same run, so the
-# run has to wait here rather than fail and be re-run by hand.
+# depending on the pushed version cannot be restored. scripts/wait-for-dependencies-indexed.sh
+# calls this for each package a package depends on, so the release run waits here rather than
+# fail and be re-run by hand.
 #
 # Once one read lists the version, the next can still miss it, because nuget.org serves the index
 # from more than one copy and they catch up at different times. So the version has to be listed on
