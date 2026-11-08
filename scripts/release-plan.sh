@@ -132,7 +132,9 @@ for tag in "${tags[@]}"; do
   decisions+=("tag $tag")
 done
 
-# Written only now, so a refusal above leaves no plan behind.
+# Written only now, so a refusal above leaves no plan behind. The plan is the first thing written
+# into the directory the packages are packed into later, so the directory is created here.
+mkdir -p "$(dirname "$plan")"
 printf '%s\n' "${decisions[@]}" > "$plan"
 
 echo "Releasing $package $version:"

@@ -176,6 +176,17 @@ assert_plan "publish ConfigDirector.OpenFeature.ServerProvider 2.0.0-beta.1
 tag ConfigDirector.OpenFeature.ServerProvider-v2.0.0-beta.1 ConfigDirector.OpenFeature.ServerProvider 2.0.0-beta.1"
 pass
 
+scenario=the_plan_is_written_into_a_directory_that_does_not_exist_yet
+start_repository 1.11.0
+plan_file="$repository/artifacts/release-plan"
+status=0
+output=$(cd "$repository" && PATH="$sandbox/bin:$PATH" DECLARED_VERSIONS="$declared" LISTED_VERSIONS="$listed" EXISTING_TAGS="$tags" \
+  "$release_plan" ConfigDirector.OpenFeature.ServerProvider "$plan_file" 2>&1) || status=$?
+assert_status 0
+assert_plan "publish ConfigDirector.OpenFeature.ServerProvider 1.11.0
+tag ConfigDirector.OpenFeature.ServerProvider-v1.11.0 ConfigDirector.OpenFeature.ServerProvider 1.11.0"
+pass
+
 scenario=refuses_a_testing_package_which_releases_with_the_sdk
 start_repository 1.11.0
 run_plan ConfigDirector.ServerSdk.Testing
